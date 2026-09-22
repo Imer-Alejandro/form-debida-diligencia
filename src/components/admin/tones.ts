@@ -53,6 +53,24 @@ export const ALL_STATUSES: RegistrationStatus[] = [
   "RECHAZADO",
 ];
 
+export const STATUS_COLORS: Record<RegistrationStatus, string> = {
+  BORRADOR: "#94a3b8",
+  PENDIENTE: "#eab308",
+  EN_REVISION: "#3b82f6",
+  SOLICITUD_CAMBIOS: "#8b5cf6",
+  APROBADO: "#10b981",
+  APROBADO_CONDICIONES: "#b9995c",
+  RECHAZADO: "#ef4444",
+};
+
+export const RISK_COLORS: Record<RiskLevel, string> = {
+  PENDIENTE: "#94a3b8",
+  BAJO: "#10b981",
+  MEDIO: "#f59e0b",
+  ALTO: "#ef4444",
+  CRITICO: "#7f1d1d",
+};
+
 export const ALL_RISKS: RiskLevel[] = [
   "PENDIENTE",
   "BAJO",

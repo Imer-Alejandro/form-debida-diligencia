@@ -15,11 +15,13 @@ create table if not exists public.app_config (
 alter table public.app_config enable row level security;
 
 -- Anyone can read the *encrypted* value; it is useless without ONEDRIVE_CONFIG_SECRET.
+drop policy if exists "app_config is publicly readable" on public.app_config;
 create policy "app_config is publicly readable"
   on public.app_config for select
   using (true);
 
 -- Only signed-in users can write configuration.
+drop policy if exists "app_config is admin writable" on public.app_config;
 create policy "app_config is admin writable"
   on public.app_config for all
   using (auth.role() = 'authenticated')
@@ -64,10 +66,12 @@ create table if not exists public.invitations (
 alter table public.invitations enable row level security;
 
 -- Tokens are random (32+ chars) and treated as registration credentials.
+drop policy if exists "invitations are readable by token" on public.invitations;
 create policy "invitations are readable by token"
   on public.invitations for select
   using (true);
 
+drop policy if exists "invitations are admin managed" on public.invitations;
 create policy "invitations are admin managed"
   on public.invitations for all
   using (auth.role() = 'authenticated')
@@ -108,15 +112,18 @@ alter table public.supplier_registrations enable row level security;
 -- save_registration_draft / submit_registration functions below, and read
 -- only their own row through get_registration_for_token.
 
+drop policy if exists "registrations are admin readable and editable" on public.supplier_registrations;
 create policy "registrations are admin readable and editable"
   on public.supplier_registrations for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "registrations are admin editable" on public.supplier_registrations;
 create policy "registrations are admin editable"
   on public.supplier_registrations for update
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
 
+drop policy if exists "registrations are admin deletable" on public.supplier_registrations;
 create policy "registrations are admin deletable"
   on public.supplier_registrations for delete
   using (auth.role() = 'authenticated');
@@ -265,6 +272,7 @@ create table if not exists public.registration_documents (
 
 alter table public.registration_documents enable row level security;
 
+drop policy if exists "suppliers can attach documents with a valid token" on public.registration_documents;
 create policy "suppliers can attach documents with a valid token"
   on public.registration_documents for insert
   with check (
@@ -276,10 +284,12 @@ create policy "suppliers can attach documents with a valid token"
     )
   );
 
+drop policy if exists "documents are admin readable and editable" on public.registration_documents;
 create policy "documents are admin readable and editable"
   on public.registration_documents for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "supplier can remove documents from their draft" on public.registration_documents;
 create policy "supplier can remove documents from their draft"
   on public.registration_documents for delete
   using (
@@ -317,13 +327,15 @@ create table if not exists public.activity_log (
 
 alter table public.activity_log enable row level security;
 
+drop policy if exists "activity log is admin only" on public.activity_log;
 create policy "activity log is admin only"
   on public.activity_log for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "activity log is appendable" on public.activity_log;
 create policy "activity log is appendable"
   on public.activity_log for insert
-  using (true);
+  with check (true);
 
 -- ---------------------------------------------------------------------
 -- 6. updated_at trigger

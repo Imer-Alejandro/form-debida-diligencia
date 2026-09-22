@@ -15,12 +15,14 @@ export function NewInvitation() {
   const [expires, setExpires] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mailInfo, setMailInfo] = useState<string | null>(null);
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
     if (!company.trim()) return;
     setSaving(true);
     setError(null);
+    setMailInfo(null);
     const res = await fetch("/api/admin/invitations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,16 +34,29 @@ export function NewInvitation() {
         expiresAt: expires ? new Date(expires).toISOString() : null,
       }),
     });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
+    const data = (await res.json()) as {
+      ok?: boolean;
+      error?: string;
+      emailStatus?: "sent" | "failed" | "skipped";
+      mailError?: string;
+    };
     if (!res.ok || !data.ok) {
       setError(t("admin.invitations.errorCreate"));
       setSaving(false);
       return;
     }
+    setMailInfo(
+      data.emailStatus === "sent"
+        ? t("admin.invitations.mailSent")
+        : data.emailStatus === "failed"
+          ? `${t("admin.invitations.mailFailed")}${data.mailError ? ` (${data.mailError})` : ""}`
+          : t("admin.invitations.mailSkipped")
+    );
     setCompany("");
     setEmail("");
     setNote("");
     setExpires("");
+    setSaving(false);
     router.refresh();
   };
 
@@ -89,7 +104,16 @@ export function NewInvitation() {
           />
         </Field>
       </div>
-      {error && <p className="text-[13px] text-danger">{error}</p>}
+      {error && (
+        <p className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+      {mailInfo && (
+        <p className="rounded-xl border border-navy-800/10 bg-bone-50 px-4 py-3 text-[13px] text-ink-soft">
+          {mailInfo}
+        </p>
+      )}
       <div className="flex justify-end">
         <Button type="submit" disabled={saving || !company.trim()}>
           {saving ? t("admin.invitations.creating") : t("admin.invitations.create")}

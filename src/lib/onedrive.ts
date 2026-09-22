@@ -68,8 +68,10 @@ export function buildEncryptedConfig(
 }
 
 const CLIENT_ID = () => process.env.ONEDRIVE_CLIENT_ID ?? "";
+const CLIENT_SECRET = () => process.env.ONEDRIVE_CLIENT_SECRET ?? "";
 const TENANT = () => process.env.ONEDRIVE_TENANT_ID ?? "common";
 const SCOPE = "Files.ReadWrite.All offline_access";
+const SITE_URL = () => process.env.SHAREPOINT_SITE_URL ?? "";
 
 export function authUrl(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
@@ -94,6 +96,7 @@ export async function exchangeCodeForToken(code: string): Promise<{
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
   const body = new URLSearchParams({
     client_id: CLIENT_ID(),
+    client_secret: CLIENT_SECRET(),
     grant_type: "authorization_code",
     code,
     redirect_uri: `${base}/api/onedrive/callback`,
@@ -119,9 +122,9 @@ export async function exchangeCodeForToken(code: string): Promise<{
 async function refreshAccessToken(refreshToken: string) {
   const body = new URLSearchParams({
     client_id: CLIENT_ID(),
+    client_secret: CLIENT_SECRET(),
     grant_type: "refresh_token",
     refresh_token: refreshToken,
-    scope: SCOPE,
   });
   // tenant for work accounts may already be part of the token grant; using an explicit tenant
   const res = await fetch(
@@ -173,6 +176,36 @@ export function filePath(registrationId: string, ref: string, fileName: string):
   return `${folderPath(registrationId)}/${ref}_${safe}`;
 }
 
+/** Encodes each path segment for Graph's `:/...:` syntax. */
+function encodePath(path: string): string {
+  return path
+    .split("/")
+    .map((s) => encodeURIComponent(s))
+    .join("/");
+}
+
+let cachedSiteId: string | null = null;
+
+/** Resolves the configured SharePoint site id using the signed-in user's token. */
+async function siteDriveBase(accessToken: string): Promise<string> {
+  const siteUrl = SITE_URL();
+  if (!siteUrl) throw new Error("SHAREPOINT_SITE_URL no configurada");
+  const m = siteUrl.match(/^https:\/\/([^/]+)(?:\/(.*))?$/i);
+  if (!m) throw new Error("SHAREPOINT_SITE_URL no válida");
+  const host = m[1];
+  const sitePath = (m[2] ?? "").replace(/^\/|\/$/g, "");
+  if (!cachedSiteId) {
+    const res = await fetch(`${GRAPH}/sites/${host}:/${sitePath}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const json = await res.json();
+    if (!res.ok)
+      throw new Error(json.error?.message ?? "Sitio de SharePoint no accesible");
+    cachedSiteId = json.id as string;
+  }
+  return `${GRAPH}/sites/${cachedSiteId}/drive`;
+}
+
 export interface UploadSession {
   uploadUrl: string;
   expirationDateTime: string;
@@ -182,8 +215,10 @@ export async function createUploadSession(
   accessToken: string,
   path: string
 ): Promise<UploadSession> {
+  const base = await siteDriveBase(accessToken);
+  const encoded = encodePath(path);
   const res = await fetch(
-    `${GRAPH}/me/drive/root:/${path}:/createUploadSession`,
+    `${base}/root:/${encoded}:/createUploadSession`,
     {
       method: "POST",
       headers: {
@@ -207,7 +242,9 @@ export async function getItemIdByPath(
   accessToken: string,
   path: string
 ): Promise<string> {
-  const res = await fetch(`${GRAPH}/me/drive/root:/${path}`, {
+  const base = await siteDriveBase(accessToken);
+  const encoded = encodePath(path);
+  const res = await fetch(`${base}/root:/${encoded}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const json = await res.json();
@@ -219,7 +256,8 @@ export async function createShareLink(
   accessToken: string,
   itemId: string
 ): Promise<string> {
-  const res = await fetch(`${GRAPH}/me/drive/items/${itemId}/createLink`, {
+  const base = await siteDriveBase(accessToken);
+  const res = await fetch(`${base}/items/${itemId}/createLink`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -230,7 +268,7 @@ export async function createShareLink(
   const json = await res.json();
   if (!res.ok) {
     if ((json.error?.code ?? "") === "organizationScopePermissionMisconfigured") {
-      const res2 = await fetch(`${GRAPH}/me/drive/items/${itemId}/createLink`, {
+      const res2 = await fetch(`${base}/items/${itemId}/createLink`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -251,7 +289,8 @@ export async function deleteFile(
   accessToken: string,
   itemId: string
 ): Promise<void> {
-  const res = await fetch(`${GRAPH}/me/drive/items/${itemId}`, {
+  const base = await siteDriveBase(accessToken);
+  const res = await fetch(`${base}/items/${itemId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
