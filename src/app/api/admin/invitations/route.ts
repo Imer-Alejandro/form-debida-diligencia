@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       note: body.note ?? "",
       status: "sent",
       language,
-      created_by: user.email ?? "",
+      created_by: user.id,
       expires_at: expiresAt,
     })
     .select("id, token, created_at")

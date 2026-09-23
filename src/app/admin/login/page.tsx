@@ -31,22 +31,26 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-bone-50">
+    <div className="flex min-h-screen flex-col bg-[#f8fafc]">
       <header className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-4">
         <Logo dark />
         <LangToggle />
       </header>
       <main className="mx-auto flex w-full max-w-md flex-1 items-center px-4 pb-16">
-        <div className="w-full rounded-3xl border border-navy-800/10 bg-white p-6 shadow-[0_1px_2px_rgba(10,28,49,0.04)] sm:p-8">
-          <h1 className="font-display text-2xl font-semibold text-navy-900">
+        <div className="w-full rounded-3xl border border-slate-200/80 bg-white p-7 sm:p-9 shadow-sm">
+          <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+            Acceso Administrativo
+          </div>
+          <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-slate-900">
             {t("admin.login.title")}
           </h1>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
             {t("admin.login.subtitle")}
           </p>
           <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-ink">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
                 {t("admin.login.email")}
               </span>
               <Input
@@ -59,7 +63,7 @@ export default function AdminLoginPage() {
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-ink">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
                 {t("admin.login.password")}
               </span>
               <Input
@@ -71,7 +75,7 @@ export default function AdminLoginPage() {
               />
             </label>
             {error && (
-              <p className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
+              <p className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-xs text-rose-600 font-medium">
                 {error}
               </p>
             )}
@@ -79,7 +83,7 @@ export default function AdminLoginPage() {
               {loading ? t("common.loading") : t("admin.login.signIn")}
             </Button>
           </form>
-          <p className="mt-5 text-[11.5px] leading-relaxed text-ink-muted">
+          <p className="mt-5 text-[11.5px] leading-relaxed text-slate-400 text-center">
             {t("admin.login.noAccount")}
           </p>
         </div>

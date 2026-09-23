@@ -12,35 +12,35 @@ export default async function AdminSettingsPage() {
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 
   return (
-    <div className="max-w-3xl">
-      <div className="mb-6">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-navy-900 sm:text-3xl">
+    <div className="max-w-3xl space-y-5">
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           {st.title}
         </h1>
-        <p className="mt-1 text-sm text-ink-muted">{dict.brand.tagline}</p>
+        <p className="mt-1 text-sm text-slate-500">{dict.brand.tagline}</p>
       </div>
 
-      <section className="rounded-2xl border border-navy-800/10 bg-white p-5 sm:p-6">
-        <h2 className="font-display text-[16px] font-semibold text-navy-900">
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+        <h2 className="font-display text-[15px] font-bold text-slate-900">
           {st.subsection_onedrive}
         </h2>
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Badge tone={state.configured ? "green" : "amber"}>
+            <Badge tone={state.configured ? "green" : "amber"} withDot>
               {state.configured ? st.onedrive_configured : st.onedrive_notconfigured}
             </Badge>
             {state.account && (
-              <p className="text-[13px] text-ink-soft">
+              <p className="text-xs text-slate-600">
                 {st.onedrive_account}:{" "}
-                <span className="font-medium text-ink">{state.account}</span>
+                <span className="font-semibold text-slate-900">{state.account}</span>
               </p>
             )}
           </div>
           {!state.configured && (
             <a
               href={connectUrl}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-navy-800 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-navy-700"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-navy-900 px-5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-navy-800"
             >
               {st.connect}
             </a>
@@ -48,29 +48,29 @@ export default async function AdminSettingsPage() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-navy-800/10 bg-white p-5 sm:p-6">
-        <h2 className="font-display text-[16px] font-semibold text-navy-900">
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+        <h2 className="font-display text-[15px] font-bold text-slate-900">
           {st.steps}
         </h2>
-        <ol className="mt-4 space-y-3 text-[13.5px] leading-relaxed text-ink-soft">
-          <li><span className="font-medium text-ink">1.</span> {st.st1}</li>
-          <li><span className="font-medium text-ink">2.</span> {st.st2}{" "}
-            <code className="inline-block rounded-md bg-bone-100 px-2 py-0.5 text-[12px] text-navy-800">
+        <ol className="mt-4 space-y-3 text-xs leading-relaxed text-slate-600">
+          <li><span className="font-bold text-slate-900">1.</span> {st.st1}</li>
+          <li><span className="font-bold text-slate-900">2.</span> {st.st2}{" "}
+            <code className="inline-block max-w-full break-all rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono text-slate-800">
               {base}/api/onedrive/callback
             </code>
           </li>
-          <li><span className="font-medium text-ink">3.</span> {st.st3}</li>
-          <li><span className="font-medium text-ink">4.</span> {st.st4}</li>
-          <li><span className="font-medium text-ink">5.</span> {st.st5}</li>
-          <li><span className="font-medium text-ink">6.</span> {st.st6}</li>
+          <li><span className="font-bold text-slate-900">3.</span> {st.st3}</li>
+          <li><span className="font-bold text-slate-900">4.</span> {st.st4}</li>
+          <li><span className="font-bold text-slate-900">5.</span> {st.st5}</li>
+          <li><span className="font-bold text-slate-900">6.</span> {st.st6}</li>
         </ol>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-navy-800/10 bg-white p-5 sm:p-6">
-        <h2 className="font-display text-[16px] font-semibold text-navy-900">
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+        <h2 className="font-display text-[15px] font-bold text-slate-900">
           {st.docs_section}
         </h2>
-        <p className="mt-2 text-[13.5px] leading-relaxed text-ink-soft">
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
           {st.docs_note}
         </p>
       </section>

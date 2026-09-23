@@ -63,7 +63,7 @@ export function NewInvitation() {
   return (
     <form
       onSubmit={(e) => void create(e)}
-      className="space-y-4 rounded-2xl border border-navy-800/10 bg-white p-5"
+      className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("admin.invitations.company")} required>
@@ -105,16 +105,16 @@ export function NewInvitation() {
         </Field>
       </div>
       {error && (
-        <p className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
+        <p className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-xs text-rose-600 font-medium">
           {error}
         </p>
       )}
       {mailInfo && (
-        <p className="rounded-xl border border-navy-800/10 bg-bone-50 px-4 py-3 text-[13px] text-ink-soft">
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700 font-medium">
           {mailInfo}
         </p>
       )}
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button type="submit" disabled={saving || !company.trim()}>
           {saving ? t("admin.invitations.creating") : t("admin.invitations.create")}
         </Button>

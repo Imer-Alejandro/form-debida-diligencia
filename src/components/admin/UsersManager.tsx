@@ -89,14 +89,14 @@ export function UsersManager({
   };
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl border border-navy-800/10 bg-white p-5 sm:p-6">
-        <h2 className="font-display text-[15px] font-semibold text-navy-900">
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+        <h2 className="font-display text-[15px] font-bold text-slate-900">
           {u.new}
         </h2>
         <form onSubmit={(e) => void create(e)} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-ink">
+            <span className="mb-1.5 block text-xs font-semibold text-slate-700">
               {u.email}
             </span>
             <Input
@@ -109,7 +109,7 @@ export function UsersManager({
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-ink">
+            <span className="mb-1.5 block text-xs font-semibold text-slate-700">
               {u.password}
             </span>
             <Input
@@ -130,35 +130,35 @@ export function UsersManager({
         </form>
         {(error || flash) && (
           <p
-            className={`mt-4 rounded-xl border px-4 py-3 text-[13px] ${
+            className={`mt-4 rounded-xl border px-4 py-3 text-xs font-medium ${
               error
-                ? "border-danger/20 bg-danger/5 text-danger"
-                : "border-success/20 bg-success/5 text-success"
+                ? "border-rose-200/80 bg-rose-50/70 text-rose-600"
+                : "border-emerald-200/80 bg-emerald-50/70 text-emerald-700"
             }`}
           >
             {error ?? flash}
           </p>
         )}
-        <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">
+        <p className="mt-3 text-xs leading-relaxed text-slate-400">
           {u.passwordHint}
         </p>
       </div>
 
       <div>
-        <h2 className="mb-3 font-display text-[15px] font-semibold text-navy-900">
+        <h2 className="mb-3 font-display text-[15px] font-bold text-slate-900">
           {u.listTitle}
         </h2>
         {items.length === 0 ? (
-          <p className="rounded-2xl border border-navy-800/10 bg-white px-6 py-12 text-center text-sm text-ink-muted">
+          <p className="rounded-2xl border border-slate-200/80 bg-white px-6 py-12 text-center text-sm text-slate-400 shadow-xs">
             {u.empty}
           </p>
         ) : (
-          <div className="divide-y divide-navy-800/5 rounded-2xl border border-navy-800/10 bg-white">
+          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
             {items.map((row) => (
-              <div key={row.id} className="flex items-center gap-3 px-5 py-3.5">
+              <div key={row.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{row.email}</p>
-                  <p className="text-[12px] text-ink-muted">
+                  <p className="truncate text-sm font-semibold text-slate-800">{row.email}</p>
+                  <p className="text-xs text-slate-400">
                     {u.createdCol} {row.createdAt ? formatDate(row.createdAt) : "—"}
                     {" · "}
                     {u.lastSignIn} {row.lastSignIn ? formatDate(row.lastSignIn) : "—"}

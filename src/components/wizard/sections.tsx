@@ -470,7 +470,7 @@ export function Section5({ data, set }: SectionProps) {
           </Field>
         )}
       </Row>
-      <p className="rounded-xl border border-gold-500/30 bg-gold-300/20 px-4 py-3 text-[12.5px] leading-relaxed text-[#6b5520]">
+      <p className="rounded-xl border border-warning/25 bg-warning/5 px-4 py-3 text-[12.5px] leading-relaxed text-warning">
         {s5.fraudNote}
       </p>
     </div>

@@ -5,10 +5,11 @@ export function statusTone(status: RegistrationStatus) {
     case "APROBADO":
       return "green" as const;
     case "APROBADO_CONDICIONES":
-      return "gold" as const;
+      return "teal" as const;
     case "PENDIENTE":
-    case "EN_REVISION":
       return "amber" as const;
+    case "EN_REVISION":
+      return "blue" as const;
     case "SOLICITUD_CAMBIOS":
       return "navy" as const;
     case "RECHAZADO":
@@ -55,20 +56,20 @@ export const ALL_STATUSES: RegistrationStatus[] = [
 
 export const STATUS_COLORS: Record<RegistrationStatus, string> = {
   BORRADOR: "#94a3b8",
-  PENDIENTE: "#eab308",
-  EN_REVISION: "#3b82f6",
-  SOLICITUD_CAMBIOS: "#8b5cf6",
+  PENDIENTE: "#f59e0b",
+  EN_REVISION: "#0284c7",
+  SOLICITUD_CAMBIOS: "#6366f1",
   APROBADO: "#10b981",
-  APROBADO_CONDICIONES: "#b9995c",
-  RECHAZADO: "#ef4444",
+  APROBADO_CONDICIONES: "#0d9488",
+  RECHAZADO: "#f43f5e",
 };
 
 export const RISK_COLORS: Record<RiskLevel, string> = {
   PENDIENTE: "#94a3b8",
   BAJO: "#10b981",
   MEDIO: "#f59e0b",
-  ALTO: "#ef4444",
-  CRITICO: "#7f1d1d",
+  ALTO: "#f97316",
+  CRITICO: "#ef4444",
 };
 
 export const ALL_RISKS: RiskLevel[] = [

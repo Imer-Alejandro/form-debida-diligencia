@@ -40,15 +40,29 @@ export function SuppliersFilters() {
   return (
     <form
       onSubmit={(e) => apply(e)}
-      className="rounded-2xl border border-navy-800/10 bg-white p-4"
+      className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs"
     >
       <div className="flex flex-col gap-3 lg:flex-row">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t("admin.suppliers.searchPlaceholder")}
-          className="flex-1"
-        />
+        <div className="relative flex-1">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("admin.suppliers.searchPlaceholder")}
+            className="pl-10"
+          />
+        </div>
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="lg:w-44">
           <option value="">{t("admin.suppliers.status")}</option>
           {ALL_STATUSES.map((s) => (
@@ -82,23 +96,25 @@ export function SuppliersFilters() {
           ))}
         </Select>
       </div>
-      <div className="mt-3 flex items-center gap-3">
-        <Input
-          value={tag}
-          onChange={(e) => setTag(e.target.value)}
-          placeholder={t("admin.suppliers.tag")}
-          className="h-10 max-w-[260px] text-[13px]"
-        />
-        <Button type="submit" size="sm">
-          Filtrar
-        </Button>
+      <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-3">
+        <div className="flex items-center gap-2.5">
+          <Input
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            placeholder={t("admin.suppliers.tag")}
+            className="h-9 max-w-[240px] text-xs"
+          />
+          <Button type="submit" size="sm">
+            Filtrar
+          </Button>
+        </div>
         {hasActive && (
           <button
             type="button"
             onClick={() => router.push("/admin/suppliers")}
-            className="text-[13px] text-ink-muted underline underline-offset-2 hover:text-navy-700"
+            className="text-xs font-semibold text-slate-500 hover:text-navy-900 transition-colors"
           >
-            Limpiar
+            Limpiar filtros
           </button>
         )}
       </div>

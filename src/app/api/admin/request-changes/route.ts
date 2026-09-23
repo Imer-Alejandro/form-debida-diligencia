@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       note: body.note ?? "Solicitud de cambios: revise la información señalada y vuelva a enviar el formulario.",
       status: "sent",
       language: oldInv?.language ?? "es",
-      created_by: user.email ?? "",
+      created_by: user.id,
       expires_at: expiresAt,
     })
     .select("id")

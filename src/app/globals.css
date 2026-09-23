@@ -4,35 +4,39 @@
   --font-sans: var(--font-inter);
   --font-serif: var(--font-inter);
 
-  --color-ink: #171b21;
-  --color-ink-soft: #4d5561;
-  --color-ink-muted: #7a828e;
+  --color-ink: #0f172a;
+  --color-ink-soft: #475569;
+  --color-ink-muted: #94a3b8;
 
-  --color-navy-950: #060f1b;
-  --color-navy-900: #0a1c31;
+  --color-navy-950: #07111e;
+  --color-navy-900: #0a192f;
   --color-navy-800: #0f2842;
-  --color-navy-700: #163a5c;
-  --color-navy-600: #1e4d76;
-  --color-navy-500: #2b6494;
-  --color-navy-100: #dce7f1;
-  --color-navy-50: #eef4f9;
+  --color-navy-700: #163a5f;
+  --color-navy-600: #1e4d7d;
+  --color-navy-500: #2a6499;
+  --color-navy-100: #e2ecf5;
+  --color-navy-50: #f1f6fa;
 
-  --color-bone-50: #f7f9fc;
-  --color-bone-100: #eef2f7;
-  --color-bone-200: #dfe7f0;
-  --color-bone-300: #c6d2e0;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-50: #f0fdfa;
 
-  --color-cream-50: #faf7f0;
-  --color-cream-100: #f3ede0;
-  --color-cream-200: #e8dfc9;
+  --color-bone-50: #f8fafc;
+  --color-bone-100: #f1f5f9;
+  --color-bone-200: #e2e8f0;
+  --color-bone-300: #cbd5e1;
+
+  --color-cream-50: #faf8f5;
+  --color-cream-100: #f5f0e6;
+  --color-cream-200: #eae0cf;
 
   --color-gold-500: #b9995c;
   --color-gold-400: #c7aa74;
   --color-gold-300: #dcc79b;
 
   --color-success: #10b981;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
 }
 
 html {
@@ -40,18 +44,19 @@ html {
 }
 
 body {
-  background: #ffffff;
+  background-color: #f8fafc;
   color: var(--color-ink);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-display {
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 ::selection {
-  background: var(--color-navy-800);
+  background: var(--color-navy-900);
   color: #fff;
 }
 
@@ -63,6 +68,6 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-navy-600);
+  outline: 2px solid var(--color-navy-700);
   outline-offset: 2px;
 }
