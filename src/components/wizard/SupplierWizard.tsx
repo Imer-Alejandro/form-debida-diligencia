@@ -301,7 +301,7 @@ export function SupplierWizard({
   if (submission) {
     return (
       <div className="mx-auto max-w-2xl">
-        <div className="rounded-3xl border border-navy-800/10 bg-white p-8 text-center shadow-[0_1px_2px_rgba(10,28,49,0.04)] sm:p-12">
+        <div className="rounded-3xl border border-navy-800/10 bg-white p-8 text-center shadow-[0_6px_24px_rgba(10,28,49,0.08)] sm:p-12">
           <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-full bg-success/10">
             <svg className="h-8 w-8 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6 9 17l-5-5" />
@@ -374,7 +374,7 @@ export function SupplierWizard({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[240px_1fr] lg:gap-8">
         <nav aria-label="Secciones" className="hidden lg:block">
           <ol className="sticky top-24 space-y-1">
             {TITLE_STEPS.map((key, i) => {
@@ -411,7 +411,7 @@ export function SupplierWizard({
         </nav>
 
         <div className="min-w-0">
-          <div className="rounded-3xl border border-navy-800/10 bg-white p-5 shadow-[0_1px_2px_rgba(10,28,49,0.04)] sm:p-8">
+          <div className="rounded-3xl border border-navy-800/10 bg-white p-5 shadow-[0_6px_24px_rgba(10,28,49,0.08)] sm:p-10">
             {errors["s10"] && step === 9 && (
               <p className="mb-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
                 {errors["s10"]}
@@ -472,7 +472,7 @@ export function SupplierWizard({
           </div>
 
           {step < TOTAL_STEPS ? (
-            <div className="sticky bottom-3 z-10 mt-5 flex items-center justify-between gap-3">
+            <div className="sticky bottom-3 z-10 mt-5 flex items-center justify-between gap-3 rounded-2xl border border-navy-800/10 bg-white/95 p-3 shadow-[0_4px_16px_rgba(10,28,49,0.08)] backdrop-blur">
               <Button
                 variant="secondary"
                 onClick={() => goto(Math.max(0, step - 1))}
@@ -491,7 +491,7 @@ export function SupplierWizard({
               )}
             </div>
           ) : (
-            <div className="mt-5 flex items-center justify-between gap-3">
+            <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-navy-800/10 bg-white/95 p-3 shadow-[0_4px_16px_rgba(10,28,49,0.08)] backdrop-blur">
               <Button variant="secondary" onClick={() => goto(TOTAL_STEPS - 1)}>
                 ← {t("common.back")}
               </Button>

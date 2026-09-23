@@ -53,12 +53,16 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
 
   return (
     <Suspense fallback={null}>
-      <SupplierWizard
-        token={token}
-        initial={prefill}
-        registration={registration}
-        lang={(inv?.language ?? "es") as "es" | "en"}
-      />
+      <div className="min-h-screen bg-bone-50">
+        <div className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-12">
+          <SupplierWizard
+            token={token}
+            initial={prefill}
+            registration={registration}
+            lang={(inv?.language ?? "es") as "es" | "en"}
+          />
+        </div>
+      </div>
     </Suspense>
   );
 }
