@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
+import { LangToggle } from "@/components/LangToggle";
 import { useI18n } from "@/lib/i18n";
 import {
   documentCatalog,
@@ -340,17 +341,20 @@ export function SupplierWizard({
   return (
     <div>
       <div className="mb-6 sm:mb-8">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-[12px] font-medium uppercase tracking-[0.18em] text-navy-700">
             Sanchez Business Corp
           </span>
-          <span className="hidden text-[12px] text-ink-muted sm:block">
-            {saving
-              ? t("common.saving")
-              : savedAt
-                ? `${t("common.saved")} · ${new Date(savedAt).toLocaleTimeString(currentLang, { hour: "2-digit", minute: "2-digit" })}`
-                : ""}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="hidden text-[12px] text-ink-muted sm:block">
+              {saving
+                ? t("common.saving")
+                : savedAt
+                  ? `${t("common.saved")} · ${new Date(savedAt).toLocaleTimeString(currentLang, { hour: "2-digit", minute: "2-digit" })}`
+                  : ""}
+            </span>
+            <LangToggle />
+          </div>
         </div>
         <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-navy-900 sm:text-[28px]">
           {t(currentTitle as never)}
