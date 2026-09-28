@@ -3,11 +3,12 @@ import { createPublicClient } from "@/lib/supabase/server";
 import {
   createShareLink,
   deleteFile,
-  filePath,
   getAccessToken,
+  getSupplierNameForRegistration,
   getItemIdByPath,
   getItemSize,
   OneDriveNotConfiguredError,
+  supplierFilePath,
 } from "@/lib/onedrive";
 import {
   isAllowedExtension,
@@ -43,7 +44,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const accessToken = await getAccessToken();
-    const path = filePath(registrationId, ref, fileName);
+    const supplierName = await getSupplierNameForRegistration(token, registrationId);
+    const path = supplierFilePath(supplierName, registrationId, ref, fileName);
     const itemId = await getItemIdByPath(accessToken, path);
 
     // Server-side enforcement: verify the *real* size reported by SharePoint,

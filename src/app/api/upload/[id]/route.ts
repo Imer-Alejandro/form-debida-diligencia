@@ -4,9 +4,11 @@ import {
   deleteFile,
   filePath,
   getAccessToken,
+  getSupplierNameForRegistration,
   getItemIdByPath,
   ItemNotFoundError,
   OneDriveNotConfiguredError,
+  supplierFilePath,
 } from "@/lib/onedrive";
 
 export async function DELETE(
@@ -42,8 +44,16 @@ export async function DELETE(
 
   try {
     const accessToken = await getAccessToken();
-    const path = filePath(row.registration_id, row.ref, row.file_name);
-    const itemId = await getItemIdByPath(accessToken, path);
+    const supplierName = await getSupplierNameForRegistration(token, row.registration_id);
+    let itemId: string;
+    try {
+      const path = supplierFilePath(supplierName, row.registration_id, row.ref, row.file_name);
+      itemId = await getItemIdByPath(accessToken, path);
+    } catch (err) {
+      if (!(err instanceof ItemNotFoundError)) throw err;
+      const legacyPath = filePath(row.registration_id, row.ref, row.file_name);
+      itemId = await getItemIdByPath(accessToken, legacyPath);
+    }
     await deleteFile(accessToken, itemId);
   } catch (err) {
     if (err instanceof ItemNotFoundError) {

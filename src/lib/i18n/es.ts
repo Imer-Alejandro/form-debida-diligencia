@@ -343,7 +343,7 @@ export const es = {
     removeFailed: "No se pudo eliminar el archivo. Intente de nuevo.",
     removeNotConfigured: "La eliminación necesita la conexión con el repositorio de archivos. Vuelva a intentarlo más tarde.",
     tooLarge: "El archivo supera el tamaño máximo permitido (50 MB).",
-    dropHint: "Haga clic para elegir un archivo o arrástrelo aquí",
+    dropHint: "Seleccionar archivo; se enviará al confirmar el formulario",
     noUploadsYet: "Ningún documento adjunto aún.",
     pending: "Pendiente",
     attachedCount: "{n} adjuntados",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useDict, useI18n } from "@/lib/i18n";
 import { documentCatalog, type DocumentIntent, type DocumentRow } from "@/lib/types";
 import { validateFile } from "@/lib/upload-policy";
@@ -10,135 +10,59 @@ import { cn } from "@/lib/utils";
 interface DocumentsStepProps {
   documents: DocumentIntent[];
   setDocuments: (docs: DocumentIntent[]) => void;
-  token: string;
-  registrationId: string | null;
-  onEnsureDraft: () => Promise<string | null>;
   attached: DocumentRow[];
   setAttached: (docs: DocumentRow[]) => void;
+  pendingFiles: PendingDocumentFile[];
+  setPendingFiles: (files: PendingDocumentFile[]) => void;
   onedriveOn: boolean;
-  setOnedriveOn: (v: boolean) => void;
+}
+
+export interface PendingDocumentFile {
+  ref: string;
+  file: File;
 }
 
 export function DocumentsStep({
   documents,
   setDocuments,
-  token,
-  registrationId,
-  onEnsureDraft,
   attached,
   setAttached,
+  pendingFiles,
+  setPendingFiles,
   onedriveOn,
-  setOnedriveOn,
 }: DocumentsStepProps) {
   const { t } = useI18n();
   const dict = useDict();
   const s9 = dict.s9;
-  const [busy, setBusy] = useState<Record<string, "uploading" | "error" | undefined>>({});
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const toggle = (ref: string) =>
+  const toggle = (ref: string) => {
+    const document = documents.find((item) => item.ref === ref);
+    if (document?.checked) {
+      setPendingFiles(pendingFiles.filter((item) => item.ref !== ref));
+    }
     setDocuments(
       documents.map((d) => (d.ref === ref ? { ...d, checked: !d.checked } : d))
     );
+  };
 
   const noteFor = (ref: string, e: string) =>
     setDocuments(documents.map((d) => (d.ref === ref ? { ...d, note: e } : d)));
 
-  const checkFor = (ref: string, file: File): boolean => {
+  const selectFile = (ref: string, file: File) => {
     const err = validateFile(file);
     if (err === "too_large") {
-      setBusy((b) => ({ ...b, [ref]: "error" }));
       window.alert(t("validation.fileTooLarge"));
-      return false;
+      return;
     }
     if (err === "unsupported_type") {
-      setBusy((b) => ({ ...b, [ref]: "error" }));
       window.alert(t("validation.unsupportedType"));
-      return false;
+      return;
     }
-    return true;
-  };
-
-  const upload = async (ref: string, file: File) => {
-    if (!checkFor(ref, file)) return;
-    setBusy((b) => ({ ...b, [ref]: "uploading" }));
-    try {
-      let regId = registrationId;
-      if (!regId) regId = await onEnsureDraft();
-      if (!regId) throw new Error("no_draft");
-
-      const sessionRes = await fetch("/api/upload/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          registrationId: regId,
-          ref,
-          fileName: file.name,
-          size: file.size,
-        }),
-      });
-      const session = await sessionRes.json();
-      if (!sessionRes.ok) {
-        if (session.error === "not_configured") {
-          setOnedriveOn(false);
-          setBusy((b) => ({ ...b, [ref]: undefined }));
-          return;
-        }
-        if (session.error === "too_large" || session.error === "unsupported_type") {
-          window.alert(
-            session.error === "too_large"
-              ? t("validation.fileTooLarge")
-              : t("validation.unsupportedType")
-          );
-          setBusy((b) => ({ ...b, [ref]: undefined }));
-          return;
-        }
-        throw new Error(session.error?.message || "start_failed");
-      }
-
-      const put = await fetch(session.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-          "Content-Length": String(file.size),
-          "Content-Range": `bytes 0-${file.size - 1}/${file.size}`,
-        },
-        body: file,
-      });
-      if (!put.ok) throw new Error(`upload_failed:${put.status}`);
-
-      const finRes = await fetch("/api/upload/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          registrationId: regId,
-          ref,
-          fileName: file.name,
-          mimeType: file.type,
-          size: file.size,
-        }),
-      });
-      const fin = await finRes.json();
-      if (!finRes.ok) {
-        if (fin.error === "too_large") {
-          window.alert(t("validation.fileTooLarge"));
-          setBusy((b) => ({ ...b, [ref]: undefined }));
-          return;
-        }
-        if (fin.error === "unsupported_type") {
-          window.alert(t("validation.unsupportedType"));
-          setBusy((b) => ({ ...b, [ref]: undefined }));
-          return;
-        }
-        throw new Error(fin.error?.message || "finalize_failed");
-      }
-      setAttached([...attached.filter((d) => !(d.ref === ref && d.file_name === file.name)), fin.doc]);
-      setBusy((b) => ({ ...b, [ref]: undefined }));
-    } catch {
-      setBusy((b) => ({ ...b, [ref]: "error" }));
-    }
+    setPendingFiles([
+      ...pendingFiles.filter((pending) => pending.ref !== ref),
+      { ref, file },
+    ]);
   };
 
   const remove = async (doc: DocumentRow) => {
@@ -157,13 +81,11 @@ export function DocumentsStep({
     }
   };
 
-  const isBusy = (ref: string) => busy[ref] === "uploading";
-
   const checkedRefs = documents.filter(
     (d) => d.checked && !attached.some((a) => a.ref === d.ref)
   );
   const attachedCount = attached.length;
-  const pendingCount = checkedRefs.length;
+  const pendingCount = pendingFiles.length;
   const showsDeps = attachedCount > 0 || pendingCount > 0;
 
   return (
@@ -194,7 +116,7 @@ export function DocumentsStep({
         {documents.map((el) => {
           const meta = documentCatalog.find((d) => d.ref === el.ref);
           const attachedForRef = attached.filter((d) => d.ref === el.ref);
-          const isUp = isBusy(el.ref);
+          const pendingFile = pendingFiles.find((d) => d.ref === el.ref);
           const isPending = el.checked && attachedForRef.length === 0;
           return (
             <div key={el.ref} className={cn("px-4 py-4 sm:px-5", el.checked && "bg-bone-50/60")}>
@@ -267,6 +189,25 @@ export function DocumentsStep({
                       ))}
                     </ul>
                   )}
+                  {pendingFile && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-sm">
+                      <span className="min-w-0 truncate">
+                        {pendingFile.file.name}
+                        <span className="ml-2 text-xs text-ink-muted">
+                          {formatBytes(pendingFile.file.size)} · {t("docs.pending")}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingFiles(pendingFiles.filter((d) => d.ref !== el.ref))
+                        }
+                        className="shrink-0 text-xs text-ink-muted underline hover:text-danger"
+                      >
+                        {t("docs.remove")}
+                      </button>
+                    </div>
+                  )}
                   <input
                     ref={(n) => {
                       inputRefs.current[el.ref] = n;
@@ -276,32 +217,16 @@ export function DocumentsStep({
                     accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.odt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.txt,.rtf,.zip"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) void upload(el.ref, f);
+                      if (f) selectFile(el.ref, f);
                       e.target.value = "";
                     }}
                   />
                   <button
                     type="button"
-                    disabled={isUp}
                     onClick={() => inputRefs.current[el.ref]?.click()}
-                    className={cn(
-                      "flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-sm transition-colors",
-                      isUp
-                        ? "cursor-wait border-navy-800/20 text-ink-muted"
-                        : "border-navy-800/20 bg-white hover:border-navy-800/50 hover:bg-bone-50",
-                      busy[el.ref] === "error" && "border-danger/40 text-danger"
-                    )}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-800/20 bg-white px-4 py-5 text-sm transition-colors hover:border-navy-800/50 hover:bg-bone-50"
                   >
-                    {isUp ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy-800/20 border-t-navy-800" />
-                        {t("docs.uploading")}
-                      </>
-                    ) : busy[el.ref] === "error" ? (
-                      t("docs.error")
-                    ) : (
-                      t("docs.dropHint")
-                    )}
+                    {t("docs.dropHint")}
                   </button>
                 </div>
               )}

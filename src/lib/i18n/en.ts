@@ -345,7 +345,7 @@ export const en = {
     removeNotConfigured:
       "Removal requires a connection with the file repository. Please try again later.",
     tooLarge: "The file exceeds the maximum allowed size (50 MB).",
-    dropHint: "Click to choose a file or drag and drop it here",
+    dropHint: "Choose a file; it will upload when you submit the form",
     noUploadsYet: "No documents attached yet.",
     pending: "Pending",
     attachedCount: "{n} attached",

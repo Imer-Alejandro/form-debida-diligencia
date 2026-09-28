@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import {
   createUploadSession,
-  filePath,
   getAccessToken,
+  getSupplierNameForRegistration,
   OneDriveNotConfiguredError,
+  supplierFilePath,
 } from "@/lib/onedrive";
 import {
   isAllowedExtension,
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const accessToken = await getAccessToken();
-    const path = filePath(registrationId, ref, fileName);
+    const supplierName = await getSupplierNameForRegistration(token, registrationId);
+    const path = supplierFilePath(supplierName, registrationId, ref, fileName);
     const session = await createUploadSession(accessToken, path);
     return Response.json({
       uploadUrl: session.uploadUrl,

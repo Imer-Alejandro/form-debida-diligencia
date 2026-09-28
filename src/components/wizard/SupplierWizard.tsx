@@ -26,7 +26,7 @@ import {
   Section11,
 } from "./sections";
 import { SignaturePad } from "./SignaturePad";
-import { DocumentsStep } from "./DocumentsStep";
+import { DocumentsStep, type PendingDocumentFile } from "./DocumentsStep";
 import { ReviewStep } from "./ReviewStep";
 
 const TITLE_STEPS = [
@@ -108,6 +108,7 @@ export function SupplierWizard({
     registration?.id ?? null
   );
   const [attached, setAttached] = useState<DocumentRow[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingDocumentFile[]>([]);
   const [onedriveOn, setOnedriveOn] = useState(true);
   const [submission, setSubmission] = useState<
     { reference: string; status: string } | null
@@ -118,6 +119,7 @@ export function SupplierWizard({
       : null
   );
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const mountedRef = useRef(false);
 
@@ -281,7 +283,72 @@ export function SupplierWizard({
       return;
     }
     setSubmitting(true);
+    setSubmitError(null);
     try {
+      const draftRes = await fetch("/api/registration/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, data, language: currentLang }),
+      });
+      const draft = await draftRes.json().catch(() => null);
+      if (!draftRes.ok || !draft?.registration?.id) {
+        throw new Error(draft?.message || draft?.error || "draft_save_failed");
+      }
+      const regId = draft.registration.id as string;
+      setRegistrationId(regId);
+
+      const uploaded = [...attached];
+      for (const pending of pendingFiles) {
+        const { ref, file } = pending;
+        const sessionRes = await fetch("/api/upload/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            registrationId: regId,
+            ref,
+            fileName: file.name,
+            size: file.size,
+          }),
+        });
+        const session = await sessionRes.json().catch(() => null);
+        if (!sessionRes.ok) {
+          throw new Error(session?.message || session?.hint || session?.error || `upload_session_${sessionRes.status}`);
+        }
+
+        const uploadRes = await fetch(session.uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "Content-Range": `bytes 0-${file.size - 1}/${file.size}`,
+          },
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`sharepoint_upload_${uploadRes.status}`);
+        }
+
+        const finalizeRes = await fetch("/api/upload/finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            registrationId: regId,
+            ref,
+            fileName: file.name,
+            mimeType: file.type,
+            size: file.size,
+          }),
+        });
+        const finalized = await finalizeRes.json().catch(() => null);
+        if (!finalizeRes.ok || !finalized?.doc) {
+          throw new Error(finalized?.message || finalized?.hint || finalized?.error || `upload_finalize_${finalizeRes.status}`);
+        }
+        uploaded.push(finalized.doc as DocumentRow);
+        setAttached([...uploaded]);
+        setPendingFiles((current) => current.filter((item) => item !== pending));
+      }
+
       const res = await fetch("/api/registration/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,10 +367,10 @@ export function SupplierWizard({
           status: "PENDIENTE",
         });
       } else {
-        window.alert(t("docs.error"));
+        throw new Error(json?.message || json?.error || `submit_failed_${res.status}`);
       }
-    } catch {
-      window.alert(t("docs.error"));
+    } catch (error) {
+      setSubmitError(error instanceof Error ? `${t("docs.error")}: ${error.message}` : t("docs.error"));
     } finally {
       setSubmitting(false);
     }
@@ -478,13 +545,11 @@ export function SupplierWizard({
               <DocumentsStep
                 documents={data.section9.documents}
                 setDocuments={setDocuments}
-                token={token}
-                registrationId={registrationId}
-                onEnsureDraft={ensureDraft}
                 attached={attached}
                 setAttached={setAttached}
+                pendingFiles={pendingFiles}
+                setPendingFiles={setPendingFiles}
                 onedriveOn={onedriveOn}
-                setOnedriveOn={setOnedriveOn}
               />
             )}
             {step === 9 && <Section10 data={data} set={setData} errors={errors} />}
@@ -540,6 +605,11 @@ export function SupplierWizard({
             </div>
           ) : (
             <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-navy-800/10 bg-white/95 p-3 shadow-[0_4px_16px_rgba(10,28,49,0.08)] backdrop-blur">
+              {submitError && (
+                <p role="alert" className="mr-auto min-w-0 flex-1 break-words text-xs text-danger">
+                  {submitError}
+                </p>
+              )}
               <Button variant="secondary" onClick={() => goto(TOTAL_STEPS - 1)}>
                 ← {t("common.back")}
               </Button>

@@ -172,6 +172,36 @@ export function folderPath(registrationId: string): string {
   return `${ONEDRIVE_ROOT}/${registrationId}`;
 }
 
+export async function getSupplierNameForRegistration(
+  token: string,
+  registrationId: string
+): Promise<string> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase.rpc("get_registration_for_token", {
+    p_token: token,
+  });
+  if (error) throw new Error(error.message);
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  const registration = rows.find((row) => row.id === registrationId);
+  const name = registration?.data?.section1?.legalName;
+  if (typeof name !== "string" || !name.trim()) {
+    throw new Error("supplier_name_missing");
+  }
+  return name;
+}
+
+export function supplierFilePath(
+  supplierName: string,
+  registrationId: string,
+  ref: string,
+  fileName: string
+): string {
+  const supplierFolder = sanitizeFileName(supplierName)
+    .replace(/[. ]+$/g, "")
+    .slice(0, 150) || "Proveedor";
+  return `${ONEDRIVE_ROOT}/${supplierFolder}/${registrationId}/${ref}/${sanitizeFileName(fileName)}`;
+}
+
 /** One subfolder per document ref inside the registration folder. */
 export function filePath(registrationId: string, ref: string, fileName: string): string {
   const safe = sanitizeFileName(fileName);
@@ -218,6 +248,36 @@ export async function createUploadSession(
   path: string
 ): Promise<UploadSession> {
   const base = await siteDriveBase(accessToken);
+  const segments = path.split("/").slice(0, -1);
+  let parentId: string | null = null;
+  let currentPath = "";
+  for (const segment of segments) {
+    currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+    const parentUrl = parentId
+      ? `${base}/items/${encodeURIComponent(parentId)}/children`
+      : `${base}/root/children`;
+    const response = await fetch(parentUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: segment,
+        folder: {},
+        "@microsoft.graph.conflictBehavior": "fail",
+      }),
+    });
+    if (response.ok) {
+      const folder = await response.json();
+      parentId = folder.id as string;
+    } else if (response.status === 409) {
+      parentId = await getItemIdByPath(accessToken, currentPath);
+    } else {
+      const json = await response.json().catch(() => null);
+      throw new Error(json?.error?.message ?? "SharePoint folder creation failed");
+    }
+  }
   const encoded = encodePath(path);
   const res = await fetch(
     `${base}/root:/${encoded}:/createUploadSession`,
