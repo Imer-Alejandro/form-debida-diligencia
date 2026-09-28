@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface DocumentsStepProps {
   documents: DocumentIntent[];
   setDocuments: (docs: DocumentIntent[]) => void;
+  token: string;
   attached: DocumentRow[];
   setAttached: (docs: DocumentRow[]) => void;
   pendingFiles: PendingDocumentFile[];
@@ -25,6 +26,7 @@ export interface PendingDocumentFile {
 export function DocumentsStep({
   documents,
   setDocuments,
+  token,
   attached,
   setAttached,
   pendingFiles,
@@ -97,7 +99,7 @@ export function DocumentsStep({
       )}
       <p className="text-[13px] text-ink-muted">{s9.usesOnlyWhenNeeded}</p>
 
-      {showsDeps && onedriveOn && (
+      {showsDeps && (
         <div className="flex flex-wrap items-center gap-2 text-[12px]">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-800/10 bg-bone-50 px-3 py-1.5 font-medium text-ink">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
@@ -151,7 +153,7 @@ export function DocumentsStep({
                 </label>
               </div>
 
-              {el.checked && onedriveOn && (
+              {el.checked && (
                 <div className="ml-1 mt-3 space-y-3 sm:ml-10">
                   {attachedForRef.length > 0 && (
                     <ul className="space-y-2">

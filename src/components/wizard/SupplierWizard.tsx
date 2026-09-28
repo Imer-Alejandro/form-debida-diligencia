@@ -545,6 +545,7 @@ export function SupplierWizard({
               <DocumentsStep
                 documents={data.section9.documents}
                 setDocuments={setDocuments}
+                token={token}
                 attached={attached}
                 setAttached={setAttached}
                 pendingFiles={pendingFiles}
