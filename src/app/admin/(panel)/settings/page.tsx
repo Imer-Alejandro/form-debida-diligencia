@@ -4,7 +4,16 @@ import { Badge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSettingsPage() {
+export default async function AdminSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const connected = Array.isArray(params.connected)
+    ? params.connected[0]
+    : params.connected;
+  const reason = Array.isArray(params.reason) ? params.reason[0] : params.reason;
   const dict = await getServerDict();
   const st = dict.admin.settings;
   const state = await readOneDriveState();
@@ -47,6 +56,17 @@ export default async function AdminSettingsPage() {
             </a>
           )}
         </div>
+        {connected === "1" && (
+          <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-relaxed text-emerald-800">
+            {st.onedrive_connect_success}
+          </p>
+        )}
+        {connected === "0" && (
+          <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-relaxed text-rose-800">
+            {st.onedrive_connect_failure}
+            {reason && <span className="mt-1 block break-words">{reason}</span>}
+          </p>
+        )}
         {!state.configured && !clientIdConfigured && (
           <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
             {st.onedrive_missing_client_id}

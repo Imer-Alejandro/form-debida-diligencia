@@ -5,10 +5,12 @@ import { buildEncryptedConfig, exchangeCodeForToken } from "@/lib/onedrive";
 export async function GET(req: NextRequest) {
   const code = new URL(req.url).searchParams.get("code");
   const error = new URL(req.url).searchParams.get("error");
+  const errorDescription = new URL(req.url).searchParams.get("error_description");
 
   if (error || !code) {
+    const reason = errorDescription ?? error ?? "no_code";
     return Response.redirect(
-      new URL(`/admin/settings?connected=0&reason=${error ?? "no_code"}`, req.url),
+      new URL(`/admin/settings?connected=0&reason=${encodeURIComponent(reason)}`, req.url),
       302
     );
   }

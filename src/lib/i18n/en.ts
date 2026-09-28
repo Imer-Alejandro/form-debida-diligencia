@@ -618,6 +618,8 @@ recent: "Recent registrations",
       onedrive_status: "Status",
       onedrive_configured: "Connected",
       onedrive_notconfigured: "Not connected",
+      onedrive_connect_success: "Connection authorized and configuration saved in Supabase.",
+      onedrive_connect_failure: "The OneDrive/SharePoint connection could not be completed:",
       onedrive_missing_client_id:
         "ONEDRIVE_CLIENT_ID is missing from Vercel environment variables. Add the Microsoft Entra application ID and redeploy.",
       onedrive_account: "Connected account",
