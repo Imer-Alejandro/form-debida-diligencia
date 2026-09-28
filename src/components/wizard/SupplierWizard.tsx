@@ -114,7 +114,7 @@ export function SupplierWizard({
     { reference: string; status: string } | null
   >(
     registration &&
-      !["BORRADOR", "SOLICITUD_CAMBIOS", "PENDIENTE"].includes(registration.status)
+      !["BORRADOR", "SOLICITUD_CAMBIOS"].includes(registration.status)
       ? { reference: registration.reference_no ?? "", status: registration.status }
       : null
   );
