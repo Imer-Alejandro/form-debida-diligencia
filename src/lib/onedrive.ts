@@ -1,5 +1,6 @@
 import { createPublicClient } from "@/lib/supabase/server";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { sanitizeFileName } from "@/lib/upload-policy";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
@@ -171,9 +172,10 @@ export function folderPath(registrationId: string): string {
   return `${ONEDRIVE_ROOT}/${registrationId}`;
 }
 
+/** One subfolder per document ref inside the registration folder. */
 export function filePath(registrationId: string, ref: string, fileName: string): string {
-  const safe = fileName.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, " ");
-  return `${folderPath(registrationId)}/${ref}_${safe}`;
+  const safe = sanitizeFileName(fileName);
+  return `${folderPath(registrationId)}/${ref}/${safe}`;
 }
 
 /** Encodes each path segment for Graph's `:/...:` syntax. */
@@ -238,6 +240,13 @@ export async function createUploadSession(
   };
 }
 
+export class ItemNotFoundError extends Error {
+  constructor() {
+    super("Item not found");
+    this.name = "ItemNotFoundError";
+  }
+}
+
 export async function getItemIdByPath(
   accessToken: string,
   path: string
@@ -248,8 +257,28 @@ export async function getItemIdByPath(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error?.message ?? "Item lookup error");
+  if (!res.ok) {
+    if (res.status === 404) throw new ItemNotFoundError();
+    throw new Error(json.error?.message ?? "Item lookup error");
+  }
   return json.id as string;
+}
+
+/** Real file size in bytes as reported by SharePoint. */
+export async function getItemSize(
+  accessToken: string,
+  itemId: string
+): Promise<number> {
+  const base = await siteDriveBase(accessToken);
+  const res = await fetch(`${base}/items/${itemId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    if (res.status === 404) throw new ItemNotFoundError();
+    throw new Error(json.error?.message ?? "Item lookup error");
+  }
+  return typeof json.size === "number" ? json.size : 0;
 }
 
 export async function createShareLink(
@@ -295,4 +324,17 @@ export async function deleteFile(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error("Delete failed");
+}
+
+/** Streams the raw file bytes from SharePoint for a path (inline/download proxy). */
+export async function getDriveContent(
+  accessToken: string,
+  path: string
+): Promise<Response> {
+  const base = await siteDriveBase(accessToken);
+  const encoded = encodePath(path);
+  return fetch(`${base}/root:/${encoded}:/content`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    redirect: "follow",
+  });
 }

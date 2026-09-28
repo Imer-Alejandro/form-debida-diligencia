@@ -31,6 +31,8 @@ export function InvitationList({
   const { t } = useI18n();
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const [copied, setCopied] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState(false);
 
   const copy = async (token: string) => {
     try {
@@ -42,8 +44,33 @@ export function InvitationList({
     }
   };
 
+  const remove = async (id: string, company: string) => {
+    if (!window.confirm(t("admin.invitations.deleteConfirm", { company }))) return;
+
+    setDeleting(id);
+    setDeleteError(false);
+    try {
+      const response = await fetch("/api/admin/invitations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!response.ok) throw new Error("delete_failed");
+      window.location.reload();
+    } catch {
+      setDeleteError(true);
+      setDeleting(null);
+    }
+  };
+
   return (
-    <ul className="space-y-3.5">
+    <div>
+      {deleteError && (
+        <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {t("admin.invitations.errorDelete")}
+        </p>
+      )}
+      <ul className="space-y-3.5">
       {items.map((inv) => {
         const url = `${base}/i/${inv.token}`;
         return (
@@ -101,12 +128,29 @@ export function InvitationList({
                       {t("admin.invitations.downloadQr")}
                     </a>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => void remove(inv.id, inv.supplier_name || inv.supplier_email || "—")}
+                    disabled={deleting === inv.id}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 shadow-2xs transition-colors hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="m19 6-1 14H6L5 6" />
+                      <path d="M10 11v5M14 11v5" />
+                    </svg>
+                    {deleting === inv.id
+                      ? t("admin.invitations.deleting")
+                      : t("admin.invitations.delete")}
+                  </button>
                 </div>
               </div>
             </div>
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }

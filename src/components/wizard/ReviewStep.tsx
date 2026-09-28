@@ -2,7 +2,7 @@
 
 import { useDict, useI18n } from "@/lib/i18n";
 import type { DocumentIntent, DocumentRow, SupplierData } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 function KV({ k, v }: { k: string; v?: string }) {
   if (!v || !v.trim()) return null;
@@ -210,16 +210,19 @@ export function ReviewStep({
               const num = attached.filter((a) => a.ref === d.ref).length;
               return (
                 <div key={d.ref} className="flex items-center justify-between gap-3 text-[13px]">
-                  <span className="flex items-center gap-2 text-ink">
-                    <span className="grid h-6 w-8 place-items-center rounded-md bg-navy-800 text-[11px] font-semibold text-white">
+                  <span className="flex min-w-0 items-center gap-2 text-ink">
+                    <span className="grid h-6 w-8 shrink-0 place-items-center rounded-md bg-navy-800 text-[11px] font-semibold text-white">
                       {d.ref}
                     </span>
-                    <span className="line-clamp-1">
-                      {dict.s9.docDescriptions[d.ref as keyof typeof dict.s9.docDescriptions]}
-                    </span>
+                    <span className="line-clamp-1">{dict.s9.docDescriptions[d.ref as keyof typeof dict.s9.docDescriptions]}</span>
                   </span>
-                  <span className={num > 0 ? "font-medium text-success" : "text-warning"}>
-                    {num > 0 ? `${num} — ${dict.docs.uploaded}` : dict.docs.noUploadsYet}
+                  <span
+                    className={cn(
+                      "shrink-0",
+                      num > 0 ? "font-medium text-success" : "text-warning"
+                    )}
+                  >
+                    {num > 0 ? `${num} — ${dict.docs.uploaded}` : dict.docs.pending}
                   </span>
                 </div>
               );

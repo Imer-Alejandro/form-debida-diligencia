@@ -81,3 +81,34 @@ export async function POST(req: Request) {
     mailError: mailError || undefined,
   });
 }
+
+export async function DELETE(req: Request) {
+  const { supabase, user } = await getAdminSession();
+  if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+
+  const body = (await req.json()) as { id?: string };
+  const id = String(body.id ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
+
+  const { data: invitation, error } = await supabase
+    .from("invitations")
+    .delete()
+    .eq("id", id)
+    .select("id, supplier_name")
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: "db" }, { status: 500 });
+  if (!invitation) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  await supabase.from("activity_log").insert({
+    actor: user.email ?? "",
+    action: "INVITATION_DELETED",
+    subject_type: "invitation",
+    subject_id: invitation.id,
+    detail: { company: invitation.supplier_name },
+  });
+
+  return NextResponse.json({ ok: true });
+}

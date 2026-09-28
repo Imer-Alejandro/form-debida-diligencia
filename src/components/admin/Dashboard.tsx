@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
-import { Badge } from "@/components/ui";
+import { Badge, Button, Input, Select } from "@/components/ui";
 import {
   statusTone,
   riskTone,
@@ -12,6 +12,10 @@ import {
   riskLabelKey,
   STATUS_COLORS,
   RISK_COLORS,
+  ALL_STATUSES,
+  ALL_RISKS,
+  PROVIDER_TYPES,
+  COUNTRIES,
 } from "./tones";
 import type { RegistrationStatus, RiskLevel } from "@/lib/types";
 
@@ -20,7 +24,21 @@ export interface StatPoint {
   value: number;
 }
 
+export type DashboardPeriod = "6m" | "12m" | "all" | "custom";
+
+export interface DashboardFilters {
+  period: DashboardPeriod;
+  from: string;
+  to: string;
+  status: string;
+  risk: string;
+  type: string;
+  country: string;
+}
+
 export interface DashboardProps {
+  filters: DashboardFilters;
+  invalidDateRange: boolean;
   stats: StatPoint[];
   byStatus: { key: RegistrationStatus; value: number }[];
   byRisk: { key: RiskLevel; value: number }[];
@@ -149,6 +167,8 @@ function humanize(key: string): string {
 }
 
 export function Dashboard({
+  filters,
+  invalidDateRange,
   stats,
   byStatus,
   byRisk,
@@ -162,6 +182,9 @@ export function Dashboard({
   emptyLink,
 }: DashboardProps) {
   const { t } = useI18n();
+  const [period, setPeriod] = useState(filters.period);
+  const [from, setFrom] = useState(filters.from);
+  const [to, setTo] = useState(filters.to);
   const total = stats.find((s) => s.key === "stats.total")?.value ?? 0;
   const trend = monthly.map((m) => m.count);
 
@@ -195,15 +218,6 @@ export function Dashboard({
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-2xs">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-slate-400">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            <span>Últimos 6 meses</span>
-          </div>
           <Link
             href="/admin/invitations"
             className="inline-flex items-center gap-2 rounded-xl bg-navy-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-navy-800 transition-colors"
@@ -216,6 +230,124 @@ export function Dashboard({
           </Link>
         </div>
       </div>
+
+      <form
+        method="get"
+        action="/admin"
+        className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs sm:p-5"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+              {t("admin.dashboard.period")}
+            </span>
+            <Select
+              name="period"
+              value={period}
+              onChange={(event) => {
+                setPeriod(event.target.value as DashboardPeriod);
+                if (event.target.value !== "custom") {
+                  setFrom("");
+                  setTo("");
+                }
+              }}
+              className="h-10 px-2.5 text-xs"
+            >
+              <option value="6m">{t("admin.dashboard.last6Months")}</option>
+              <option value="12m">{t("admin.dashboard.last12Months")}</option>
+              <option value="all">{t("admin.dashboard.allTime")}</option>
+              <option value="custom">{t("admin.dashboard.customRange")}</option>
+            </Select>
+          </label>
+          {period === "custom" && (
+            <>
+              <label className="min-w-0">
+                <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+                  {t("admin.dashboard.from")}
+                </span>
+                <Input
+                  type="date"
+                  name="from"
+                  value={from}
+                  max={to || undefined}
+                  onChange={(event) => setFrom(event.target.value)}
+                  className="h-10 px-2.5 text-xs"
+                />
+              </label>
+              <label className="min-w-0">
+                <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+                  {t("admin.dashboard.to")}
+                </span>
+                <Input
+                  type="date"
+                  name="to"
+                  value={to}
+                  min={from || undefined}
+                  onChange={(event) => setTo(event.target.value)}
+                  className="h-10 px-2.5 text-xs"
+                />
+              </label>
+            </>
+          )}
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+              {t("admin.suppliers.status")}
+            </span>
+            <Select name="status" defaultValue={filters.status} className="h-10 px-2.5 text-xs">
+              <option value="">{t("admin.dashboard.anyStatus")}</option>
+              {ALL_STATUSES.map((status) => (
+                <option key={status} value={status}>{t(`statuses.${status}` as never)}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+              {t("admin.suppliers.risk")}
+            </span>
+            <Select name="risk" defaultValue={filters.risk} className="h-10 px-2.5 text-xs">
+              <option value="">{t("admin.dashboard.anyRisk")}</option>
+              {ALL_RISKS.map((risk) => (
+                <option key={risk} value={risk}>{t(`risk.${risk}` as never)}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+              {t("admin.suppliers.providerType")}
+            </span>
+            <Select name="type" defaultValue={filters.type} className="h-10 px-2.5 text-xs">
+              <option value="">{t("admin.dashboard.anyType")}</option>
+              {PROVIDER_TYPES.map((type) => (
+                <option key={type} value={type}>{humanize(type)}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+              {t("admin.suppliers.country")}
+            </span>
+            <Select name="country" defaultValue={filters.country} className="h-10 px-2.5 text-xs">
+              <option value="">{t("admin.dashboard.anyCountry")}</option>
+              {COUNTRIES.map((country) => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </Select>
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+          {invalidDateRange ? (
+            <p role="alert" className="text-xs font-medium text-rose-600">
+              {t("admin.dashboard.invalidDateRange")}
+            </p>
+          ) : <span />}
+          <div className="ml-auto flex items-center gap-2">
+            <Link href="/admin" className="px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900">
+              {t("admin.dashboard.clearFilters")}
+            </Link>
+            <Button type="submit" size="sm">{t("admin.dashboard.applyFilters")}</Button>
+          </div>
+        </div>
+      </form>
 
       {/* Coupled KPI Summary Block */}
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">

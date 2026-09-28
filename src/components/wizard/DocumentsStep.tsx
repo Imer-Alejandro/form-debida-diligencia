@@ -3,10 +3,9 @@
 import { useRef, useState } from "react";
 import { useDict, useI18n } from "@/lib/i18n";
 import { documentCatalog, type DocumentIntent, type DocumentRow } from "@/lib/types";
+import { validateFile } from "@/lib/upload-policy";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-
-const MAX_BYTES = 50 * 1024 * 1024;
 
 interface DocumentsStepProps {
   documents: DocumentIntent[];
@@ -45,12 +44,23 @@ export function DocumentsStep({
   const noteFor = (ref: string, e: string) =>
     setDocuments(documents.map((d) => (d.ref === ref ? { ...d, note: e } : d)));
 
-  const upload = async (ref: string, file: File) => {
-    if (file.size > MAX_BYTES) {
+  const checkFor = (ref: string, file: File): boolean => {
+    const err = validateFile(file);
+    if (err === "too_large") {
       setBusy((b) => ({ ...b, [ref]: "error" }));
-      window.alert(t("docs.tooLarge"));
-      return;
+      window.alert(t("validation.fileTooLarge"));
+      return false;
     }
+    if (err === "unsupported_type") {
+      setBusy((b) => ({ ...b, [ref]: "error" }));
+      window.alert(t("validation.unsupportedType"));
+      return false;
+    }
+    return true;
+  };
+
+  const upload = async (ref: string, file: File) => {
+    if (!checkFor(ref, file)) return;
     setBusy((b) => ({ ...b, [ref]: "uploading" }));
     try {
       let regId = registrationId;
@@ -65,12 +75,22 @@ export function DocumentsStep({
           registrationId: regId,
           ref,
           fileName: file.name,
+          size: file.size,
         }),
       });
       const session = await sessionRes.json();
       if (!sessionRes.ok) {
         if (session.error === "not_configured") {
           setOnedriveOn(false);
+          setBusy((b) => ({ ...b, [ref]: undefined }));
+          return;
+        }
+        if (session.error === "too_large" || session.error === "unsupported_type") {
+          window.alert(
+            session.error === "too_large"
+              ? t("validation.fileTooLarge")
+              : t("validation.unsupportedType")
+          );
           setBusy((b) => ({ ...b, [ref]: undefined }));
           return;
         }
@@ -101,7 +121,19 @@ export function DocumentsStep({
         }),
       });
       const fin = await finRes.json();
-      if (!finRes.ok) throw new Error(fin.error?.message || "finalize_failed");
+      if (!finRes.ok) {
+        if (fin.error === "too_large") {
+          window.alert(t("validation.fileTooLarge"));
+          setBusy((b) => ({ ...b, [ref]: undefined }));
+          return;
+        }
+        if (fin.error === "unsupported_type") {
+          window.alert(t("validation.unsupportedType"));
+          setBusy((b) => ({ ...b, [ref]: undefined }));
+          return;
+        }
+        throw new Error(fin.error?.message || "finalize_failed");
+      }
       setAttached([...attached.filter((d) => !(d.ref === ref && d.file_name === file.name)), fin.doc]);
       setBusy((b) => ({ ...b, [ref]: undefined }));
     } catch {
@@ -113,10 +145,26 @@ export function DocumentsStep({
     const res = await fetch(`/api/upload/${doc.id}?token=${encodeURIComponent(token)}`, {
       method: "DELETE",
     });
-    if (res.ok) setAttached(attached.filter((d) => d.id !== doc.id));
+    if (res.ok) {
+      setAttached(attached.filter((d) => d.id !== doc.id));
+    } else {
+      const json = await res.json().catch(() => null);
+      window.alert(
+        json?.error === "not_configured"
+          ? t("docs.removeNotConfigured")
+          : t("docs.removeFailed")
+      );
+    }
   };
 
   const isBusy = (ref: string) => busy[ref] === "uploading";
+
+  const checkedRefs = documents.filter(
+    (d) => d.checked && !attached.some((a) => a.ref === d.ref)
+  );
+  const attachedCount = attached.length;
+  const pendingCount = checkedRefs.length;
+  const showsDeps = attachedCount > 0 || pendingCount > 0;
 
   return (
     <div className="space-y-5">
@@ -126,11 +174,28 @@ export function DocumentsStep({
         </p>
       )}
       <p className="text-[13px] text-ink-muted">{s9.usesOnlyWhenNeeded}</p>
+
+      {showsDeps && onedriveOn && (
+        <div className="flex flex-wrap items-center gap-2 text-[12px]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-800/10 bg-bone-50 px-3 py-1.5 font-medium text-ink">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+            {t("docs.attachedCount", { n: String(attachedCount) })}
+          </span>
+          {pendingCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/5 px-3 py-1.5 font-medium text-warning">
+              <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+              {t("docs.pendingCount", { n: String(pendingCount) })}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="divide-y divide-navy-800/5 overflow-hidden rounded-2xl border border-navy-800/10 bg-white">
         {documents.map((el) => {
           const meta = documentCatalog.find((d) => d.ref === el.ref);
           const attachedForRef = attached.filter((d) => d.ref === el.ref);
           const isUp = isBusy(el.ref);
+          const isPending = el.checked && attachedForRef.length === 0;
           return (
             <div key={el.ref} className={cn("px-4 py-4 sm:px-5", el.checked && "bg-bone-50/60")}>
               <div className="flex flex-wrap items-start gap-3">
@@ -150,17 +215,22 @@ export function DocumentsStep({
                         {s9.docDescriptions[el.ref as keyof typeof s9.docDescriptions]}
                       </span>
                     </span>
-                    <span className="ml-10 mt-0.5 block text-[11.5px] text-ink-muted">
+                    <span className="ml-1 mt-0.5 block text-[11.5px] text-ink-muted sm:ml-10">
                       {s9.appliesTo}:{" "}
                       {s9.appliesToOptions[meta?.appliesTo as keyof typeof s9.appliesToOptions] ??
                         meta?.appliesTo}
                     </span>
                   </span>
+                  {isPending && onedriveOn && (
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 text-[11px] font-medium text-warning">
+                      {t("docs.pending")}
+                    </span>
+                  )}
                 </label>
               </div>
 
               {el.checked && onedriveOn && (
-                <div className="ml-10 mt-3 space-y-3">
+                <div className="ml-1 mt-3 space-y-3 sm:ml-10">
                   {attachedForRef.length > 0 && (
                     <ul className="space-y-2">
                       {attachedForRef.map((d) => (
@@ -181,7 +251,7 @@ export function DocumentsStep({
                               {formatBytes(d.file_size)}
                             </span>
                           </span>
-                          <div className="flex items-center gap-3">
+                          <div className="flex shrink-0 items-center gap-3">
                             <span className="text-[11px] font-medium text-success">
                               ✓ {t("docs.uploaded")}
                             </span>
@@ -203,6 +273,7 @@ export function DocumentsStep({
                     }}
                     type="file"
                     className="sr-only"
+                    accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.odt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.txt,.rtf,.zip"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) void upload(el.ref, f);
@@ -235,7 +306,7 @@ export function DocumentsStep({
                 </div>
               )}
 
-              <div className="ml-10 mt-2">
+              <div className="ml-1 mt-2 sm:ml-10">
                 <input
                   value={el.note}
                   onChange={(e) => noteFor(el.ref, e.target.value)}
@@ -248,9 +319,12 @@ export function DocumentsStep({
         })}
       </div>
       {onedriveOn && (
-        <p className="flex items-start gap-2 text-[12px] text-ink-muted">
+        <p className="flex flex-col gap-1 text-[12px] text-ink-muted sm:flex-row sm:items-start sm:gap-2">
           <span className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
-          {t("docs.onedriveNote")}
+          <span>
+            {t("docs.onedriveNote")}{" "}
+            <span className="text-ink-muted/80">{t("docs.typeHint")}</span>
+          </span>
         </p>
       )}
     </div>

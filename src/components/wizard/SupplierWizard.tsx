@@ -94,7 +94,13 @@ export function SupplierWizard({
 }) {
   const { t, lang: currentLang, setLang } = useI18n();
   const [data, setDataState] = useState<SupplierData>(() => initData(initial));
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    const last = initial?._ui?.lastStep;
+    if (typeof last === "number" && last >= 0 && last <= TOTAL_STEPS) {
+      return Math.min(Math.floor(last), TOTAL_STEPS);
+    }
+    return 0;
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -212,9 +218,18 @@ export function SupplierWizard({
     [data, t]
   );
 
+  const persistStep = (idx: number) => {
+    setData((d) => ({
+      ...d,
+      _ui: { ...(d._ui ?? {}), lastStep: Math.min(idx, TOTAL_STEPS) },
+    }));
+  };
+
   const goto = (idx: number) => {
+    const target = Math.max(0, Math.min(idx, TOTAL_STEPS));
     setErrors({});
-    setStep(idx);
+    setStep(target);
+    persistStep(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -226,7 +241,9 @@ export function SupplierWizard({
       return;
     }
     setErrors({});
-    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+    const target = Math.min(step + 1, TOTAL_STEPS);
+    setStep(target);
+    persistStep(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -372,10 +389,37 @@ export function SupplierWizard({
               {Math.min(step + 1, TOTAL_STEPS)} / {TOTAL_STEPS}
             </span>
           </div>
-          <p className="mt-1.5 text-[12px] text-ink-muted">
-            {t("wizard.progress")}: {t(currentTitle as never)}
-          </p>
-        </div>
+<p className="mt-1.5 text-[12px] text-ink-muted">
+          {t("wizard.progress")}: {t(currentTitle as never)}
+        </p>
+        <nav
+          aria-label="Secciones (móvil)"
+          className="mt-3 flex gap-1.5 overflow-x-auto pb-1 lg:hidden"
+        >
+          {TITLE_STEPS.map((key, i) => {
+            const active = i === step && step < TOTAL_STEPS;
+            const done = i < step;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => goto(i)}
+                title={t(key as never) as string}
+                className={cn(
+                  "grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-semibold transition-colors",
+                  active
+                    ? "bg-navy-800 text-white"
+                    : done
+                      ? "bg-navy-800/10 text-navy-800"
+                      : "bg-navy-800/5 text-ink-muted"
+                )}
+              >
+                {done ? "✓" : i + 1}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr] lg:gap-8">

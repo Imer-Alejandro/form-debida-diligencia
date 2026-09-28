@@ -4,16 +4,17 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDict, useI18n } from "@/lib/i18n";
-import type {
-  DocumentRow,
-  Evaluation,
-  RegistrationRow,
-  RegistrationStatus,
-  RiskLevel,
-  SupplierData,
+import {
+  documentCatalog,
+  type DocumentRow,
+  type Evaluation,
+  type RegistrationRow,
+  type RegistrationStatus,
+  type RiskLevel,
+  type SupplierData,
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
-import { formatBytes, formatDate } from "@/lib/utils";
+import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { Badge, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { statusTone, riskTone } from "./tones";
 
@@ -52,6 +53,7 @@ export function SupplierDetail({
   docs: DocumentRow[];
 }) {
   const { t } = useI18n();
+  const dict = useDict();
   const router = useRouter();
 
   const [evaluation, setEvaluation] = useState<Evaluation>(
@@ -124,6 +126,13 @@ export function SupplierDetail({
 
   const data = reg.data as SupplierData;
   const csv = (s: string) => s.trim() || "—";
+
+  const checkedByRef: Record<string, { note?: string }> = {};
+  for (const d of data.section9?.documents ?? []) {
+    if (d.checked) checkedByRef[d.ref] = { note: d.note };
+  }
+  const docRefs = Object.keys(checkedByRef);
+  const pendingDocs = docRefs.filter((ref) => !docs.some((d) => d.ref === ref));
 
   return (
     <div>
@@ -224,33 +233,110 @@ export function SupplierDetail({
         {/* Documents */}
         <div className="space-y-5 lg:col-span-2">
           <section className="rounded-2xl border border-navy-800/10 bg-white p-5">
-            <h2 className="font-display text-[15px] font-semibold text-navy-900">
-              {t("admin.detail.documents")}
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {docs.length === 0 && (
-                <p className="text-[13px] text-ink-muted">{t("admin.detail.noDocuments")}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-[15px] font-semibold text-navy-900">
+                {t("admin.detail.documents")}
+              </h2>
+              {docs.length > 0 && (
+                <Link
+                  href={`/admin/suppliers/${reg.id}/docs`}
+                  className="inline-flex items-center gap-1 text-[12px] font-medium text-navy-700 underline decoration-navy-700/30 underline-offset-2 transition-colors hover:decoration-navy-700"
+                >
+                  {t("admin.detail.openViewer")} →
+                </Link>
               )}
-              {docs.map((doc) => (
-                <li key={doc.id}>
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-start gap-3 rounded-xl border border-navy-800/10 px-3 py-2.5 transition-colors hover:bg-bone-50"
+            </div>
+
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-800/10 bg-bone-50 px-2.5 py-1 font-medium text-ink">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  {t("docs.attachedCount", { n: String(docs.length) })}
+                </span>
+                {pendingDocs.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 font-medium text-warning">
+                    <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                    {t("docs.pendingCount", { n: String(pendingDocs.length) })}
+                  </span>
+                )}
+              </div>
+
+            {docRefs.length === 0 && (
+              <p className="mt-3 text-[13px] text-ink-muted">{t("admin.detail.noDocuments")}</p>
+            )}
+
+            <ul className="mt-3 space-y-2.5">
+              {docRefs.map((ref) => {
+                const meta = documentCatalog.find((d) => d.ref === ref);
+                const note = checkedByRef[ref as keyof typeof checkedByRef]?.note ?? "";
+                const files = docs.filter((d) => d.ref === ref);
+                const pending = files.length === 0;
+                return (
+                  <li
+                    key={ref}
+                    className={cn(
+                      "rounded-xl border px-3 py-3 transition-colors",
+                      pending ? "border-dashed border-warning/40 bg-warning/5" : "border-navy-800/10 bg-white"
+                    )}
                   >
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-navy-800 text-[11px] font-bold text-white">
-                      {doc.ref}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-ink">{doc.file_name}</p>
-                      <p className="text-[11.5px] text-ink-muted">
-                        {formatBytes(doc.file_size)} · {formatDate(doc.created_at)}
-                      </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <span className="grid h-7 w-8 shrink-0 place-items-center rounded-lg bg-navy-800 text-[11px] font-bold text-white">
+                          {ref}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] leading-snug text-ink">
+                            {dict.s9.docDescriptions[ref as keyof typeof dict.s9.docDescriptions] ?? meta?.appliesTo ?? ref}
+                          </p>
+                          {note && <p className="mt-0.5 text-[11.5px] text-ink-muted">{note}</p>}
+                        </div>
+                      </div>
+                      <Badge tone={pending ? "amber" : "green"}>
+                        {pending ? t("docs.pending") : t("docs.uploaded")}
+                      </Badge>
                     </div>
-                  </a>
-                </li>
-              ))}
+
+                    {files.length > 0 && (
+                      <ul className="mt-2.5 space-y-1.5">
+                        {files.map((doc) => (
+                          <li key={doc.id}>
+                            <div className="flex items-center gap-1 rounded-lg border border-navy-800/10 px-2.5 py-2 transition-colors hover:bg-bone-50">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex min-w-0 flex-1 items-center gap-2.5"
+                              >
+                                <span className="grid h-6 w-9 shrink-0 place-items-center rounded-md bg-navy-50 text-[9.5px] font-bold uppercase tracking-wide text-navy-700">
+                                  {fileExt(doc.file_name)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-[12.5px] font-medium text-ink">
+                                    {doc.file_name}
+                                  </span>
+                                  <span className="text-[11px] text-ink-muted">
+                                    {formatBytes(doc.file_size)} · {formatDate(doc.created_at)}
+                                  </span>
+                                </span>
+                              </a>
+                              <a
+                                href={`/api/admin/doc/${reg.id}/${doc.id}?dl=1`}
+                                title={t("admin.detail.download")}
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors hover:bg-navy-800/5 hover:text-navy-800"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                              </a>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
@@ -560,6 +646,13 @@ export function SupplierDetail({
 }
 
 // ---------------------------------------------------------------------------
+function fileExt(name?: string | null): string {
+  if (!name) return "?";
+  const i = name.lastIndexOf(".");
+  if (i < 0 || i === name.length - 1) return "?";
+  return name.slice(i + 1).slice(0, 5);
+}
+
 function FieldValue({ label, value }: { label: string; value: string }) {
   return value ? (
     <div className="min-w-0">

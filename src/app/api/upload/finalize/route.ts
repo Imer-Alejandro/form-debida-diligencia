@@ -2,18 +2,34 @@ import { NextRequest } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import {
   createShareLink,
+  deleteFile,
   filePath,
   getAccessToken,
   getItemIdByPath,
+  getItemSize,
   OneDriveNotConfiguredError,
 } from "@/lib/onedrive";
+import {
+  isAllowedExtension,
+  isAllowedRef,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/upload-policy";
 import { type DocumentRow } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const { token, registrationId, ref, fileName, mimeType, size } = body ?? {};
+  const { token, registrationId, ref, fileName, mimeType } = body ?? {};
   if (!token || !registrationId || !ref || !fileName) {
     return Response.json({ error: "bad_request" }, { status: 400 });
+  }
+  if (ref.length > 2 || fileName.length > 200 || !isAllowedRef(ref)) {
+    return Response.json({ error: "bad_request" }, { status: 400 });
+  }
+  if (!isAllowedExtension(fileName)) {
+    return Response.json(
+      { error: "unsupported_type", hint: "Tipo de archivo no permitido." },
+      { status: 415 }
+    );
   }
 
   const supabase = createPublicClient();
@@ -29,7 +45,30 @@ export async function POST(req: NextRequest) {
     const accessToken = await getAccessToken();
     const path = filePath(registrationId, ref, fileName);
     const itemId = await getItemIdByPath(accessToken, path);
-    const url = await createShareLink(accessToken, itemId);
+
+    // Server-side enforcement: verify the *real* size reported by SharePoint,
+    // not the client-claimed one.
+    const realSize = await getItemSize(accessToken, itemId);
+    if (realSize > MAX_UPLOAD_BYTES) {
+      try {
+        await deleteFile(accessToken, itemId);
+      } catch {
+        /* file already gone or unlucky race; the row won't be created either way */
+      }
+      return Response.json({ error: "too_large" }, { status: 413 });
+    }
+
+    let url: string;
+    try {
+      url = await createShareLink(accessToken, itemId);
+    } catch (err) {
+      try {
+        await deleteFile(accessToken, itemId);
+      } catch {
+        /* ignore cleanup failure on link error */
+      }
+      throw err;
+    }
 
     const { data: doc, error } = await supabase
       .from("registration_documents")
@@ -38,7 +77,7 @@ export async function POST(req: NextRequest) {
         invitation_token: token,
         ref,
         file_name: fileName,
-        file_size: typeof size === "number" ? size : null,
+        file_size: realSize,
         mime_type: typeof mimeType === "string" ? mimeType : null,
         url,
       })

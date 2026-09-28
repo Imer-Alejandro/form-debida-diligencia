@@ -6,17 +6,29 @@ import {
   getAccessToken,
   OneDriveNotConfiguredError,
 } from "@/lib/onedrive";
-
-const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+import {
+  isAllowedExtension,
+  isAllowedRef,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/upload-policy";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const { token, registrationId, ref, fileName } = body ?? {};
+  const { token, registrationId, ref, fileName, size } = body ?? {};
   if (!token || !registrationId || !ref || !fileName) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
-  if (ref.length > 2 || fileName.length > 200) {
+  if (ref.length > 2 || fileName.length > 200 || !isAllowedRef(ref)) {
     return Response.json({ error: "bad_request" }, { status: 400 });
+  }
+  if (!isAllowedExtension(fileName)) {
+    return Response.json(
+      { error: "unsupported_type", hint: "Tipo de archivo no permitido." },
+      { status: 415 }
+    );
+  }
+  if (typeof size === "number" && size > MAX_UPLOAD_BYTES) {
+    return Response.json({ error: "too_large" }, { status: 413 });
   }
 
   const supabase = createPublicClient();
@@ -38,7 +50,7 @@ export async function POST(req: NextRequest) {
     return Response.json({
       uploadUrl: session.uploadUrl,
       expirationDateTime: session.expirationDateTime,
-      maxBytes: MAX_BYTES,
+      maxBytes: MAX_UPLOAD_BYTES,
     });
   } catch (err) {
     if (err instanceof OneDriveNotConfiguredError) {

@@ -40,7 +40,14 @@ export interface DocumentIntent {
   note: string;
 }
 
+/** Internal UI-only metadata persisted inside data (not part of any section). */
+export interface UiMeta {
+  lastStep?: number;
+}
+
 export interface SupplierData {
+  /** Internal UI state (e.g. last wizard step) — not a form section. */
+  _ui?: UiMeta;
   section1: {
     providerType: string;
     providerTypeOther: string;
@@ -123,6 +130,7 @@ export interface SupplierData {
 
 export function emptyData(): SupplierData {
   return {
+    _ui: { lastStep: 0 },
     section1: {
       providerType: "",
       providerTypeOther: "",

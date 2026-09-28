@@ -340,9 +340,16 @@ export const es = {
     notConfigured:
       "La carga de archivos aún no está disponible. Puede continuar y el equipo de Sánchez Business & Corp le solicitará los documentos por otro medio.",
     remove: "Quitar archivo",
+    removeFailed: "No se pudo eliminar el archivo. Intente de nuevo.",
+    removeNotConfigured: "La eliminación necesita la conexión con el repositorio de archivos. Vuelva a intentarlo más tarde.",
     tooLarge: "El archivo supera el tamaño máximo permitido (50 MB).",
     dropHint: "Haga clic para elegir un archivo o arrástrelo aquí",
     noUploadsYet: "Ningún documento adjunto aún.",
+    pending: "Pendiente",
+    attachedCount: "{n} adjuntados",
+    pendingCount: "{n} pendientes",
+    typeHint:
+      "Formatos admitidos: PDF, imágenes y documentos de Office. Máximo 50 MB por archivo.",
     onedriveNote:
       "Sus archivos se almacenan de forma segura en el repositorio corporativo de Sánchez Business & Corp (Microsoft OneDrive). No se guardan en servidores públicos.",
   },
@@ -365,6 +372,9 @@ export const es = {
     signRequired: "Debe firmar antes de enviar.",
     mustAgree: "Debe marcar la confirmación de firma.",
     invalidEmail: "Correo electrónico no válido.",
+    fileTooLarge: "El archivo supera el tamaño máximo permitido (50 MB).",
+    unsupportedType:
+      "Tipo de archivo no permitido. Use PDF, imágenes o documentos de Office.",
   },
   admin: {
     login: {
@@ -426,6 +436,20 @@ export const es = {
       drafts: "Borradores en curso",
       approved: "Aprobados",
       newThisMonth: "Este mes",
+      period: "Periodo",
+      last6Months: "Últimos 6 meses",
+      last12Months: "Últimos 12 meses",
+      allTime: "Todo el periodo",
+      customRange: "Rango personalizado",
+      from: "Desde",
+      to: "Hasta",
+      anyStatus: "Todos los estados",
+      anyRisk: "Todos los riesgos",
+      anyType: "Todos los tipos",
+      anyCountry: "Todos los países",
+      applyFilters: "Aplicar filtros",
+      clearFilters: "Limpiar",
+      invalidDateRange: "La fecha inicial debe ser anterior o igual a la fecha final.",
       byStatus: "Por estado",
       byRisk: "Por clasificación de riesgo",
       byType: "Por tipo de proveedor",
@@ -537,6 +561,16 @@ export const es = {
       saveEvaluation: "Guardar evaluación",
       savedEvaluation: "Evaluación guardada",
       noDocuments: "Sin documentos adjuntos por este medio.",
+      openViewer: "Abrir visor de archivos",
+      viewerBack: "Volver al registro",
+      viewerTitle: "Visor de documentos",
+      viewerSubtitle: "Vista previa y descarga de los documentos adjuntados por el proveedor",
+      download: "Descargar",
+      openInSharePoint: "Abrir en SharePoint",
+      close: "Cerrar",
+      previewTooLarge:
+        "Archivo demasiado grande para la vista previa en línea (máx. 10 MB). Use la descarga.",
+      previewUnavailable: "Vista previa no disponible para este tipo de archivo.",
       requestChanges: "Solicitar cambios al proveedor",
       requestChangesNote:
         "Se marcará el registro como “Solicitud de cambios”. El nuevo enlace permitirá al proveedor editar y volver a enviar (los cambios bancarios requerirán validación).",
@@ -570,6 +604,11 @@ export const es = {
         completed: "Completada",
       },
       lastOpened: "Última apertura",
+      delete: "Eliminar",
+      deleting: "Eliminando…",
+      deleteConfirm:
+        "¿Eliminar la invitación de {company}? El enlace dejará de funcionar, pero el registro existente se conservará.",
+      errorDelete: "No se pudo eliminar la invitación. Intente de nuevo.",
     },
     settings: {
       title: "Configuración",
