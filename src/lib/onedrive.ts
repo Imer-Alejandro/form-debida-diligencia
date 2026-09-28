@@ -71,7 +71,7 @@ export function buildEncryptedConfig(
 const CLIENT_ID = () => process.env.ONEDRIVE_CLIENT_ID ?? "";
 const CLIENT_SECRET = () => process.env.ONEDRIVE_CLIENT_SECRET ?? "";
 const TENANT = () => process.env.ONEDRIVE_TENANT_ID ?? "common";
-const SCOPE = "Files.ReadWrite.All offline_access";
+const SCOPE = "https://graph.microsoft.com/Files.ReadWrite.All offline_access";
 const SITE_URL = () => process.env.SHAREPOINT_SITE_URL ?? "";
 
 export function authUrl(): string {
@@ -126,6 +126,7 @@ async function refreshAccessToken(refreshToken: string) {
     client_secret: CLIENT_SECRET(),
     grant_type: "refresh_token",
     refresh_token: refreshToken,
+    scope: SCOPE,
   });
   // tenant for work accounts may already be part of the token grant; using an explicit tenant
   const res = await fetch(
