@@ -616,6 +616,8 @@ export const es = {
       onedrive_status: "Estado",
       onedrive_configured: "Conectado",
       onedrive_notconfigured: "No conectado",
+      onedrive_missing_client_id:
+        "Falta ONEDRIVE_CLIENT_ID en las variables de entorno de Vercel. Añade el ID de aplicación de Microsoft Entra y vuelve a desplegar.",
       onedrive_account: "Cuenta conectada",
       connect: "Conectar a SharePoint",
       steps: "Pasos para configurar",

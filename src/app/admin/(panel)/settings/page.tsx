@@ -8,7 +8,8 @@ export default async function AdminSettingsPage() {
   const dict = await getServerDict();
   const st = dict.admin.settings;
   const state = await readOneDriveState();
-  const connectUrl = authUrl();
+  const clientIdConfigured = Boolean(process.env.ONEDRIVE_CLIENT_ID);
+  const connectUrl = clientIdConfigured ? authUrl() : null;
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 
   return (
@@ -37,7 +38,7 @@ export default async function AdminSettingsPage() {
               </p>
             )}
           </div>
-          {!state.configured && (
+          {!state.configured && connectUrl && (
             <a
               href={connectUrl}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-navy-900 px-5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-navy-800"
@@ -46,6 +47,11 @@ export default async function AdminSettingsPage() {
             </a>
           )}
         </div>
+        {!state.configured && !clientIdConfigured && (
+          <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+            {st.onedrive_missing_client_id}
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">

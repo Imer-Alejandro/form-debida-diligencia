@@ -618,6 +618,8 @@ recent: "Recent registrations",
       onedrive_status: "Status",
       onedrive_configured: "Connected",
       onedrive_notconfigured: "Not connected",
+      onedrive_missing_client_id:
+        "ONEDRIVE_CLIENT_ID is missing from Vercel environment variables. Add the Microsoft Entra application ID and redeploy.",
       onedrive_account: "Connected account",
       connect: "Connect to SharePoint",
       steps: "Setup steps",
