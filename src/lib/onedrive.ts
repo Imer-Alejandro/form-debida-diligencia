@@ -304,7 +304,7 @@ export async function createUploadSession(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        item: { "@microsoft.graph.conflictBehavior": "fail" },
+        item: { "@microsoft.graph.conflictBehavior": "replace" },
       }),
     }
   );

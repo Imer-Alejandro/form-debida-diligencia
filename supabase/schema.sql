@@ -276,11 +276,9 @@ drop policy if exists "suppliers can attach documents with a valid token" on pub
 create policy "suppliers can attach documents with a valid token"
   on public.registration_documents for insert
   with check (
-    exists (
-      select 1 from public.supplier_registrations r
-      where r.id = registration_documents.registration_id
-        and r.invitation_token = registration_documents.invitation_token
-        and r.status in ('BORRADOR', 'SOLICITUD_CAMBIOS')
+    public.supplier_can_edit_registration(
+      registration_documents.invitation_token,
+      registration_documents.registration_id
     )
   );
 
