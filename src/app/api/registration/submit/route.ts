@@ -50,6 +50,7 @@ function validate(d: SupplierData): string | null {
   if (!d.section1.legalName?.trim()) return "section1.legalName";
   if (!d.section1.taxId?.trim()) return "section1.taxId";
   if (!d.section1.providerType) return "section1.providerType";
+  if (!d.section1.nationality) return "section1.nationality";
   if ((d.section10.authorizations?.length ?? 0) < 4) return "section10";
   if (!d.section11.signerName?.trim()) return "section11.signerName";
   if (!d.section11.signatureDataUrl) return "section11.signature";

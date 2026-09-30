@@ -2,6 +2,7 @@
 
 import { useDict, useI18n } from "@/lib/i18n";
 import type { DocumentIntent, DocumentRow, SupplierData } from "@/lib/types";
+import { countryName } from "@/lib/countries";
 import { cn, formatDate } from "@/lib/utils";
 
 function KV({ k, v }: { k: string; v?: string }) {
@@ -51,6 +52,7 @@ export function ReviewStep({
             <KV k={dict.s1.legalName} v={data.section1.legalName} />
             <KV k={dict.s1.commercialName} v={data.section1.commercialName} />
             <KV k={dict.s1.taxId} v={data.section1.taxId} />
+            <KV k={dict.s1.nationality} v={countryName(data.section1.nationality, lang)} />
             <KV k={dict.s1.registryNo} v={data.section1.registryNo} />
             <KV k={dict.s1.provinceCountry} v={data.section1.provinceCountry} />
             <KV k={dict.s1.phoneEmail} v={data.section1.phoneEmail} />

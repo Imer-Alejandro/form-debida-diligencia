@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -17,6 +17,7 @@ import type {
   ReferenceRow,
   SupplierData,
 } from "@/lib/types";
+import { countryOptions, type CountryLanguage } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 export type Setter = (fn: (d: SupplierData) => SupplierData) => void;
@@ -72,11 +73,110 @@ function ChoiceGrid({
   );
 }
 
+function CountryCombobox({
+  value,
+  language,
+  placeholder,
+  emptyLabel,
+  onChange,
+}: {
+  value: string;
+  language: CountryLanguage;
+  placeholder: string;
+  emptyLabel: string;
+  onChange: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = countryOptions[language].find((country) => country.code === value);
+  const normalize = (text: string) =>
+    text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase(language);
+  const normalizedQuery = normalize(query.trim());
+  const results = countryOptions[language]
+    .filter((country) =>
+      normalize(`${country.name} ${country.code}`).includes(normalizedQuery)
+    )
+    .slice(0, 30);
+
+  const select = (code: string) => {
+    onChange(code);
+    setQuery("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        id="supplier-nationality"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls="supplier-nationality-options"
+        autoComplete="off"
+        value={open ? query : selected ? `${selected.flag}  ${selected.name}` : ""}
+        placeholder={placeholder}
+        onFocus={() => {
+          setQuery("");
+          setOpen(true);
+        }}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
+            setOpen(false);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown" && results[0]) {
+            event.preventDefault();
+            document.getElementById(`country-option-${results[0].code}`)?.focus();
+          }
+          if (event.key === "Enter" && open && results[0]) {
+            event.preventDefault();
+            select(results[0].code);
+          }
+        }}
+      />
+      {open && (
+        <div
+          id="supplier-nationality-options"
+          role="listbox"
+          className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {results.length > 0 ? (
+            results.map((country) => (
+              <button
+                key={country.code}
+                id={`country-option-${country.code}`}
+                type="button"
+                role="option"
+                aria-selected={country.code === value}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => select(country.code)}
+                className="flex w-full items-center gap-3 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+              >
+                <span className="text-lg leading-none" aria-hidden>{country.flag}</span>
+                <span>{country.name}</span>
+                <span className="ml-auto font-mono text-[10px] text-slate-400">{country.code}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-3.5 py-3 text-sm text-slate-500">{emptyLabel}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Section 1 — Información general
 // ---------------------------------------------------------------------------
 export function Section1({ data, set, errors }: SectionProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const put = (k: keyof SupplierData["section1"], v: string) =>
     set((d) => ({ ...d, section1: { ...d.section1, [k]: v } }));
 
@@ -120,6 +220,21 @@ export function Section1({ data, set, errors }: SectionProps) {
           <Input type="date" value={data.section1.registryExpiry} onChange={(e) => put("registryExpiry", e.target.value)} />
         </Field>
       </Row>
+      <div>
+        <label htmlFor="supplier-nationality" className="mb-1.5 block text-[13px] font-medium text-slate-700">
+          {t("s1.nationality")} <span className="text-rose-500">*</span>
+        </label>
+        <CountryCombobox
+          value={data.section1.nationality ?? ""}
+          language={lang}
+          placeholder={t("s1.searchCountry")}
+          emptyLabel={t("s1.noCountriesFound")}
+          onChange={(code) => put("nationality", code)}
+        />
+        {errors["s1.nationality"] && (
+          <span className="mt-1 block text-xs text-danger">{errors["s1.nationality"]}</span>
+        )}
+      </div>
       <Row>
         <Field label={t("s1.foundedDate")}>
           <Input type="date" value={data.section1.foundedDate} onChange={(e) => put("foundedDate", e.target.value)} />

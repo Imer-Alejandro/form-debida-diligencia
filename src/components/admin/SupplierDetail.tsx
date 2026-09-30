@@ -15,6 +15,7 @@ import {
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
+import { countryName } from "@/lib/countries";
 import { Badge, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { statusTone, riskTone } from "./tones";
 
@@ -675,7 +676,7 @@ function FieldValue({ label, value }: { label: string; value: string }) {
 }
 
 function DataView({ data }: { data: SupplierData }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const d = useDict();
   const s1 = data.section1;
   const s3 = data.section3;
@@ -697,6 +698,10 @@ function DataView({ data }: { data: SupplierData }) {
         <FieldValue label={d.s1.legalName} value={s1.legalName} />
         <FieldValue label={d.s1.commercialName} value={s1.commercialName} />
         <FieldValue label={d.s1.taxId} value={s1.taxId} />
+        <FieldValue
+          label={d.s1.nationality}
+          value={s1.nationality ? countryName(s1.nationality, lang) : ""}
+        />
         <FieldValue label={d.s1.registryNo} value={s1.registryNo} />
         <FieldValue label={d.s1.registryExpiry} value={s1.registryExpiry} />
         <FieldValue label={d.s1.foundedDate} value={s1.foundedDate} />

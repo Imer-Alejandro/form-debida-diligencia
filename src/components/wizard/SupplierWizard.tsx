@@ -65,6 +65,7 @@ function initData(initial: SupplierData | null): SupplierData {
     return {
       ...emptyData(),
       ...initial,
+      section1: { ...emptyData().section1, ...initial.section1 },
       section9: {
         documents: hasDocs
           ? initial.section9.documents
@@ -200,6 +201,7 @@ export function SupplierWizard({
         if (!data.section1.providerType) errs["s1.providerType"] = t("validation.requiredField");
         if (!data.section1.legalName.trim()) errs["s1.legalName"] = t("validation.requiredField");
         if (!data.section1.taxId.trim()) errs["s1.taxId"] = t("validation.requiredField");
+        if (!data.section1.nationality) errs["s1.nationality"] = t("validation.requiredField");
       }
       if (idx === 9) {
         if (data.section10.authorizations.length < 4) {

@@ -57,6 +57,7 @@ export interface SupplierData {
     registryNo: string;
     registryExpiry: string;
     foundedDate: string;
+    nationality: string;
     legalAddress: string;
     provinceCountry: string;
     phoneEmail: string;
@@ -140,6 +141,7 @@ export function emptyData(): SupplierData {
       registryNo: "",
       registryExpiry: "",
       foundedDate: "",
+      nationality: "",
       legalAddress: "",
       provinceCountry: "",
       phoneEmail: "",
