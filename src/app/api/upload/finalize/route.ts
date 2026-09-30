@@ -80,23 +80,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: doc, error } = await supabase
-      .from("registration_documents")
-      .insert({
-        registration_id: registrationId,
-        invitation_token: token,
-        ref,
-        file_name: fileName,
-        file_size: realSize,
-        mime_type: typeof mimeType === "string" ? mimeType : null,
-        url,
-      })
-      .select()
-      .single();
+    const { data: doc, error } = await supabase.rpc("attach_registration_document", {
+      p_token: token,
+      p_registration_id: registrationId,
+      p_ref: ref,
+      p_file_name: fileName,
+      p_file_size: realSize,
+      p_mime_type: typeof mimeType === "string" ? mimeType : null,
+      p_url: url,
+    });
 
-    if (error) {
+    if (error || !doc) {
       return Response.json(
-        { error: "server_error", message: error.message },
+        { error: "server_error", message: error?.message ?? "document_insert_failed" },
         { status: 500 }
       );
     }

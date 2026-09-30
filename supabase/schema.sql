@@ -282,6 +282,48 @@ create policy "suppliers can attach documents with a valid token"
     )
   );
 
+create or replace function public.attach_registration_document(
+  p_token text,
+  p_registration_id uuid,
+  p_ref text,
+  p_file_name text,
+  p_file_size bigint,
+  p_mime_type text,
+  p_url text
+)
+returns public.registration_documents
+language plpgsql security definer set search_path = public as $$
+declare
+  v_doc public.registration_documents;
+begin
+  if not public.supplier_can_edit_registration(p_token, p_registration_id) then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+
+  insert into public.registration_documents (
+    registration_id,
+    invitation_token,
+    ref,
+    file_name,
+    file_size,
+    mime_type,
+    url
+  ) values (
+    p_registration_id,
+    p_token,
+    p_ref,
+    p_file_name,
+    p_file_size,
+    p_mime_type,
+    p_url
+  ) returning * into v_doc;
+
+  return v_doc;
+end;
+$$;
+revoke all on function public.attach_registration_document(text, uuid, text, text, bigint, text, text) from public;
+grant execute on function public.attach_registration_document(text, uuid, text, text, bigint, text, text) to anon, authenticated;
+
 drop policy if exists "documents are admin readable and editable" on public.registration_documents;
 create policy "documents are admin readable and editable"
   on public.registration_documents for select
