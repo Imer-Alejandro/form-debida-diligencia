@@ -1,6 +1,13 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
-import { filePath, getAccessToken, getDriveContent, OneDriveNotConfiguredError } from "@/lib/onedrive";
+import {
+  filePath,
+  getAccessToken,
+  getDriveContent,
+  OneDriveNotConfiguredError,
+  previousSupplierFilePath,
+  supplierFilePath,
+} from "@/lib/onedrive";
 import {
   canPreview,
   fileExtension,
@@ -66,8 +73,38 @@ export async function GET(
   let content: Response;
   try {
     const accessToken = await getAccessToken();
-    const path = filePath(doc.registration_id, doc.ref, doc.file_name);
-    content = await getDriveContent(accessToken, path);
+    const { data: registration } = await supabase
+      .from("supplier_registrations")
+      .select("company_name, data")
+      .eq("id", doc.registration_id)
+      .maybeSingle();
+    const supplierName =
+      registration?.company_name ??
+      (typeof registration?.data?.section1?.legalName === "string"
+        ? registration.data.section1.legalName
+        : null);
+    const paths = supplierName
+      ? [
+          supplierFilePath(
+            supplierName,
+            doc.registration_id,
+            doc.ref,
+            doc.file_name
+          ),
+          previousSupplierFilePath(
+            supplierName,
+            doc.registration_id,
+            doc.ref,
+            doc.file_name
+          ),
+          filePath(doc.registration_id, doc.ref, doc.file_name),
+        ]
+      : [filePath(doc.registration_id, doc.ref, doc.file_name)];
+    content = await getDriveContent(accessToken, paths[0]);
+    for (const path of paths.slice(1)) {
+      if (content.status !== 404) break;
+      content = await getDriveContent(accessToken, path);
+    }
   } catch (err) {
     if (err instanceof OneDriveNotConfiguredError) {
       return Response.json(

@@ -316,16 +316,24 @@ export function SupplierWizard({
           throw new Error(session?.message || session?.hint || session?.error || `upload_session_${sessionRes.status}`);
         }
 
-        const uploadRes = await fetch(session.uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-            "Content-Range": `bytes 0-${file.size - 1}/${file.size}`,
-          },
-          body: file,
-        });
-        if (!uploadRes.ok) {
-          throw new Error(`sharepoint_upload_${uploadRes.status}`);
+        const chunkSize = 10 * 1024 * 1024;
+        for (let start = 0; start < file.size; start += chunkSize) {
+          const end = Math.min(start + chunkSize, file.size);
+          const uploadRes = await fetch(session.uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+              "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+            },
+            body: file.slice(start, end),
+          });
+          const isLastChunk = end === file.size;
+          const expectedStatus = isLastChunk
+            ? uploadRes.status === 200 || uploadRes.status === 201
+            : uploadRes.status === 202;
+          if (!expectedStatus) {
+            throw new Error(`sharepoint_upload_${uploadRes.status}`);
+          }
         }
 
         const finalizeRes = await fetch("/api/upload/finalize", {

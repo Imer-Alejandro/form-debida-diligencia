@@ -200,10 +200,22 @@ export function supplierFilePath(
   const supplierFolder = sanitizeFileName(supplierName)
     .replace(/[. ]+$/g, "")
     .slice(0, 150) || "Proveedor";
+  return `${ONEDRIVE_ROOT}/${supplierFolder}/${ref} - ${registrationId}/${sanitizeFileName(fileName)}`;
+}
+
+export function previousSupplierFilePath(
+  supplierName: string,
+  registrationId: string,
+  ref: string,
+  fileName: string
+): string {
+  const supplierFolder = sanitizeFileName(supplierName)
+    .replace(/[. ]+$/g, "")
+    .slice(0, 150) || "Proveedor";
   return `${ONEDRIVE_ROOT}/${supplierFolder}/${registrationId}/${ref}/${sanitizeFileName(fileName)}`;
 }
 
-/** One subfolder per document ref inside the registration folder. */
+/** Previous storage path for documents uploaded before supplier folders. */
 export function filePath(registrationId: string, ref: string, fileName: string): string {
   const safe = sanitizeFileName(fileName);
   return `${folderPath(registrationId)}/${ref}/${safe}`;
@@ -272,11 +284,14 @@ export async function createUploadSession(
     if (response.ok) {
       const folder = await response.json();
       parentId = folder.id as string;
-    } else if (response.status === 409) {
-      parentId = await getItemIdByPath(accessToken, currentPath);
     } else {
       const json = await response.json().catch(() => null);
-      throw new Error(json?.error?.message ?? "SharePoint folder creation failed");
+      const existingFolderId = await getFolderIdByPath(accessToken, currentPath);
+      if (existingFolderId) {
+        parentId = existingFolderId;
+      } else {
+        throw new Error(json?.error?.message ?? "SharePoint folder creation failed");
+      }
     }
   }
   const encoded = encodePath(path);
@@ -322,6 +337,22 @@ export async function getItemIdByPath(
     if (res.status === 404) throw new ItemNotFoundError();
     throw new Error(json.error?.message ?? "Item lookup error");
   }
+  return json.id as string;
+}
+
+async function getFolderIdByPath(
+  accessToken: string,
+  path: string
+): Promise<string | null> {
+  const base = await siteDriveBase(accessToken);
+  const encoded = encodePath(path);
+  const res = await fetch(`${base}/root:/${encoded}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (res.status === 404) return null;
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message ?? "Folder lookup error");
+  if (!json.folder) throw new Error(`SharePoint path is not a folder: ${path}`);
   return json.id as string;
 }
 
