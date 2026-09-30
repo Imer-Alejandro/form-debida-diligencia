@@ -345,9 +345,11 @@ export const en = {
     removeNotConfigured:
       "Removal requires a connection with the file repository. Please try again later.",
     tooLarge: "The file exceeds the maximum allowed size (50 MB).",
-    dropHint: "Choose a file; it will upload when you submit the form",
+    dropHint: "Choose a file; it uploads when you save the draft or submit the form",
     noUploadsYet: "No documents attached yet.",
     pending: "Pending",
+    missingCheckedDocuments:
+      "{n} selected document(s) still need uploading. Your draft was saved so you can continue later.",
     attachedCount: "{n} attached",
     pendingCount: "{n} pending",
     typeHint:
@@ -358,6 +360,9 @@ export const en = {
   submit: {
     reviewTitle: "Review your information",
     confirmSubmit: "Confirm submission",
+    saveDraft: "Save draft",
+    savingDraft: "Saving draft…",
+    draftSaved: "Draft saved. You can continue later.",
     submitSuccessTitle: "Registration submitted",
     submitSuccessSub:
       "Thank you for completing your registration. The Sanchez Business Corp team will review the information.",

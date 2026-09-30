@@ -104,9 +104,6 @@ export function SupplierWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [registrationId, setRegistrationId] = useState<string | null>(
-    registration?.id ?? null
-  );
   const [attached, setAttached] = useState<DocumentRow[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingDocumentFile[]>([]);
   const [onedriveOn, setOnedriveOn] = useState(true);
@@ -119,7 +116,9 @@ export function SupplierWizard({
       : null
   );
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const mountedRef = useRef(false);
 
@@ -183,10 +182,7 @@ export function SupplierWizard({
           body: JSON.stringify({ token, data, language: currentLang }),
         });
         const json = await res.json().catch(() => null);
-        if (res.ok && json?.registration?.id) {
-          setRegistrationId((old) => old ?? json.registration.id);
-          setSavedAt(Date.now());
-        }
+        if (res.ok && json?.registration?.id) setSavedAt(Date.now());
       } catch {
         dirtyRef.current = true;
       } finally {
@@ -249,21 +245,95 @@ export function SupplierWizard({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const ensureDraft = useCallback(async (): Promise<string | null> => {
-    if (registrationId) return registrationId;
-    const res = await fetch("/api/registration/draft", {
+  const saveDraftAndUpload = async (): Promise<DocumentRow[]> => {
+    const draftRes = await fetch("/api/registration/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, data, language: currentLang }),
     });
-    const json = await res.json().catch(() => null);
-    if (res.ok && json?.registration?.id) {
-      setRegistrationId(json.registration.id);
-      return json.registration.id;
+    const draft = await draftRes.json().catch(() => null);
+    if (!draftRes.ok || !draft?.registration?.id) {
+      throw new Error(draft?.message || draft?.error || "draft_save_failed");
     }
-    return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registrationId, token, data]);
+    const regId = draft.registration.id as string;
+
+    const uploaded = [...attached];
+    const queuedFiles = [...pendingFiles];
+    for (const pending of queuedFiles) {
+      const { ref, file } = pending;
+      const sessionRes = await fetch("/api/upload/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          registrationId: regId,
+          ref,
+          fileName: file.name,
+          size: file.size,
+        }),
+      });
+      const session = await sessionRes.json().catch(() => null);
+      if (!sessionRes.ok) {
+        throw new Error(session?.message || session?.hint || session?.error || `upload_session_${sessionRes.status}`);
+      }
+
+      const chunkSize = 10 * 1024 * 1024;
+      for (let start = 0; start < file.size; start += chunkSize) {
+        const end = Math.min(start + chunkSize, file.size);
+        const uploadRes = await fetch(session.uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+          },
+          body: file.slice(start, end),
+        });
+        const isLastChunk = end === file.size;
+        const expectedStatus = isLastChunk
+          ? uploadRes.status === 200 || uploadRes.status === 201
+          : uploadRes.status === 202;
+        if (!expectedStatus) {
+          throw new Error(`sharepoint_upload_${uploadRes.status}`);
+        }
+      }
+
+      const finalizeRes = await fetch("/api/upload/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          registrationId: regId,
+          ref,
+          fileName: file.name,
+          mimeType: file.type,
+          size: file.size,
+        }),
+      });
+      const finalized = await finalizeRes.json().catch(() => null);
+      if (!finalizeRes.ok || !finalized?.doc) {
+        throw new Error(finalized?.message || finalized?.hint || finalized?.error || `upload_finalize_${finalizeRes.status}`);
+      }
+      uploaded.push(finalized.doc as DocumentRow);
+      setAttached([...uploaded]);
+      setPendingFiles((current) => current.filter((item) => item !== pending));
+    }
+    setSavedAt(Date.now());
+    return uploaded;
+  };
+
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    setSubmitError(null);
+    setDraftMessage(null);
+    try {
+      await saveDraftAndUpload();
+      setDraftMessage(t("submit.draftSaved"));
+    } catch (error) {
+      setSubmitError(error instanceof Error ? `${t("docs.error")}: ${error.message}` : t("docs.error"));
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   const submit = async () => {
     let invalid = false;
@@ -284,77 +354,19 @@ export function SupplierWizard({
     }
     setSubmitting(true);
     setSubmitError(null);
+    setDraftMessage(null);
     try {
-      const draftRes = await fetch("/api/registration/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, data, language: currentLang }),
-      });
-      const draft = await draftRes.json().catch(() => null);
-      if (!draftRes.ok || !draft?.registration?.id) {
-        throw new Error(draft?.message || draft?.error || "draft_save_failed");
-      }
-      const regId = draft.registration.id as string;
-      setRegistrationId(regId);
-
-      const uploaded = [...attached];
-      for (const pending of pendingFiles) {
-        const { ref, file } = pending;
-        const sessionRes = await fetch("/api/upload/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            registrationId: regId,
-            ref,
-            fileName: file.name,
-            size: file.size,
-          }),
-        });
-        const session = await sessionRes.json().catch(() => null);
-        if (!sessionRes.ok) {
-          throw new Error(session?.message || session?.hint || session?.error || `upload_session_${sessionRes.status}`);
-        }
-
-        const chunkSize = 10 * 1024 * 1024;
-        for (let start = 0; start < file.size; start += chunkSize) {
-          const end = Math.min(start + chunkSize, file.size);
-          const uploadRes = await fetch(session.uploadUrl, {
-            method: "PUT",
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-              "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
-            },
-            body: file.slice(start, end),
-          });
-          const isLastChunk = end === file.size;
-          const expectedStatus = isLastChunk
-            ? uploadRes.status === 200 || uploadRes.status === 201
-            : uploadRes.status === 202;
-          if (!expectedStatus) {
-            throw new Error(`sharepoint_upload_${uploadRes.status}`);
-          }
-        }
-
-        const finalizeRes = await fetch("/api/upload/finalize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            registrationId: regId,
-            ref,
-            fileName: file.name,
-            mimeType: file.type,
-            size: file.size,
-          }),
-        });
-        const finalized = await finalizeRes.json().catch(() => null);
-        if (!finalizeRes.ok || !finalized?.doc) {
-          throw new Error(finalized?.message || finalized?.hint || finalized?.error || `upload_finalize_${finalizeRes.status}`);
-        }
-        uploaded.push(finalized.doc as DocumentRow);
-        setAttached([...uploaded]);
-        setPendingFiles((current) => current.filter((item) => item !== pending));
+      const uploaded = await saveDraftAndUpload();
+      const missingDocs = data.section9.documents.filter(
+        (document) =>
+          document.checked && !uploaded.some((attachedDoc) => attachedDoc.ref === document.ref)
+      );
+      if (missingDocs.length > 0) {
+        setSubmitError(t("docs.missingCheckedDocuments", { n: missingDocs.length }));
+        setStep(8);
+        persistStep(8);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
       }
 
       const res = await fetch("/api/registration/submit", {
@@ -594,13 +606,30 @@ export function SupplierWizard({
           </div>
 
           {step < TOTAL_STEPS ? (
-            <div className="sticky bottom-3 z-10 mt-5 flex items-center justify-between gap-3 rounded-2xl border border-navy-800/10 bg-white/95 p-3 shadow-[0_4px_16px_rgba(10,28,49,0.08)] backdrop-blur">
+            <div className="sticky bottom-3 z-10 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-navy-800/10 bg-white/95 p-3 shadow-[0_4px_16px_rgba(10,28,49,0.08)] backdrop-blur">
+              {submitError && (
+                <p role="alert" className="w-full break-words text-xs text-danger">
+                  {submitError}
+                </p>
+              )}
+              {draftMessage && (
+                <p role="status" className="w-full text-xs text-success">
+                  {draftMessage}
+                </p>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => goto(Math.max(0, step - 1))}
                 disabled={step === 0}
               >
                 ← {t("common.back")}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void saveDraft()}
+                disabled={savingDraft || submitting}
+              >
+                {savingDraft ? t("submit.savingDraft") : t("submit.saveDraft")}
               </Button>
               {step === TOTAL_STEPS - 1 ? (
                 <Button onClick={next} size="lg">
@@ -619,10 +648,22 @@ export function SupplierWizard({
                   {submitError}
                 </p>
               )}
+              {draftMessage && (
+                <p role="status" className="mr-auto min-w-0 flex-1 text-xs text-success">
+                  {draftMessage}
+                </p>
+              )}
               <Button variant="secondary" onClick={() => goto(TOTAL_STEPS - 1)}>
                 ← {t("common.back")}
               </Button>
-              <Button onClick={() => void submit()} size="lg" disabled={submitting}>
+              <Button
+                variant="secondary"
+                onClick={() => void saveDraft()}
+                disabled={savingDraft || submitting}
+              >
+                {savingDraft ? t("submit.savingDraft") : t("submit.saveDraft")}
+              </Button>
+              <Button onClick={() => void submit()} size="lg" disabled={submitting || savingDraft}>
                 {submitting ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

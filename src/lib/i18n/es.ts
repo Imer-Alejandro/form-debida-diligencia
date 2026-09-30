@@ -343,9 +343,11 @@ export const es = {
     removeFailed: "No se pudo eliminar el archivo. Intente de nuevo.",
     removeNotConfigured: "La eliminación necesita la conexión con el repositorio de archivos. Vuelva a intentarlo más tarde.",
     tooLarge: "El archivo supera el tamaño máximo permitido (50 MB).",
-    dropHint: "Seleccionar archivo; se enviará al confirmar el formulario",
+    dropHint: "Seleccionar archivo; se subirá al guardar el borrador o enviar el formulario",
     noUploadsYet: "Ningún documento adjunto aún.",
     pending: "Pendiente",
+    missingCheckedDocuments:
+      "Falta cargar {n} documento(s) marcado(s). Se guardó el borrador; puede continuar más tarde.",
     attachedCount: "{n} adjuntados",
     pendingCount: "{n} pendientes",
     typeHint:
@@ -356,6 +358,9 @@ export const es = {
   submit: {
     reviewTitle: "Revise su información",
     confirmSubmit: "Confirmar envío",
+    saveDraft: "Guardar borrador",
+    savingDraft: "Guardando borrador…",
+    draftSaved: "Borrador guardado. Puede continuar más tarde.",
     submitSuccessTitle: "Registro enviado",
     submitSuccessSub:
       "Gracias por completar su registro. El equipo de Sánchez Business & Corp revisará la información.",
