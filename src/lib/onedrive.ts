@@ -384,7 +384,7 @@ export async function createShareLink(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type: "view", scope: "business" }),
+    body: JSON.stringify({ type: "view", scope: "organization" }),
   });
   const json = await res.json();
   if (!res.ok) {
