@@ -373,6 +373,20 @@ export async function getItemSize(
   return typeof json.size === "number" ? json.size : 0;
 }
 
+export async function getItemWebUrl(
+  accessToken: string,
+  itemId: string
+): Promise<string> {
+  const base = await siteDriveBase(accessToken);
+  const res = await fetch(`${base}/items/${encodeURIComponent(itemId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message ?? "Item lookup error");
+  if (typeof json.webUrl !== "string") throw new Error("SharePoint item URL is unavailable");
+  return json.webUrl;
+}
+
 export async function createShareLink(
   accessToken: string,
   itemId: string

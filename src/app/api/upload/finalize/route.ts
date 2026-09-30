@@ -7,6 +7,7 @@ import {
   getSupplierNameForRegistration,
   getItemIdByPath,
   getItemSize,
+  getItemWebUrl,
   OneDriveNotConfiguredError,
   supplierFilePath,
 } from "@/lib/onedrive";
@@ -65,11 +66,18 @@ export async function POST(req: NextRequest) {
       url = await createShareLink(accessToken, itemId);
     } catch (err) {
       try {
-        await deleteFile(accessToken, itemId);
-      } catch {
-        /* ignore cleanup failure on link error */
+        url = await getItemWebUrl(accessToken, itemId);
+      } catch (fallbackError) {
+        const message = fallbackError instanceof Error
+          ? fallbackError.message
+          : err instanceof Error
+            ? err.message
+            : "Share link error";
+        return Response.json(
+          { error: "share_link_unavailable", message },
+          { status: 502 }
+        );
       }
-      throw err;
     }
 
     const { data: doc, error } = await supabase
