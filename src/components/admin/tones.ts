@@ -3,6 +3,7 @@ import type { BadgeTone } from "@/components/ui";
 
 /** Visual tone for each due-diligence check result. */
 export const CHECK_RESULT_TONES: Record<string, BadgeTone> = {
+  "": "gray",
   CONFORME: "green",
   FAVORABLE: "green",
   DECLARADO: "blue",

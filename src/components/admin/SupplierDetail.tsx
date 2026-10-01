@@ -81,6 +81,22 @@ const TONE_DOT: Record<BadgeTone, string> = {
   teal: "bg-teal-600",
 };
 
+/** Card skin for each verification-check result tone (keeps the list colorful). */
+const CHECK_CARD_STYLES: Record<BadgeTone, { wrap: string; chip: string }> = {
+  green: { wrap: "border-emerald-200/80 bg-emerald-50/50", chip: "bg-emerald-600 text-white" },
+  teal: { wrap: "border-teal-200/80 bg-teal-50/50", chip: "bg-teal-600 text-white" },
+  amber: { wrap: "border-amber-200/80 bg-amber-50/60", chip: "bg-amber-500 text-white" },
+  red: { wrap: "border-rose-200/80 bg-rose-50/50", chip: "bg-rose-500 text-white" },
+  blue: { wrap: "border-sky-200/80 bg-sky-50/50", chip: "bg-sky-500 text-white" },
+  gold: { wrap: "border-amber-300/70 bg-amber-50/70", chip: "bg-amber-600 text-white" },
+  gray: { wrap: "border-navy-800/10 bg-bone-50/60", chip: "bg-navy-800/10 text-navy-800" },
+  navy: { wrap: "border-navy-700/20 bg-navy-800/5", chip: "bg-navy-800 text-white" },
+  bone: { wrap: "border-navy-800/10 bg-bone-50/60", chip: "bg-navy-800/10 text-navy-800" },
+};
+
+/** Default skin while a check has not been answered yet. */
+const UNEVALUATED_CARD = { wrap: "border-navy-800/10 bg-white", chip: "bg-navy-800/5 text-navy-800" };
+
 function checkResultKey(k: string): string {
   return k === "N/A" ? "NA" : k;
 }
@@ -503,84 +519,106 @@ export function SupplierDetail({
                     </div>
                   </div>
 
-                  <div className="mt-2 overflow-hidden rounded-xl border border-navy-800/10">
+                  <div className="mt-2 space-y-2.5">
                     {CHECK_IDS.map((cid, idx) => {
                       const row = evaluation.section12.checks.find((c) => c.id === cid);
-                      const result = row?.result ?? "N/A";
+                      const result = row?.result ?? "";
+                      const tone = CHECK_RESULT_TONES[result] ?? "gray";
+                      const card = result ? CHECK_CARD_STYLES[tone] : UNEVALUATED_CARD;
+                      const statusLabel = result
+                        ? t(`admin.detail.checkResults.${checkResultKey(result)}` as never)
+                        : t("admin.detail.checkNotEvaluated");
                       return (
-                        <div
-                          key={cid}
-                          className={cn(
-                            "p-3 transition-colors hover:bg-bone-50/70",
-                            idx > 0 && "border-t border-navy-800/5",
-                            idx % 2 === 1 && "bg-bone-50/40"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="grid h-6 w-7 shrink-0 place-items-center rounded-md bg-navy-800/5 font-mono text-[10.5px] font-bold text-navy-800">
-                              {String(idx + 1).padStart(2, "0")}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink" title={t(`admin.detail.checkTable.${cid}` as never)}>
-                              {t(`admin.detail.checkTable.${cid}` as never)}
-                            </span>
-                            <Badge tone={CHECK_RESULT_TONES[result] ?? "gray"}>
-                              {t(`admin.detail.checkResults.${checkResultKey(result)}` as never)}
-                            </Badge>
+                        <div key={cid} className={cn("rounded-xl border p-3.5 transition-colors", card.wrap)}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span
+                                className={cn(
+                                  "grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-[11px] font-bold",
+                                  card.chip
+                                )}
+                              >
+                                {String(idx + 1).padStart(2, "0")}
+                              </span>
+                              <span
+                                className="min-w-0 truncate text-[13px] font-semibold text-ink"
+                                title={t(`admin.detail.checkTable.${cid}` as never)}
+                              >
+                                {t(`admin.detail.checkTable.${cid}` as never)}
+                              </span>
+                            </div>
+                            <Badge tone={tone}>{statusLabel}</Badge>
                           </div>
-                          <div className="mt-2 grid gap-2 sm:grid-cols-[170px_180px_minmax(0,1fr)]">
-                            <Select
-                              className="h-9 text-[12.5px]"
-                              value={result}
-                              onChange={(e) =>
-                                patchEval((ev) => ({
-                                  ...ev,
-                                  section12: {
-                                    ...ev.section12,
-                                    checks: ev.section12.checks.map((c) =>
-                                      c.id === cid ? { ...c, result: e.target.value } : c
-                                    ),
-                                  },
-                                }))
-                              }
-                            >
-                              {CHECK_RESULTS.map((cr) => (
-                                <option key={cr} value={cr}>
-                                  {t(`admin.detail.checkResults.${checkResultKey(cr)}` as never)}
-                                </option>
-                              ))}
-                            </Select>
-                            <Input
-                              type="date"
-                              className="h-9 text-[12.5px]"
-                              value={row?.date ?? ""}
-                              onChange={(e) =>
-                                patchEval((ev) => ({
-                                  ...ev,
-                                  section12: {
-                                    ...ev.section12,
-                                    checks: ev.section12.checks.map((c) =>
-                                      c.id === cid ? { ...c, date: e.target.value } : c
-                                    ),
-                                  },
-                                }))
-                              }
-                            />
-                            <Input
-                              className="h-9 text-[12.5px]"
-                              value={row?.notes ?? ""}
-                              placeholder={t("admin.detail.notes")}
-                              onChange={(e) =>
-                                patchEval((ev) => ({
-                                  ...ev,
-                                  section12: {
-                                    ...ev.section12,
-                                    checks: ev.section12.checks.map((c) =>
-                                      c.id === cid ? { ...c, notes: e.target.value } : c
-                                    ),
-                                  },
-                                }))
-                              }
-                            />
+                          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                            <div>
+                              <span className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                                {t("admin.detail.resultLabel")}
+                              </span>
+                              <Select
+                                className="h-9 w-full text-[12.5px]"
+                                value={result}
+                                onChange={(e) =>
+                                  patchEval((ev) => ({
+                                    ...ev,
+                                    section12: {
+                                      ...ev.section12,
+                                      checks: ev.section12.checks.map((c) =>
+                                        c.id === cid ? { ...c, result: e.target.value } : c
+                                      ),
+                                    },
+                                  }))
+                                }
+                              >
+                                <option value="">{t("admin.detail.checkNotEvaluated")}</option>
+                                {CHECK_RESULTS.map((cr) => (
+                                  <option key={cr} value={cr}>
+                                    {t(`admin.detail.checkResults.${checkResultKey(cr)}` as never)}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                            <div>
+                              <span className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                                {t("admin.detail.dateLabel")}
+                              </span>
+                              <Input
+                                type="date"
+                                className="h-9 w-full text-[12.5px]"
+                                value={row?.date ?? ""}
+                                onChange={(e) =>
+                                  patchEval((ev) => ({
+                                    ...ev,
+                                    section12: {
+                                      ...ev.section12,
+                                      checks: ev.section12.checks.map((c) =>
+                                        c.id === cid ? { ...c, date: e.target.value } : c
+                                      ),
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <span className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                                {t("admin.detail.notes")}
+                              </span>
+                              <Input
+                                className="h-9 w-full text-[12.5px]"
+                                value={row?.notes ?? ""}
+                                placeholder={t("admin.detail.notes")}
+                                onChange={(e) =>
+                                  patchEval((ev) => ({
+                                    ...ev,
+                                    section12: {
+                                      ...ev.section12,
+                                      checks: ev.section12.checks.map((c) =>
+                                        c.id === cid ? { ...c, notes: e.target.value } : c
+                                      ),
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       );

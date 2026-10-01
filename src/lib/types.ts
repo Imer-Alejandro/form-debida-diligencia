@@ -267,7 +267,7 @@ export function emptyEvaluation(): Evaluation {
       estimatedAnnualAmount: "",
       risk: "PENDIENTE",
       reviewType: "INICIAL",
-      checks: checkIds.map((id) => ({ id, result: "N/A", date: "", notes: "" })),
+      checks: checkIds.map((id) => ({ id, result: "", date: "", notes: "" })),
     },
     section13: {
       decision: "PENDIENTE",

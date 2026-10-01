@@ -542,6 +542,9 @@ export const es = {
       },
       verificationsTitle: "Verificaciones de diligencia",
       resultsSummary: "Resumen de resultados",
+      checkNotEvaluated: "Sin evaluar",
+      resultLabel: "Resultado",
+      dateLabel: "Fecha",
       notes: "Notas",
       checkResults: {
         CONFORME: "Conforme",
@@ -552,7 +555,7 @@ export const es = {
         NO_IDENTIFICADO: "No identificado",
         DECLARADO: "Declarado",
         ESCALADO: "Escalado",
-        NA: "N/A",
+        NA: "N/A (no aplica)",
       },
       decision: "Decisión",
       decisions: {
