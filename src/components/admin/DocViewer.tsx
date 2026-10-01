@@ -159,14 +159,6 @@ export function DocViewer({
                   </svg>
                   {t("admin.detail.download")}
                 </a>
-                <a
-                  href={active.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-navy-800 px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-navy-900"
-                >
-                  {t("admin.detail.openInSharePoint")}
-                </a>
                 <button
                   type="button"
                   onClick={() => setActive(null)}

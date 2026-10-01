@@ -83,9 +83,6 @@ export function DocumentsStep({
     }
   };
 
-  const checkedRefs = documents.filter(
-    (d) => d.checked && !attached.some((a) => a.ref === d.ref)
-  );
   const attachedCount = attached.length;
   const pendingCount = pendingFiles.length;
   const showsDeps = attachedCount > 0 || pendingCount > 0;
