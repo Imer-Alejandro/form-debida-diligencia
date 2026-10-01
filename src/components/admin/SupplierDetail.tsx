@@ -16,8 +16,8 @@ import {
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
-import { Badge, Button, Field, Input, Select, Textarea } from "@/components/ui";
-import { statusTone, riskTone } from "./tones";
+import { Badge, Button, Field, Input, Select, Textarea, type BadgeTone } from "@/components/ui";
+import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 
 const CHECK_IDS = [
   "rnc",
@@ -45,6 +45,45 @@ const CHECK_RESULTS = [
 ];
 
 const REVIEW_TYPES = ["INICIAL", "ACTUALIZACION", "EVENTO", "CAMBIO_BANCARIO"];
+
+const DECISION_OPTIONS: RegistrationStatus[] = [
+  "APROBADO",
+  "APROBADO_CONDICIONES",
+  "EN_REVISION",
+  "PENDIENTE",
+  "RECHAZADO",
+];
+
+const INACTIVE_BUTTON =
+  "border-navy-800/10 bg-white text-ink-muted hover:border-navy-800/30 hover:text-ink";
+
+const ACTIVE_BUTTON_TONES: Record<BadgeTone, string> = {
+  navy: "border-navy-700/40 bg-navy-800/5 text-navy-900 ring-1 ring-navy-700/10",
+  gold: "border-amber-600/50 bg-amber-50 text-amber-900 ring-1 ring-amber-600/20",
+  green: "border-emerald-500/50 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/20",
+  amber: "border-amber-500/40 bg-amber-50 text-amber-800 ring-1 ring-amber-500/20",
+  red: "border-rose-500/50 bg-rose-50 text-rose-700 ring-1 ring-rose-500/20",
+  gray: "border-slate-400/50 bg-slate-100 text-slate-700 ring-1 ring-slate-400/20",
+  bone: "border-slate-300/70 bg-slate-100 text-slate-700 ring-1 ring-slate-300/40",
+  blue: "border-sky-500/50 bg-sky-50 text-sky-700 ring-1 ring-sky-500/20",
+  teal: "border-teal-500/50 bg-teal-50 text-teal-800 ring-1 ring-teal-500/20",
+};
+
+const TONE_DOT: Record<BadgeTone, string> = {
+  navy: "bg-navy-700",
+  gold: "bg-amber-600",
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  red: "bg-rose-500",
+  gray: "bg-slate-400",
+  bone: "bg-slate-400",
+  blue: "bg-sky-500",
+  teal: "bg-teal-600",
+};
+
+function checkResultKey(k: string): string {
+  return k === "N/A" ? "NA" : k;
+}
 
 export function SupplierDetail({
   reg,
@@ -134,6 +173,12 @@ export function SupplierDetail({
   }
   const docRefs = Object.keys(checkedByRef);
   const pendingDocs = docRefs.filter((ref) => !docs.some((d) => d.ref === ref));
+  const signatureDoc = docs.find((d) => d.ref === "FIRMA");
+
+  const resultCounts: Partial<Record<string, number>> = {};
+  for (const c of evaluation.section12.checks) {
+    resultCounts[c.result] = (resultCounts[c.result] ?? 0) + 1;
+  }
 
   return (
     <div>
@@ -240,7 +285,7 @@ export function SupplierDetail({
       <div className="mt-5 space-y-5 lg:grid lg:grid-cols-5 lg:gap-5 lg:space-y-0">
         {/* Supplier data */}
         <section className="rounded-2xl border border-navy-800/10 bg-white p-5 lg:col-span-3">
-          <DataView data={data} />
+          <DataView data={data} regId={reg.id} signatureDoc={signatureDoc} />
         </section>
 
         {/* Documents */}
@@ -353,88 +398,139 @@ export function SupplierDetail({
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-navy-800/10 bg-white p-5">
-            <h2 className="font-display text-[15px] font-semibold text-navy-900">
-              {t("admin.detail.evaluationTitle")}
-            </h2>
-            <p className="mt-1 text-[12.5px] text-ink-muted">{t("admin.detail.section12")}</p>
+          <section className="overflow-hidden rounded-2xl border border-navy-800/10 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-navy-800/10 bg-bone-50/70 px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="font-display text-[15px] font-semibold text-navy-900">
+                  {t("admin.detail.evaluationTitle")}
+                </h2>
+                <p className="mt-0.5 text-[12px] text-ink-muted">
+                  {t("admin.detail.section12")} · {t("admin.detail.section13")}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={riskTone(evaluation.section12.risk || "PENDIENTE")} withDot>
+                  {t(`risk.${evaluation.section12.risk || "PENDIENTE"}` as never)}
+                </Badge>
+                <Badge tone={statusTone(evaluation.section13.decision || "PENDIENTE")} withDot>
+                  {t(`admin.detail.decisions.${evaluation.section13.decision || "PENDIENTE"}` as never)}
+                </Badge>
+              </div>
+            </div>
 
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("admin.detail.requestingCompany")}>
-                  <Input
-                    value={evaluation.section12.requestingCompany}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingCompany: e.target.value } }))}
-                  />
-                </Field>
-                <Field label={t("admin.detail.requestingArea")}>
-                  <Input
-                    value={evaluation.section12.requestingArea}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingArea: e.target.value } }))}
-                  />
-                </Field>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("admin.detail.purchaseCategory")}>
-                  <Input
-                    value={evaluation.section12.purchaseCategory}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, purchaseCategory: e.target.value } }))}
-                  />
-                </Field>
-                <Field label={t("admin.detail.estimatedAnnualAmount")}>
-                  <Input
-                    value={evaluation.section12.estimatedAnnualAmount}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, estimatedAnnualAmount: e.target.value } }))}
-                  />
-                </Field>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("admin.detail.classification")}>
-                  <Select
-                    value={evaluation.section12.risk}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, risk: e.target.value as RiskLevel } }))}
-                  >
-                    {(["PENDIENTE", "BAJO", "MEDIO", "ALTO", "CRITICO"] as RiskLevel[]).map((r) => (
-                      <option key={r} value={r}>
-                        {t(`risk.${r}` as never)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label={t("admin.detail.reviewType")}>
-                  <Select
-                    value={evaluation.section12.reviewType}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, reviewType: e.target.value } }))}
-                  >
-                    {REVIEW_TYPES.map((rt) => (
-                      <option key={rt} value={rt}>
-                        {t(`admin.detail.reviewTypes.${rt}` as never)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
+            <div className="space-y-7 p-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-navy-800 font-mono text-[11px] font-bold text-white">
+                    1
+                  </span>
+                  <h3 className="font-display text-[14px] font-semibold text-navy-900">
+                    {t("admin.detail.section12")}
+                  </h3>
+                </div>
 
-              <div className="overflow-x-auto rounded-xl border border-navy-800/10">
-                <table className="w-full min-w-[560px] text-[13px]">
-                  <thead>
-                    <tr className="text-left text-[11.5px] uppercase tracking-wide text-ink-muted">
-                      <th className="px-3 py-2">Verificación</th>
-                      <th className="px-3 py-2">Resultado</th>
-                      <th className="px-3 py-2 w-28">Fecha</th>
-                      <th className="px-3 py-2">Notas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {CHECK_IDS.map((cid) => {
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Field label={t("admin.detail.requestingCompany")}>
+                    <Input
+                      value={evaluation.section12.requestingCompany}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingCompany: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.requestingArea")}>
+                    <Input
+                      value={evaluation.section12.requestingArea}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingArea: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.purchaseCategory")}>
+                    <Input
+                      value={evaluation.section12.purchaseCategory}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, purchaseCategory: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.estimatedAnnualAmount")}>
+                    <Input
+                      value={evaluation.section12.estimatedAnnualAmount}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, estimatedAnnualAmount: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.classification")}>
+                    <Select
+                      value={evaluation.section12.risk}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, risk: e.target.value as RiskLevel } }))}
+                    >
+                      {(["PENDIENTE", "BAJO", "MEDIO", "ALTO", "CRITICO"] as RiskLevel[]).map((r) => (
+                        <option key={r} value={r}>
+                          {t(`risk.${r}` as never)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t("admin.detail.reviewType")}>
+                    <Select
+                      value={evaluation.section12.reviewType}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, reviewType: e.target.value } }))}
+                    >
+                      {REVIEW_TYPES.map((rt) => (
+                        <option key={rt} value={rt}>
+                          {t(`admin.detail.reviewTypes.${rt}` as never)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+
+                <div className="mt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[12.5px] font-semibold text-ink">
+                      {t("admin.detail.verificationsTitle")}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CHECK_RESULTS.filter((r) => (resultCounts[r] ?? 0) > 0).map((r) => (
+                        <span
+                          key={r}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-navy-800/10 bg-white px-2 py-0.5 text-[11px] font-medium text-ink"
+                        >
+                          <span className={cn("h-1.5 w-1.5 rounded-full", TONE_DOT[CHECK_RESULT_TONES[r] ?? "gray"])} />
+                          <span className="tabular-nums">{resultCounts[r]}</span>
+                          <span>·</span>
+                          <span>{t(`admin.detail.checkResults.${checkResultKey(r)}` as never)}</span>
+                        </span>
+                      ))}
+                      {CHECK_RESULTS.every((r) => (resultCounts[r] ?? 0) === 0) && (
+                        <span className="text-[11px] text-ink-muted">{t("admin.detail.resultsSummary")}: —</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 overflow-hidden rounded-xl border border-navy-800/10">
+                    {CHECK_IDS.map((cid, idx) => {
                       const row = evaluation.section12.checks.find((c) => c.id === cid);
+                      const result = row?.result ?? "N/A";
                       return (
-                        <tr key={cid} className="border-t border-navy-800/5">
-                          <td className="px-3 py-2 text-ink">{t(`admin.detail.checkTable.${cid}` as never)}</td>
-                          <td className="px-3 py-2">
+                        <div
+                          key={cid}
+                          className={cn(
+                            "p-3 transition-colors hover:bg-bone-50/70",
+                            idx > 0 && "border-t border-navy-800/5",
+                            idx % 2 === 1 && "bg-bone-50/40"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="grid h-6 w-7 shrink-0 place-items-center rounded-md bg-navy-800/5 font-mono text-[10.5px] font-bold text-navy-800">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink" title={t(`admin.detail.checkTable.${cid}` as never)}>
+                              {t(`admin.detail.checkTable.${cid}` as never)}
+                            </span>
+                            <Badge tone={CHECK_RESULT_TONES[result] ?? "gray"}>
+                              {t(`admin.detail.checkResults.${checkResultKey(result)}` as never)}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-[170px_180px_minmax(0,1fr)]">
                             <Select
-                              className="h-9 w-44 text-[12.5px]"
-                              value={row?.result ?? "N/A"}
+                              className="h-9 text-[12.5px]"
+                              value={result}
                               onChange={(e) =>
                                 patchEval((ev) => ({
                                   ...ev,
@@ -449,12 +545,10 @@ export function SupplierDetail({
                             >
                               {CHECK_RESULTS.map((cr) => (
                                 <option key={cr} value={cr}>
-                                  {t(`admin.detail.checkResults.${cr}` as never)}
+                                  {t(`admin.detail.checkResults.${checkResultKey(cr)}` as never)}
                                 </option>
                               ))}
                             </Select>
-                          </td>
-                          <td className="px-3 py-2">
                             <Input
                               type="date"
                               className="h-9 text-[12.5px]"
@@ -471,11 +565,10 @@ export function SupplierDetail({
                                 }))
                               }
                             />
-                          </td>
-                          <td className="px-3 py-2">
                             <Input
                               className="h-9 text-[12.5px]"
                               value={row?.notes ?? ""}
+                              placeholder={t("admin.detail.notes")}
                               onChange={(e) =>
                                 patchEval((ev) => ({
                                   ...ev,
@@ -488,142 +581,165 @@ export function SupplierDetail({
                                 }))
                               }
                             />
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <h3 className="mt-6 font-display text-[14px] font-semibold text-navy-900">{t("admin.detail.section13")}</h3>
-            <div className="mt-3 space-y-4">
-              <Field label={t("admin.detail.decision")}>
-                <Select
-                  value={evaluation.section13.decision}
-                  onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, decision: e.target.value as RegistrationStatus } }))}
-                >
-                  {(["APROBADO", "APROBADO_CONDICIONES", "RECHAZADO", "PENDIENTE", "EN_REVISION"] as RegistrationStatus[]).map((st) => (
-                    <option key={st} value={st}>
-                      {t(`admin.detail.decisions.${st}` as never)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("admin.detail.conditions")}>
-                <Textarea
-                  rows={3}
-                  value={evaluation.section13.conditions}
-                  onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, conditions: e.target.value } }))}
-                />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("admin.detail.purchaseLimits")}>
-                  <Input
-                    value={evaluation.section13.purchaseLimits}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, purchaseLimits: e.target.value } }))}
-                  />
-                </Field>
-                <Field label={t("admin.detail.nextRenewal")}>
-                  <Input
-                    type="date"
-                    value={evaluation.section13.nextRenewal}
-                    onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, nextRenewal: e.target.value } }))}
-                  />
-                </Field>
-              </div>
-
-              <div>
-                <p className="mb-2 text-[13px] font-medium text-ink">{t("admin.detail.reviewersTitle")}</p>
-                <div className="space-y-2">
-                  {evaluation.section13.signatures.map((sig, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-2">
-                      <Select
-                        className="h-10 w-52 text-[12.5px]"
-                        value={sig.role}
-                        onChange={(e) =>
-                          patchEval((ev) => ({
-                            ...ev,
-                            section13: {
-                              ...ev.section13,
-                              signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, role: e.target.value } : s)),
-                            },
-                          }))
-                        }
-                      >
-                        <option value="ANALISTA">{t("admin.detail.reviewerRoles.ANALISTA" as never)}</option>
-                        <option value="GERENCIA">{t("admin.detail.reviewerRoles.GERENCIA" as never)}</option>
-                        <option value="FINANZAS">{t("admin.detail.reviewerRoles.FINANZAS" as never)}</option>
-                        <option value="CUMPLIMIENTO">{t("admin.detail.reviewerRoles.CUMPLIMIENTO" as never)}</option>
-                      </Select>
-                      <Input
-                        className="h-10 w-44 text-[12.5px]"
-                        value={sig.name}
-                        placeholder="Nombre"
-                        onChange={(e) =>
-                          patchEval((ev) => ({
-                            ...ev,
-                            section13: {
-                              ...ev.section13,
-                              signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, name: e.target.value } : s)),
-                            },
-                          }))
-                        }
-                      />
-                      <Input
-                        type="date"
-                        className="h-10 w-40 text-[12.5px]"
-                        value={sig.date ?? ""}
-                        onChange={(e) =>
-                          patchEval((ev) => ({
-                            ...ev,
-                            section13: {
-                              ...ev.section13,
-                              signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, date: e.target.value } : s)),
-                            },
-                          }))
-                        }
-                      />
-                      <button
-                        onClick={() =>
-                          patchEval((ev) => ({
-                            ...ev,
-                            section13: {
-                              ...ev.section13,
-                              signatures: ev.section13.signatures.filter((_, j) => j !== i),
-                            },
-                          }))
-                        }
-                        className="text-[12px] text-ink-muted hover:text-danger"
-                      >
-                        {t("common.remove")}
-                      </button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      patchEval((ev) => ({
-                        ...ev,
-                        section13: {
-                          ...ev.section13,
-                          signatures: [...ev.section13.signatures, { role: "ANALISTA", name: "", date: "" }],
-                        },
-                      }))
-                    }
-                  >
-                    + {t("common.add")}
-                  </Button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-navy-800/10 pt-4">
-                <Button type="button" onClick={() => void saveEvaluation()} disabled={saving === "eval"}>
-                  {saving === "eval" ? t("common.saving") : t("admin.detail.saveEvaluation")}
-                </Button>
+              <div className="border-t border-navy-800/10 pt-6">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-navy-800 font-mono text-[11px] font-bold text-white">
+                    2
+                  </span>
+                  <h3 className="font-display text-[14px] font-semibold text-navy-900">
+                    {t("admin.detail.section13")}
+                  </h3>
+                </div>
+
+                <p className="mb-2 mt-4 text-[13px] font-medium text-ink">{t("admin.detail.decision")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {DECISION_OPTIONS.map((st) => {
+                    const active = evaluation.section13.decision === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() =>
+                          patchEval((ev) => ({ ...ev, section13: { ...ev.section13, decision: st } }))
+                        }
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors",
+                          active ? ACTIVE_BUTTON_TONES[statusTone(st)] : INACTIVE_BUTTON
+                        )}
+                      >
+                        {t(`admin.detail.decisions.${st}` as never)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Field label={t("admin.detail.conditions")} className="sm:col-span-2">
+                    <Textarea
+                      rows={3}
+                      value={evaluation.section13.conditions}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, conditions: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.purchaseLimits")}>
+                    <Input
+                      value={evaluation.section13.purchaseLimits}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, purchaseLimits: e.target.value } }))}
+                    />
+                  </Field>
+                  <Field label={t("admin.detail.nextRenewal")}>
+                    <Input
+                      type="date"
+                      value={evaluation.section13.nextRenewal}
+                      onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, nextRenewal: e.target.value } }))}
+                    />
+                  </Field>
+                </div>
+
+                <div className="mt-5">
+                  <p className="mb-2 text-[13px] font-medium text-ink">{t("admin.detail.reviewersTitle")}</p>
+                  <div className="space-y-2">
+                    {evaluation.section13.signatures.map((sig, i) => (
+                      <div key={i} className="rounded-xl border border-navy-800/10 bg-bone-50/40 px-3 py-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Select
+                            className="h-10 flex-1 min-w-[160px] text-[12.5px]"
+                            value={sig.role}
+                            onChange={(e) =>
+                              patchEval((ev) => ({
+                                ...ev,
+                                section13: {
+                                  ...ev.section13,
+                                  signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, role: e.target.value } : s)),
+                                },
+                              }))
+                            }
+                          >
+                            <option value="ANALISTA">{t("admin.detail.reviewerRoles.ANALISTA" as never)}</option>
+                            <option value="GERENCIA">{t("admin.detail.reviewerRoles.GERENCIA" as never)}</option>
+                            <option value="FINANZAS">{t("admin.detail.reviewerRoles.FINANZAS" as never)}</option>
+                            <option value="CUMPLIMIENTO">{t("admin.detail.reviewerRoles.CUMPLIMIENTO" as never)}</option>
+                          </Select>
+                          <Input
+                            className="h-10 flex-1 min-w-[140px] text-[12.5px]"
+                            value={sig.name}
+                            placeholder="Nombre"
+                            onChange={(e) =>
+                              patchEval((ev) => ({
+                                ...ev,
+                                section13: {
+                                  ...ev.section13,
+                                  signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, name: e.target.value } : s)),
+                                },
+                              }))
+                            }
+                          />
+                          <Input
+                            type="date"
+                            className="h-10 w-40 text-[12.5px]"
+                            value={sig.date ?? ""}
+                            onChange={(e) =>
+                              patchEval((ev) => ({
+                                ...ev,
+                                section13: {
+                                  ...ev.section13,
+                                  signatures: ev.section13.signatures.map((s, j) => (j === i ? { ...s, date: e.target.value } : s)),
+                                },
+                              }))
+                            }
+                          />
+                          <button
+                            onClick={() =>
+                              patchEval((ev) => ({
+                                ...ev,
+                                section13: {
+                                  ...ev.section13,
+                                  signatures: ev.section13.signatures.filter((_, j) => j !== i),
+                                },
+                              }))
+                            }
+                            className="ml-1 text-[12px] text-ink-muted hover:text-danger"
+                          >
+                            {t("common.remove")}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        patchEval((ev) => ({
+                          ...ev,
+                          section13: {
+                            ...ev.section13,
+                            signatures: [...ev.section13.signatures, { role: "ANALISTA", name: "", date: "" }],
+                          },
+                        }))
+                      }
+                    >
+                      + {t("common.add")}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-between gap-3 border-t border-navy-800/10 pt-4">
+                  <p className="text-[11.5px] text-ink-muted">
+                    {saving === "eval" ? t("common.saving") : t("admin.detail.savedEvaluation")}
+                  </p>
+                  <Button type="button" onClick={() => void saveEvaluation()} disabled={saving === "eval"}>
+                    {saving === "eval" ? t("common.saving") : t("admin.detail.saveEvaluation")}
+                  </Button>
+                </div>
               </div>
             </div>
           </section>
@@ -675,7 +791,15 @@ function FieldValue({ label, value }: { label: string; value: string }) {
   ) : null;
 }
 
-function DataView({ data }: { data: SupplierData }) {
+function DataView({
+  data,
+  regId,
+  signatureDoc,
+}: {
+  data: SupplierData;
+  regId: string;
+  signatureDoc?: DocumentRow;
+}) {
   const { t, lang } = useI18n();
   const d = useDict();
   const s1 = data.section1;
@@ -871,14 +995,29 @@ function DataView({ data }: { data: SupplierData }) {
         <FieldValue label={d.s11.signDate} value={data.section11.signedDate} />
         <FieldValue label={d.s11.signature} value={data.section11.signatureConsent ? t("common.yes") : t("common.no")} />
       </div>
-      {data.section11.signatureDataUrl && (
-        <div className="mt-4 inline-block overflow-hidden rounded-xl border border-navy-800/10 bg-bone-50 px-6 py-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={data.section11.signatureDataUrl}
-            alt="Firma del proveedor"
-            className="h-24 object-contain"
-          />
+      {(data.section11.signatureDataUrl || signatureDoc) && (
+        <div className="mt-4 inline-flex flex-col overflow-hidden rounded-xl border border-navy-800/10 bg-bone-50">
+          <div className="px-5 py-3">
+            {/* eslint-disable-next-line @next/next/no-img-element -- dynamic admin proxy needs auth cookies, next/image can't fetch it */}
+            <img
+              src={
+                signatureDoc
+                  ? `/api/admin/doc/${regId}/${signatureDoc.id}`
+                  : data.section11.signatureDataUrl
+              }
+              alt="Firma del proveedor"
+              className="h-24 object-contain"
+            />
+          </div>
+          {signatureDoc && (
+            <Link
+              href={`/admin/suppliers/${regId}/docs`}
+              className="inline-flex items-center gap-2 border-t border-navy-800/10 bg-white px-3 py-2 text-[11.5px] font-medium text-navy-700 underline decoration-navy-700/30 underline-offset-2 transition-colors hover:decoration-navy-700"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+              {t("admin.detail.signatureStored")}
+            </Link>
+          )}
         </div>
       )}
     </div>

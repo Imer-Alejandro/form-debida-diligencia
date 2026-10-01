@@ -10,7 +10,7 @@ import {
 import {
   isAllowedExtension,
   isAllowedRef,
-  MAX_UPLOAD_BYTES,
+  maxBytesForRef,
 } from "@/lib/upload-policy";
 
 export async function POST(req: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (!token || !registrationId || !ref || !fileName) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
-  if (ref.length > 2 || fileName.length > 200 || !isAllowedRef(ref)) {
+  if (ref.length > 32 || fileName.length > 200 || !isAllowedRef(ref)) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
   if (!isAllowedExtension(fileName)) {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       { status: 415 }
     );
   }
-  if (typeof size === "number" && size > MAX_UPLOAD_BYTES) {
+  if (typeof size === "number" && size > maxBytesForRef(ref)) {
     return Response.json({ error: "too_large" }, { status: 413 });
   }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     return Response.json({
       uploadUrl: session.uploadUrl,
       expirationDateTime: session.expirationDateTime,
-      maxBytes: MAX_UPLOAD_BYTES,
+      maxBytes: maxBytesForRef(ref),
     });
   } catch (err) {
     if (err instanceof OneDriveNotConfiguredError) {

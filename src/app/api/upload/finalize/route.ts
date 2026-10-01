@@ -14,7 +14,7 @@ import {
 import {
   isAllowedExtension,
   isAllowedRef,
-  MAX_UPLOAD_BYTES,
+  maxBytesForRef,
 } from "@/lib/upload-policy";
 import { type DocumentRow } from "@/lib/types";
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!token || !registrationId || !ref || !fileName) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
-  if (ref.length > 2 || fileName.length > 200 || !isAllowedRef(ref)) {
+  if (ref.length > 32 || fileName.length > 200 || !isAllowedRef(ref)) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
   if (!isAllowedExtension(fileName)) {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // Server-side enforcement: verify the *real* size reported by SharePoint,
     // not the client-claimed one.
     const realSize = await getItemSize(accessToken, itemId);
-    if (realSize > MAX_UPLOAD_BYTES) {
+    if (realSize > maxBytesForRef(ref)) {
       try {
         await deleteFile(accessToken, itemId);
       } catch {

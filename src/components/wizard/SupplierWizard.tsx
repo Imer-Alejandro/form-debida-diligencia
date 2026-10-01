@@ -13,6 +13,7 @@ import {
   type SupplierData,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SIGNATURE_REF } from "@/lib/upload-policy";
 import {
   Section1,
   Section2,
@@ -259,10 +260,7 @@ export function SupplierWizard({
     }
     const regId = draft.registration.id as string;
 
-    const uploaded = [...attached];
-    const queuedFiles = [...pendingFiles];
-    for (const pending of queuedFiles) {
-      const { ref, file } = pending;
+    const uploadFile = async (ref: string, file: File): Promise<DocumentRow> => {
       const sessionRes = await fetch("/api/upload/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -315,10 +313,37 @@ export function SupplierWizard({
       if (!finalizeRes.ok || !finalized?.doc) {
         throw new Error(finalized?.message || finalized?.hint || finalized?.error || `upload_finalize_${finalizeRes.status}`);
       }
-      uploaded.push(finalized.doc as DocumentRow);
+      return finalized.doc as DocumentRow;
+    };
+
+    let uploaded = [...attached];
+    const queuedFiles = [...pendingFiles];
+    for (const pending of queuedFiles) {
+      try {
+        const doc = await uploadFile(pending.ref, pending.file);
+        uploaded.push(doc);
+      } finally {
+        setPendingFiles((current) => current.filter((item) => item !== pending));
+      }
       setAttached([...uploaded]);
-      setPendingFiles((current) => current.filter((item) => item !== pending));
     }
+
+    // Digital signature → persist the image inside the supplier's SharePoint folder.
+    const signatureDataUrl = data.section11.signatureDataUrl;
+    if (signatureDataUrl && onedriveOn) {
+      for (const d of uploaded.filter((x) => x.ref === SIGNATURE_REF)) {
+        await fetch(`/api/upload/${d.id}?token=${encodeURIComponent(token)}`, {
+          method: "DELETE",
+        }).catch(() => null);
+      }
+      uploaded = uploaded.filter((x) => x.ref !== SIGNATURE_REF);
+      const blob = await (await fetch(signatureDataUrl)).blob();
+      const file = new File([blob], "Firma.png", { type: blob.type || "image/png" });
+      const sigDoc = await uploadFile(SIGNATURE_REF, file);
+      uploaded.push(sigDoc);
+      setAttached([...uploaded]);
+    }
+
     setSavedAt(Date.now());
     return uploaded;
   };

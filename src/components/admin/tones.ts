@@ -1,4 +1,19 @@
 import type { RegistrationStatus, RiskLevel } from "@/lib/types";
+import type { BadgeTone } from "@/components/ui";
+
+/** Visual tone for each due-diligence check result. */
+export const CHECK_RESULT_TONES: Record<string, BadgeTone> = {
+  CONFORME: "green",
+  FAVORABLE: "green",
+  DECLARADO: "blue",
+  NO_CONFORME: "red",
+  NO_FAVORABLE: "red",
+  ALERTA: "amber",
+  ESCALADO: "amber",
+  NO_IDENTIFICADO: "gray",
+  "N/A": "gray",
+  NA: "gray",
+};
 
 export function statusTone(status: RegistrationStatus) {
   switch (status) {
