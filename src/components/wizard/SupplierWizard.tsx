@@ -328,6 +328,13 @@ export function SupplierWizard({
       setAttached([...uploaded]);
     }
 
+    // Replace semantics: a re-uploaded ref must supersede the previous one, so
+    // stale documents never show up again in the form.
+    const uploadedByRef = new Map<string, DocumentRow>();
+    for (const d of uploaded) uploadedByRef.set(d.ref, d);
+    uploaded = [...uploadedByRef.values()];
+    setAttached([...uploaded]);
+
     // Digital signature → persist the image inside the supplier's SharePoint folder.
     const signatureDataUrl = data.section11.signatureDataUrl;
     if (signatureDataUrl && onedriveOn) {

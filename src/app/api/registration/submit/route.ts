@@ -26,6 +26,30 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createPublicClient();
+
+  // Server-side check: every checked document must actually be uploaded, so the
+  // supplier cannot submit while a reference is still pending.
+  const checkedRefs = (data.section9.documents ?? [])
+    .filter((d) => d.checked)
+    .map((d) => d.ref);
+  if (checkedRefs.length > 0) {
+    const { data: docs } = await supabase.rpc("get_documents_for_token", {
+      p_token: token,
+    });
+    const uploaded = new Set(
+      (Array.isArray(docs) ? docs : docs ? [docs] : []).map(
+        (d: { ref?: string }) => d.ref
+      )
+    );
+    const missing = checkedRefs.filter((ref) => !uploaded.has(ref));
+    if (missing.length > 0) {
+      return Response.json(
+        { error: "missing_documents", refs: missing },
+        { status: 422 }
+      );
+    }
+  }
+
   const { data: row, error } = await supabase.rpc("submit_registration", {
     p_token: token,
     p_data: data,

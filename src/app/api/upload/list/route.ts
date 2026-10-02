@@ -14,5 +14,17 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "server_error", message: error.message }, { status: 500 });
   }
   const rows = (Array.isArray(data) ? data : data ? [data] : []) as DocumentRow[];
-  return Response.json({ documents: rows });
+
+  // One document per ref: after a change request / resubmission the drive can
+  // hold stale duplicates. Keep the newest attachment per ref so the old ones
+  // never show up again in the form.
+  const byRef = new Map<string, DocumentRow>();
+  for (const row of rows) {
+    const existing = byRef.get(row.ref);
+    if (!existing || new Date(row.created_at) >= new Date(existing.created_at)) {
+      byRef.set(row.ref, row);
+    }
+  }
+
+  return Response.json({ documents: [...byRef.values()] });
 }

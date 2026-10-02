@@ -300,6 +300,11 @@ begin
     raise exception 'forbidden' using errcode = '42501';
   end if;
 
+  -- Replace semantics: one row per (registration, ref). Re-attaching a document
+  -- (resubmission after a change request) must not leave the old row behind.
+  delete from public.registration_documents
+    where registration_id = p_registration_id and ref = p_ref;
+
   insert into public.registration_documents (
     registration_id,
     invitation_token,

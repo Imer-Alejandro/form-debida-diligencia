@@ -354,6 +354,7 @@ export const es = {
     dropHint: "Seleccionar archivo; se subirá al guardar el borrador o enviar el formulario",
     noUploadsYet: "Ningún documento adjunto aún.",
     pending: "Pendiente",
+    willReplace: "Reemplazará el archivo actual",
     missingCheckedDocuments:
       "Falta cargar {n} documento(s) marcado(s). Se guardó el borrador; puede continuar más tarde.",
     attachedCount: "{n} adjuntados",
@@ -603,6 +604,7 @@ export const es = {
         "Se marcará el registro como “Solicitud de cambios”. El nuevo enlace permitirá al proveedor editar y volver a enviar (los cambios bancarios requerirán validación).",
       requestNoteLabel: "Nota o comentario para el proveedor (opcional)",
       requestNoteHint: "La nota se incluirá en el correo de notificación.",
+      pendingDocsTitle: "Documentos marcados sin subir todavía:",
       requestSend: "Enviar solicitud",
       requestCancel: "Cancelar",
       changedLinkTitle: "Nuevo enlace para el proveedor",

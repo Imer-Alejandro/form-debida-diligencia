@@ -807,6 +807,21 @@ export function SupplierDetail({
 
             {showReq ? (
               <div className="mt-3 space-y-3">
+                {pendingDocs.length > 0 && (
+                  <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-[12px] text-ink">
+                    <span className="font-semibold text-warning">
+                      {t("admin.detail.pendingDocsTitle")}
+                    </span>
+                    <ul className="mt-1 list-inside list-disc text-ink-muted">
+                      {pendingDocs.map((ref) => {
+                        const label =
+                          dict.s9.docDescriptions[ref as keyof typeof dict.s9.docDescriptions] ??
+                          ref;
+                        return <li key={ref}>{label}</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
                 <div>
                   <span className="mb-1 block text-[12px] font-semibold text-ink">
                     {t("admin.detail.requestNoteLabel")}

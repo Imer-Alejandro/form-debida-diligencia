@@ -194,6 +194,11 @@ export function DocumentsStep({
                         {pendingFile.file.name}
                         <span className="ml-2 text-xs text-ink-muted">
                           {formatBytes(pendingFile.file.size)} · {t("docs.pending")}
+                          {attachedForRef.length > 0 && (
+                            <span className="ml-2 font-medium text-warning">
+                              {t("docs.willReplace")}
+                            </span>
+                          )}
                         </span>
                       </span>
                       <button
