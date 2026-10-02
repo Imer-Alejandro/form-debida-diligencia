@@ -333,7 +333,8 @@ drop policy if exists "supplier can remove documents from their draft" on public
 create policy "supplier can remove documents from their draft"
   on public.registration_documents for delete
   using (
-    exists (
+    auth.role() = 'authenticated'
+    or exists (
       select 1 from public.supplier_registrations r
       where r.id = registration_documents.registration_id
         and r.invitation_token = registration_documents.invitation_token

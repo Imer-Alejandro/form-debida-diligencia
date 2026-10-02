@@ -121,6 +121,9 @@ export function SupplierDetail({
   const [flash, setFlash] = useState<string | null>(null);
   const [reqLoading, setReqLoading] = useState(false);
   const [reqLink, setReqLink] = useState<string | null>(null);
+  const [reqNote, setReqNote] = useState("");
+  const [showReq, setShowReq] = useState(false);
+  const [reqMail, setReqMail] = useState<"sent" | "failed" | "skipped" | null>(null);
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -170,14 +173,26 @@ export function SupplierDetail({
     const res = await fetch("/api/admin/request-changes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: reg.id }),
+      body: JSON.stringify({ id: reg.id, note: reqNote }),
     });
-    const data = (await res.json()) as { ok?: boolean; url?: string };
+    const data = (await res.json()) as {
+      ok?: boolean;
+      url?: string;
+      emailStatus?: "sent" | "failed" | "skipped";
+    };
     setReqLoading(false);
-    if (res.ok && data.url) {
-      setReqLink(data.url);
-      notify(t("admin.detail.savedEvaluation"), () => router.refresh());
-    }
+    if (!res.ok || !data.url) return;
+    setReqLink(data.url);
+    const mail = data.emailStatus ?? "skipped";
+    setReqMail(mail);
+    setShowReq(false);
+    notify(
+      mail === "sent"
+        ? t("admin.detail.requestMailSent")
+        : mail === "failed"
+          ? t("admin.detail.requestMailFailed")
+          : t("admin.detail.requestMailSkipped")
+    );
   };
 
   const data = reg.data as SupplierData;
@@ -789,20 +804,83 @@ export function SupplierDetail({
             <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
               {t("admin.detail.requestChangesNote")}
             </p>
-            <Button
-              type="button"
-              variant="danger"
-              className="mt-3"
-              onClick={() => void requestChanges()}
-              disabled={reqLoading}
-            >
-              {reqLoading ? t("common.loading") : t("admin.detail.requestChanges")}
-            </Button>
+
+            {showReq ? (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <span className="mb-1 block text-[12px] font-semibold text-ink">
+                    {t("admin.detail.requestNoteLabel")}
+                  </span>
+                  <Textarea
+                    rows={3}
+                    value={reqNote}
+                    onChange={(e) => setReqNote(e.target.value)}
+                    placeholder={t("admin.detail.requestNoteHint")}
+                    className="text-[13px]"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-muted">
+                    {t("admin.detail.requestNoteHint")}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => void requestChanges()}
+                    disabled={reqLoading}
+                  >
+                    {reqLoading ? t("common.loading") : t("admin.detail.requestSend")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowReq(false);
+                      setReqNote("");
+                    }}
+                    disabled={reqLoading}
+                  >
+                    {t("admin.detail.requestCancel")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              !reqLink && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="mt-3"
+                  onClick={() => setShowReq(true)}
+                  disabled={reqLoading}
+                >
+                  {reqLoading ? t("common.loading") : t("admin.detail.requestChanges")}
+                </Button>
+              )
+            )}
+
             {reqLink && (
-              <div className="mt-3 rounded-xl bg-bone-100 px-4 py-3">
-                <a href={reqLink} target="_blank" rel="noreferrer" className="text-[13px] text-navy-700 underline underline-offset-2">
+              <div className="mt-3 rounded-xl border border-navy-800/10 bg-bone-100 px-4 py-3">
+                <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                  {t("admin.detail.changedLinkTitle")}
+                </p>
+                <a
+                  href={reqLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-0.5 block break-all text-[13px] text-navy-700 underline underline-offset-2"
+                >
                   {reqLink}
                 </a>
+                {reqMail === "failed" && (
+                  <p className="mt-1.5 text-[11.5px] font-medium text-rose-600">
+                    {t("admin.detail.requestMailFailed")}
+                  </p>
+                )}
+                {reqMail === "skipped" && reqMail !== null && (
+                  <p className="mt-1.5 text-[11.5px] font-medium text-amber-700">
+                    {t("admin.detail.requestMailSkipped")}
+                  </p>
+                )}
               </div>
             )}
           </section>

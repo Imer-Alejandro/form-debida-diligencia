@@ -591,9 +591,24 @@ export const es = {
       previewTooLarge:
         "Archivo demasiado grande para la vista previa en línea (máx. 10 MB). Use la descarga.",
       previewUnavailable: "Vista previa no disponible para este tipo de archivo.",
+      fileUnavailable: "Archivo no disponible",
+      fileUnavailableHint:
+        "No se encontró el archivo en el repositorio corporativo. Es posible que haya sido eliminado.",
+      deleteRecord: "Eliminar registro",
+      deleteRecordConfirm:
+        "¿Eliminar este registro de documento? La entrada se quitará del visor y no se puede deshacer.",
+      recordDeleted: "Registro eliminado",
       requestChanges: "Solicitar cambios al proveedor",
       requestChangesNote:
         "Se marcará el registro como “Solicitud de cambios”. El nuevo enlace permitirá al proveedor editar y volver a enviar (los cambios bancarios requerirán validación).",
+      requestNoteLabel: "Nota o comentario para el proveedor (opcional)",
+      requestNoteHint: "La nota se incluirá en el correo de notificación.",
+      requestSend: "Enviar solicitud",
+      requestCancel: "Cancelar",
+      changedLinkTitle: "Nuevo enlace para el proveedor",
+      requestMailSent: "Correo de notificación enviado al proveedor.",
+      requestMailFailed: "El enlace se generó, pero no se pudo enviar el correo. Compártalo manualmente.",
+      requestMailSkipped: "No hay correo registrado para este proveedor. Comparta el enlace manualmente.",
     },
     invitations: {
       title: "Invitaciones",

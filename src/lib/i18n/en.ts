@@ -593,9 +593,24 @@ recent: "Recent registrations",
       previewTooLarge:
         "File is too large for online preview (max 10 MB). Use the download.",
       previewUnavailable: "Preview is not available for this file type.",
+      fileUnavailable: "File not available",
+      fileUnavailableHint:
+        "The file could not be found in the corporate repository. It may have been deleted.",
+      deleteRecord: "Delete record",
+      deleteRecordConfirm:
+        "Delete this document record? The entry will be removed from the viewer and cannot be undone.",
+      recordDeleted: "Record deleted",
       requestChanges: "Request changes from supplier",
       requestChangesNote:
         "The registration will be marked as “Changes requested”. A new link will allow the supplier to edit and resubmit (bank changes will require validation).",
+      requestNoteLabel: "Note or comment for the supplier (optional)",
+      requestNoteHint: "The note will be included in the notification email.",
+      requestSend: "Send request",
+      requestCancel: "Cancel",
+      changedLinkTitle: "New supplier link",
+      requestMailSent: "Notification email sent to the supplier.",
+      requestMailFailed: "The link was created, but the email could not be sent. Share it manually.",
+      requestMailSkipped: "No email is registered for this supplier. Share the link manually.",
     },
     invitations: {
       title: "Invitations",

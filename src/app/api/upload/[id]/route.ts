@@ -7,7 +7,6 @@ import {
   getSupplierNameForRegistration,
   getItemIdByPath,
   ItemNotFoundError,
-  OneDriveNotConfiguredError,
   previousSupplierFilePath,
   supplierFilePath,
 } from "@/lib/onedrive";
@@ -44,6 +43,26 @@ export async function DELETE(
   }
 
   try {
+    const { data: removed } = await supabase
+      .from("registration_documents")
+      .delete()
+      .eq("id", id)
+      .eq("invitation_token", token)
+      .select("id, registration_id, ref, file_name");
+    if (!removed || removed.length !== 1) {
+      // RLS refused the delete (e.g. the registration token rotated since the
+      // document was attached). Abort BEFORE touching the SharePoint file so a
+      // record is never left pointing at an empty folder.
+      return Response.json({ error: "not_found" }, { status: 404 });
+    }
+  } catch (err) {
+    return Response.json(
+      { error: "server_error", message: err instanceof Error ? err.message : "delete_failed" },
+      { status: 500 }
+    );
+  }
+
+  try {
     const accessToken = await getAccessToken();
     const supplierName = await getSupplierNameForRegistration(token, row.registration_id);
     let itemId: string | null = null;
@@ -60,33 +79,16 @@ export async function DELETE(
         if (!(err instanceof ItemNotFoundError)) throw err;
       }
     }
-    if (!itemId) throw new ItemNotFoundError();
-    await deleteFile(accessToken, itemId);
+    if (itemId) await deleteFile(accessToken, itemId);
   } catch (err) {
     if (err instanceof ItemNotFoundError) {
-      // The file is already gone (e.g. legacy naming or manual cleanup).
-      // Keep going and drop the database row.
-    } else if (err instanceof OneDriveNotConfiguredError) {
-      return Response.json(
-        { error: "not_configured", hint: "La eliminación necesita la conexión a OneDrive." },
-        { status: 503 }
-      );
+      // The file is already gone (e.g. legacy naming or manual cleanup);
+      // the database row was already removed, nothing else to do.
     } else {
-      return Response.json(
-        { error: "server_error", message: "No se pudo eliminar el archivo en SharePoint." },
-        { status: 500 }
-      );
+      // The row is already gone; a leftover drive item would be unreachable via
+      // the row, so treat storage errors as non-fatal.
     }
   }
 
-  const { error } = await supabase
-    .from("registration_documents")
-    .delete()
-    .eq("id", id)
-    .eq("invitation_token", token);
-
-  if (error) {
-    return Response.json({ error: "server_error", message: error.message }, { status: 500 });
-  }
   return Response.json({ ok: true });
 }

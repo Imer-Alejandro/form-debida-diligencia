@@ -112,3 +112,66 @@ export function invitationEmail(
 
   return { to: "", subject: title, html, text: `${hello}\n\n${intro}\n\n${args.link}\n` };
 }
+
+export function requestChangesEmail(
+  language: "es" | "en",
+  args: {
+    company: string;
+    link: string;
+    note?: string;
+    expiresAt?: string | null;
+    appName: string;
+  }
+): MailMessage {
+  const isEs = language === "es";
+  const title = isEs
+    ? "Solicitud de cambios - Formulario de Debida Diligencia"
+    : "Changes requested - Due Diligence Form";
+  const hello = isEs ? `Estimado(a) ${esc(args.company)},` : `Dear ${esc(args.company)},`;
+  const intro = isEs
+    ? "Su solicitud de proveedor de Sanchez Business Corp necesita algunos ajustes. Por favor abra el enlace a continuación para revisar las observaciones, corregir la información y volver a enviar el formulario:"
+    : "Your Sanchez Business Corp supplier application needs a few adjustments. Please open the link below to review the notes, correct the information and resubmit the form:";
+  const noteLabel = isEs ? "Observación del equipo de compras:" : "Message from the procurement team:";
+  const expiresLabel = isEs ? "Este enlace es válido hasta:" : "This link is valid until:";
+  const footer = isEs
+    ? "Si tiene dudas, contacte a su equipo de compras de Sanchez Business Corp."
+    : "If you have any questions, contact your Sanchez Business Corp procurement team.";
+  const expires = args.expiresAt
+    ? new Date(args.expiresAt).toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
+  const html = `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f5f2">
+  <tr><td align="center" style="padding:32px 16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;border:1px solid #e5e2dd">
+      <tr><td style="padding:28px 32px;border-bottom:1px solid #e5e2dd">
+        <p style="margin:0;font-family:Georgia,serif;font-size:20px;font-weight:700;color:#0a1c31">${esc(args.appName)}</p>
+      </td></tr>
+      <tr><td style="padding:28px 32px">
+        <p style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:15px;color:#333333">${hello}</p>
+        <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${intro}</p>
+        ${args.note ? `<p style="margin:0 0 20px;padding:14px 16px;border-left:3px solid #0a1c31;background:#f6f5f2;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333333"><strong>${noteLabel}</strong><br style="line-height:8px">${esc(args.note)}</p>` : ""}
+        <p style="margin:0 0 20px;text-align:center">
+          <a href="${esc(args.link)}" style="display:inline-block;background:#0a1c31;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:10px;font-family:Arial,sans-serif;font-size:14px;font-weight:700">${isEs ? "Volver a enviar el formulario" : "Resubmit the form"}</a>
+        </p>
+        <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:13px;color:#777777;word-break:break-all">${esc(args.link)}</p>
+        ${expires ? `<p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:13px;color:#777777">${expiresLabel} <strong>${esc(expires)}</strong></p>` : ""}
+      </td></tr>
+      <tr><td style="padding:20px 32px;border-top:1px solid #e5e2dd">
+        <p style="margin:0;font-family:Arial,sans-serif;font-size:12px;color:#999999">${footer}</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`;
+
+  return {
+    to: "",
+    subject: title,
+    html,
+    text: `${hello}\n\n${intro}\n\n${args.note ? `${noteLabel}\n${args.note}\n\n` : ""}${args.link}\n${expires ? `${expiresLabel} ${expires}\n` : ""}`,
+  };
+}

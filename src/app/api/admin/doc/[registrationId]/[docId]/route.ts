@@ -1,9 +1,13 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
 import {
+  deleteFile,
   filePath,
   getAccessToken,
   getDriveContent,
+  getItemIdByPath,
+  getSupplierNameForRegistration,
+  ItemNotFoundError,
   OneDriveNotConfiguredError,
   previousSupplierFilePath,
   supplierFilePath,
@@ -141,4 +145,72 @@ export async function GET(
   if (ext === "pdf") headers.set("X-Content-Type-Options", "nosniff");
 
   return new Response(content.body, { status: 200, headers });
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  ctx: RouteContext<"/api/admin/doc/[registrationId]/[docId]">
+) {
+  const params = await ctx.params;
+  const { registrationId, docId } = params;
+
+  const { supabase: adminSupabase, user } = await getAdminSession();
+  if (!user) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: doc } = await adminSupabase
+    .from("registration_documents")
+    .select("id, registration_id, ref, file_name, invitation_token")
+    .eq("id", docId)
+    .eq("registration_id", registrationId)
+    .maybeSingle();
+
+  if (!doc) {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+
+  // Best effort: also remove the SharePoint file; the row is removed by the
+  // authenticated (admin) role, independent of any stale invitation token.
+  try {
+    const accessToken = await getAccessToken();
+    const supplierName = await getSupplierNameForRegistration(
+      doc.invitation_token,
+      doc.registration_id
+    );
+    let itemId: string | null = null;
+    const paths = [
+      supplierFilePath(supplierName, doc.registration_id, doc.ref, doc.file_name),
+      previousSupplierFilePath(supplierName, doc.registration_id, doc.ref, doc.file_name),
+      filePath(doc.registration_id, doc.ref, doc.file_name),
+    ];
+    for (const path of paths) {
+      try {
+        itemId = await getItemIdByPath(accessToken, path);
+        break;
+      } catch (err) {
+        if (!(err instanceof ItemNotFoundError)) throw err;
+      }
+    }
+    if (itemId) await deleteFile(accessToken, itemId);
+  } catch (err) {
+    if (
+      err instanceof ItemNotFoundError ||
+      err instanceof OneDriveNotConfiguredError
+    ) {
+      // File already gone, or storage unreachable: keep cleaning the row.
+    } else {
+      return Response.json({ error: "drive_error" }, { status: 502 });
+    }
+  }
+
+  const { error } = await adminSupabase
+    .from("registration_documents")
+    .delete()
+    .eq("id", doc.id);
+
+  if (error) {
+    return Response.json({ error: "server_error" }, { status: 500 });
+  }
+  return Response.json({ ok: true });
 }

@@ -23,6 +23,14 @@ export function DocViewer({
   const { t } = useI18n();
   const dict = useDict();
   const [active, setActive] = useState<DocumentRow | null>(null);
+  const [missing, setMissing] = useState<Record<string, boolean>>({});
+  const [removedIds, setRemovedIds] = useState<Record<string, boolean>>({});
+  const [deleting, setDeleting] = useState(false);
+
+  const list = docs.filter((d) => !removedIds[d.id]);
+
+  const markMissing = (id: string) =>
+    setMissing((m) => (m[id] ? m : { ...m, [id]: true }));
 
   useEffect(() => {
     if (!active) return;
@@ -42,6 +50,28 @@ export function DocViewer({
 
   const proxy = (d: DocumentRow, dl = false) =>
     `/api/admin/doc/${reg.id}/${d.id}${dl ? "?dl=1" : ""}`;
+
+  const removeDoc = async (d: DocumentRow) => {
+    if (!window.confirm(t("admin.detail.deleteRecordConfirm"))) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/doc/${reg.id}/${d.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("delete_failed");
+      setRemovedIds((r) => ({ ...r, [d.id]: true }));
+      setMissing((m) => {
+        const next = { ...m };
+        delete next[d.id];
+        return next;
+      });
+      setActive(null);
+    } catch {
+      setActive(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div>
@@ -63,15 +93,16 @@ export function DocViewer({
         </a>
       </div>
 
-      {docs.length === 0 && (
+      {list.length === 0 && (
         <div className="rounded-3xl border border-navy-800/10 bg-white px-6 py-16 text-center text-sm text-ink-muted">
           {t("admin.detail.noDocuments")}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {docs.map((doc) => {
+        {list.map((doc) => {
           const previewable = canPreview(doc.file_name, doc.file_size);
+          const unavailable = missing[doc.id] ?? false;
           const desc =
             dict.s9.docDescriptions[doc.ref as keyof typeof dict.s9.docDescriptions] ??
             doc.ref;
@@ -83,19 +114,25 @@ export function DocViewer({
               className="group overflow-hidden rounded-2xl border border-navy-800/10 bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(10,28,49,0.12)]"
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-bone-100">
-                {previewable ? (
+                {previewable && !unavailable ? (
                   // eslint-disable-next-line @next/next/no-img-element -- dynamic admin proxy needs auth cookies, next/image can't fetch it
                   <img
                     src={proxy(doc)}
                     alt={doc.file_name}
                     loading="lazy"
+                    onError={() => markMissing(doc.id)}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy-800 to-navy-950">
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-navy-800 to-navy-950">
                     <span className="grid place-items-center rounded-xl bg-white/15 px-4 py-3 font-mono text-[15px] font-bold uppercase tracking-wider text-white">
-                      {fileExt(doc.file_name)}
+                      {unavailable ? "?" : fileExt(doc.file_name)}
                     </span>
+                    {unavailable && (
+                      <span className="text-[10.5px] font-medium text-white/70">
+                        {t("admin.detail.fileUnavailable")}
+                      </span>
+                    )}
                   </div>
                 )}
                 <span className="absolute left-2.5 top-2.5 grid h-6 w-8 place-items-center rounded-md bg-navy-800/90 text-[10.5px] font-bold text-white shadow-sm">
@@ -104,6 +141,11 @@ export function DocViewer({
                 {!previewable && (
                   <span className="absolute right-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-ink-muted shadow-sm">
                     {t("admin.detail.previewUnavailable")}
+                  </span>
+                )}
+                {unavailable && (
+                  <span className="absolute right-2.5 top-2.5 rounded-full bg-rose-600/90 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                    {t("admin.detail.fileUnavailable")}
                   </span>
                 )}
               </div>
@@ -159,6 +201,20 @@ export function DocViewer({
                   </svg>
                   {t("admin.detail.download")}
                 </a>
+                {missing[active.id] && (
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => removeDoc(active)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    {deleting ? t("admin.invitations.deleting") : t("admin.detail.deleteRecord")}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setActive(null)}
@@ -170,7 +226,17 @@ export function DocViewer({
             </div>
 
             <div className={cn("min-h-0 flex-1 bg-bone-50", !canPreview(active.file_name, active.file_size) && "grid place-items-center p-8")}>
-              {canPreview(active.file_name, active.file_size) ? (
+              {missing[active.id] ? (
+                <div className="grid h-full w-full place-items-center p-8">
+                  <div className="max-w-sm rounded-2xl border border-navy-800/10 bg-white px-8 py-12 text-center">
+                    <p className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-[16px] font-bold uppercase text-rose-600">?</p>
+                    <p className="mt-4 text-[14px] font-semibold text-ink">{t("admin.detail.fileUnavailable")}</p>
+                    <p className="mt-1.5 max-w-[36ch] text-[13px] leading-relaxed text-ink-muted">
+                      {t("admin.detail.fileUnavailableHint")}
+                    </p>
+                  </div>
+                </div>
+              ) : canPreview(active.file_name, active.file_size) ? (
                 active.file_name.toLowerCase().endsWith(".pdf") ? (
                   <iframe
                     src={proxy(active)}
@@ -182,6 +248,7 @@ export function DocViewer({
                   <img
                     src={proxy(active)}
                     alt={active.file_name}
+                    onError={() => markMissing(active.id)}
                     className="mx-auto max-h-[62vh] w-auto max-w-full object-contain p-2"
                   />
                 )
