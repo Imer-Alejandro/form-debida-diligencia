@@ -21,7 +21,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const NAV_GROUPS_RAW: NavGroup[] = [
   {
     label: "MENÚ PRINCIPAL",
     items: [
@@ -43,6 +43,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+/** Apartados ocultos del menú. Vaciar esta lista para volver a mostrarlos. */
+const HIDDEN_NAV_KEYS: NavKey[] = ["users", "settings"];
+
+const NAV_GROUPS: NavGroup[] = NAV_GROUPS_RAW.map((group) => ({
+  ...group,
+  items: group.items.filter((item) => !HIDDEN_NAV_KEYS.includes(item.key)),
+})).filter((group) => group.items.length > 0);
 
 const ICONS: Record<string, ReactNode> = {
   grid: (
