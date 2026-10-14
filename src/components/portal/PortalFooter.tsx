@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/ui";
+import { useI18n, useDict } from "@/lib/i18n";
 
 export function PortalFooter() {
+  const { t } = useI18n();
+  const dict = useDict();
+  const f = dict.portal.footer;
+
   return (
     <footer className="border-t border-slate-200/80 bg-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
@@ -12,22 +17,22 @@ export function PortalFooter() {
           <div className="lg:col-span-2">
             <Logo dark />
             <p className="mt-4 max-w-sm text-xs leading-relaxed text-slate-500">
-              Plataforma oficial de gestión de debida diligencia, verificación de beneficiarios finales y homologación de proveedores de Sánchez Business &amp; Corp.
+              {f.description}
             </p>
             <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-400">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Conforme a la Ley 155-17 y normativa de compras responsable</span>
+              <span>{f.complianceBadge}</span>
             </div>
           </div>
 
           {/* Contact and address */}
           <div>
             <h4 className="font-display text-xs font-bold uppercase tracking-wider text-slate-800">
-              Contacto y Soporte
+              {f.contactHeading}
             </h4>
             <ul className="mt-3 space-y-2 text-xs text-slate-500">
               <li>
-                <span className="block font-medium text-slate-700">Departamento de Compras:</span>
+                <span className="block font-medium text-slate-700">{f.purchasingDept}</span>
                 <a
                   href="mailto:compras@sanchezbusinesscorp.com"
                   className="text-navy-900 underline hover:text-navy-700"
@@ -36,7 +41,7 @@ export function PortalFooter() {
                 </a>
               </li>
               <li>
-                <span className="block font-medium text-slate-700">Soporte Automatizaciones:</span>
+                <span className="block font-medium text-slate-700">{f.automationSupport}</span>
                 <a
                   href="mailto:Automatizaciones@sanchezbusinesscorp.com"
                   className="text-navy-900 underline hover:text-navy-700"
@@ -45,7 +50,7 @@ export function PortalFooter() {
                 </a>
               </li>
               <li>
-                <span>Santo Domingo, República Dominicana</span>
+                <span>{f.city}</span>
               </li>
             </ul>
           </div>
@@ -53,18 +58,18 @@ export function PortalFooter() {
           {/* Quick links & security */}
           <div>
             <h4 className="font-display text-xs font-bold uppercase tracking-wider text-slate-800">
-              Seguridad y Cumplimiento
+              {f.securityHeading}
             </h4>
             <ul className="mt-3 space-y-2 text-xs text-slate-500">
-              <li>Repositorio Seguro en Microsoft SharePoint</li>
-              <li>Cifrado de datos en tránsito y en reposo</li>
-              <li>Protección de Datos (Ley 172-13)</li>
+              <li>{f.sharepointNote}</li>
+              <li>{f.encryptionNote}</li>
+              <li>{f.dataProtection}</li>
               <li className="pt-2">
                 <Link
                   href="/admin/login"
                   className="inline-flex items-center gap-1 font-semibold text-navy-800 hover:underline"
                 >
-                  <span>Portal Administrativo Interno</span>
+                  <span>{f.adminLink}</span>
                   <span>→</span>
                 </Link>
               </li>
@@ -75,10 +80,10 @@ export function PortalFooter() {
         {/* Legal disclaimers & copyright */}
         <div className="mt-10 border-t border-slate-100 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-[11px] text-slate-400">
           <p>
-            © {new Date().getFullYear()} Sánchez Business &amp; Corp. Todos los derechos reservados. República Dominicana.
+            {t("portal.footer.copyright", { year: new Date().getFullYear() })}
           </p>
           <p className="max-w-md text-slate-400 sm:text-right">
-            La recepción de información no implica aprobación automática ni compromiso de contratación.
+            {f.disclaimer}
           </p>
         </div>
       </div>

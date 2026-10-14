@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Modal, Input, Button } from "@/components/ui";
+import { useI18n, useDict } from "@/lib/i18n";
 
 interface StartFormModalProps {
   open: boolean;
@@ -18,6 +19,10 @@ function extractToken(input: string): string | null {
 
 export function StartFormModal({ open, onClose }: StartFormModalProps) {
   const router = useRouter();
+  const { t } = useI18n();
+  const dict = useDict();
+  const m = dict.portal.modals;
+
   const [value, setValue] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,18 +44,18 @@ export function StartFormModal({ open, onClose }: StartFormModalProps) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Acceso al Formulario de Proveedor"
+      title={m.startTitle}
       maxWidth="max-w-lg"
     >
       <div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          Para acceder a su formulario cifrado de debida diligencia, introduzca el enlace o el código de invitación recibido en el correo electrónico enviado por Sánchez Business &amp; Corp.
+          {m.startIntro}
         </p>
 
         <form onSubmit={submit} className="mt-5 space-y-4">
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-slate-700">
-              Enlace o Código de Invitación
+              {m.startLabel}
             </span>
             <Input
               value={value}
@@ -58,7 +63,7 @@ export function StartFormModal({ open, onClose }: StartFormModalProps) {
                 setValue(e.target.value);
                 if (error) setError(false);
               }}
-              placeholder="Pegue aquí el enlace o código (ej. GZP4VPDK...)"
+              placeholder={m.startPlaceholder}
               invalid={error}
               autoComplete="off"
               autoFocus
@@ -67,26 +72,20 @@ export function StartFormModal({ open, onClose }: StartFormModalProps) {
 
           {error && (
             <p className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 leading-relaxed">
-              El código o enlace no tiene un formato válido. Revise el correo enviado por Sánchez Business &amp; Corp. o pegue la URL completa.
+              {m.startError}
             </p>
           )}
 
           <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading ? "Accediendo…" : "Acceder a Mi Formulario →"}
+            {loading ? m.startLoading : m.startCta}
           </Button>
         </form>
 
         <div className="mt-6 rounded-xl border border-slate-100 bg-[#f8fafc] p-3.5 text-xs text-slate-500">
           <span className="font-semibold text-slate-700 block mb-1">
-            ¿Aún no ha recibido una invitación?
+            {m.startNoInvite}
           </span>
-          Para iniciar el proceso de debida diligencia debe ser postulado por su contacto comercial o escribir a{" "}
-          <a
-            href="mailto:compras@sanchezbusinesscorp.com"
-            className="font-medium text-navy-800 underline hover:text-navy-900"
-          >
-            compras@sanchezbusinesscorp.com
-          </a>.
+          {m.startNoInviteDesc}
         </div>
       </div>
     </Modal>

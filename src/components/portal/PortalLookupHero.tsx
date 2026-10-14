@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { EvaluationStatusCard } from "./EvaluationStatusCard";
 import type { PortalStatusResult } from "./types";
-import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 interface PortalLookupHeroProps {
   onOpenStartModal?: () => void;
@@ -16,6 +16,7 @@ export function PortalLookupHero({
   onOpenRequirementsModal,
 }: PortalLookupHeroProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +34,10 @@ export function PortalLookupHero({
     if (e) e.preventDefault();
     const q = query.trim();
     if (!q) {
-      setError("Por favor introduzca su RNC, Cédula, N° de Referencia o Código de Invitación.");
+      setError(t("portal.emptyError"));
       return;
     }
 
-    // If it's explicitly a token/invitation URL, we can either look up status or ask
     setError(null);
     setLoading(true);
 
@@ -49,7 +49,6 @@ export function PortalLookupHero({
         setResult(data as PortalStatusResult);
         setError(null);
       } else {
-        // If not found in status, check if it's a raw token format to offer direct entry
         const tokenCandidate = isDirectToken(q);
         if (tokenCandidate) {
           router.push(`/i/${tokenCandidate}`);
@@ -57,13 +56,11 @@ export function PortalLookupHero({
         }
 
         setResult(null);
-        setError(
-          "No encontramos registros con ese identificador. Verifique que el RNC, referencia (ej. SB-2026-0010) o código ingresado coincida con la información enviada por Sánchez Business & Corp."
-        );
+        setError(t("portal.notFoundDesc"));
       }
     } catch {
       setResult(null);
-      setError("Ocurrió un problema de conexión al consultar el portal. Por favor intente nuevamente.");
+      setError(t("portal.networkError"));
     } finally {
       setLoading(false);
     }
@@ -92,18 +89,17 @@ export function PortalLookupHero({
           <span className="h-2 w-2 rounded-full bg-teal-600 animate-pulse" />
           <span>Sánchez Business & Corp.</span>
           <span className="text-slate-300">|</span>
-          <span className="text-slate-500 font-normal">Portal Oficial de Proveedores</span>
+          <span className="text-slate-500 font-normal">{t("portal.badge")}</span>
         </div>
 
         {/* Hero Title */}
         <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl sm:leading-[1.12]">
-          Portal de Proveedores &amp; Debida Diligencia
+          {t("portal.heroTitle")}
         </h1>
 
         {/* Hero Subtitle */}
         <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600 sm:text-lg">
-          Consulte en tiempo real el estado de su evaluación de debida diligencia,
-          o inicie el formulario de homologación de manera segura y transparente.
+          {t("portal.heroSubtitle")}
         </p>
 
         {/* Search & Action Box (Matching Image 1 & 2 floating search bar) */}
@@ -132,7 +128,7 @@ export function PortalLookupHero({
                   setQuery(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="Buscar por RNC, Cédula, N° de Referencia (ej. SB-2026-0010) o Código..."
+                placeholder={t("portal.searchPlaceholder")}
                 className="w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
               />
               {query && (
@@ -143,7 +139,7 @@ export function PortalLookupHero({
                     setError(null);
                   }}
                   className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  title="Borrar texto"
+                  title="Clear"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 6 6 18" />
@@ -165,10 +161,10 @@ export function PortalLookupHero({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    <span>Consultando…</span>
+                    <span>{t("portal.searching")}</span>
                   </span>
                 ) : (
-                  <span>Consultar Estado</span>
+                  <span>{t("portal.searchCta")}</span>
                 )}
               </button>
             </div>
@@ -176,20 +172,20 @@ export function PortalLookupHero({
 
           {/* Quick example tags & shortcuts */}
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-            <span className="text-slate-400">Pruebe consultar:</span>
+            <span className="text-slate-400">{t("portal.trySearching")}</span>
             <button
               type="button"
               onClick={() => applyExample("SB-2026-0010")}
               className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-0.5 text-[11.5px] font-medium text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition-colors"
             >
-              Ref. SB-2026-0010
+              {t("portal.exampleRef")}
             </button>
             <button
               type="button"
               onClick={() => applyExample("40210977605")}
               className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-0.5 text-[11.5px] font-medium text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition-colors"
             >
-              RNC 40210977605
+              {t("portal.exampleTax")}
             </button>
             <span className="text-slate-300">·</span>
             {onOpenStartModal && (
@@ -198,7 +194,7 @@ export function PortalLookupHero({
                 onClick={onOpenStartModal}
                 className="font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
               >
-                ¿Tiene enlace de invitación? Ingrese aquí →
+                {t("portal.haveInviteLink")}
               </button>
             )}
           </div>
@@ -211,13 +207,10 @@ export function PortalLookupHero({
                   !
                 </span>
                 <div className="flex-1">
-                  <p className="font-semibold text-rose-950">No fue posible encontrar la solicitud</p>
+                  <p className="font-semibold text-rose-950">{t("portal.notFoundTitle")}</p>
                   <p className="mt-0.5">{error}</p>
                   <p className="mt-2 text-rose-800">
-                    Si recibió un correo de invitación, puede pegar directamente el enlace o comunicarse con{" "}
-                    <a href="mailto:compras@sanchezbusinesscorp.com" className="font-semibold underline">
-                      compras@sanchezbusinesscorp.com
-                    </a>.
+                    {t("portal.supportNotice")}
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useI18n, useDict } from "@/lib/i18n";
 
 interface ProcessStepsProps {
   onOpenStartModal: () => void;
@@ -11,45 +11,22 @@ export function ProcessSteps({
   onOpenStartModal,
   onOpenRequirementsModal,
 }: ProcessStepsProps) {
-  const steps = [
-    {
-      num: "01",
-      title: "Invitación y Acceso Seguro",
-      desc: "El área de compras genera y remite un enlace cifrado único. No requiere crear contraseñas complicadas ni cuentas externas.",
-      tag: "Acceso Seguro",
-    },
-    {
-      num: "02",
-      title: "Cuestionario y Carga Documental",
-      desc: "Diligencie sus datos fiscales, bancarios y adjunte sus recaudos en formato PDF. Guardado automático progresivo.",
-      tag: "Cifrado SharePoint",
-    },
-    {
-      num: "03",
-      title: "Declaración Jurada y Firma Digital",
-      desc: "Declare la veracidad de la información y firme directamente en pantalla desde su computadora, tablet o teléfono móvil.",
-      tag: "Firma Electrónica",
-    },
-    {
-      num: "04",
-      title: "Dictamen de Debida Diligencia",
-      desc: "El Oficial de Cumplimiento valida listas restrictivas, antecedentes y solvencia fiscal, emitiendo la homologación oficial.",
-      tag: "Homologación",
-    },
-  ];
+  const { t } = useI18n();
+  const dict = useDict();
+  const steps = dict.portal.steps;
 
   return (
     <section className="py-12 sm:py-16">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-teal-700">
-            Flujo de Homologación Corporativa
+            {t("portal.processHeading")}
           </span>
           <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Proceso de Debida Diligencia Paso a Paso
+            {t("portal.processTitle")}
           </h2>
           <p className="mt-2 text-sm text-slate-600 max-w-xl">
-            Un procedimiento ágil y confidencial diseñado conforme a las mejores prácticas de gobierno corporativo y la Ley 155-17.
+            {t("portal.processSubtitle")}
           </p>
         </div>
 
@@ -59,14 +36,14 @@ export function ProcessSteps({
             onClick={onOpenRequirementsModal}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
           >
-            Ver Requisitos Requeridos
+            {t("portal.viewReqs")}
           </button>
           <button
             type="button"
             onClick={onOpenStartModal}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-navy-900 px-5 text-xs font-semibold text-white shadow-xs hover:bg-navy-800 transition-colors"
           >
-            Iniciar Formulario →
+            {t("portal.navStartForm")}
           </button>
         </div>
       </div>
