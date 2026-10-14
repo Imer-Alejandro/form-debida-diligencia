@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Portal de Proveedores | Sanchez Business Corp",
+  title: "Portal de Proveedores | Sánchez Business & Corp.",
   description:
-    "Registro y debida diligencia de proveedores de Sanchez Business Corp (República Dominicana).",
+    "Registro y debida diligencia de proveedores de Sánchez Business & Corp. (República Dominicana).",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

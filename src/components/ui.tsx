@@ -8,6 +8,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export function Logo({
   dark = false,
@@ -37,7 +38,7 @@ export function Logo({
               dark ? "text-slate-900" : "text-white"
             )}
           >
-            Sanchez Business Corp
+            Sánchez Business & Corp.
           </p>
           <p
             className={cn(
@@ -102,6 +103,7 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <label className={cn("block", className)}>
       <span className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px] font-medium text-slate-700">
@@ -109,7 +111,7 @@ export function Field({
         {required && <span className="text-rose-500">*</span>}
         {!required && (
           <span className="text-[11px] font-normal text-slate-400">
-            Opcional
+            {t("common.optional")}
           </span>
         )}
       </span>
@@ -276,39 +278,59 @@ export function Badge({
   );
 }
 
-export function Toggle({
-  checked,
-  onChange,
-  labels,
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  maxWidth = "max-w-4xl",
 }: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  labels: [string, string];
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  maxWidth?: string;
 }) {
+  if (!open) return null;
   return (
-    <div
-      role="switch"
-      aria-checked={checked}
-      tabIndex={0}
-      onClick={() => onChange(!checked)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onChange(!checked);
-        }
-      }}
-      className="relative inline-flex h-9 w-20 cursor-pointer items-center rounded-full bg-slate-900 transition-colors select-none p-1"
-    >
-      <span
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+      <div
+        className="absolute inset-0 bg-navy-900/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
         className={cn(
-          "flex h-7 w-9 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-200 shadow-xs",
-          checked
-            ? "translate-x-9 bg-white text-slate-900"
-            : "translate-x-0 bg-white text-slate-900"
+          "relative flex max-h-[94vh] w-full flex-col overflow-hidden rounded-3xl bg-white shadow-2xl",
+          maxWidth
         )}
       >
-        {checked ? labels[1] : labels[0]}
-      </span>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 px-5 py-4 sm:px-6">
+          <h2 className="font-display text-[16px] font-semibold tracking-tight text-slate-900">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">{children}</div>
+      </div>
     </div>
   );
 }

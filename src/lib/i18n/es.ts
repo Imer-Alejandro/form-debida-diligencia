@@ -1,6 +1,6 @@
 export const es = {
   brand: {
-    company: "Sanchez Business Corp",
+    company: "Sánchez Business & Corp.",
     app: "Portal de Proveedores",
     tagline: "Registro y debida diligencia de proveedores",
   },
@@ -50,7 +50,7 @@ export const es = {
     en: "English",
   },
   landing: {
-    badge: "Número de seguimiento #",
+    badge: "Número de seguimiento #",
     heroTitle: "Su registro de proveedor",
     heroSubtitle:
       "Complete las secciones correspondientes y adjunte sus documentos. Todo es confidencial y se utiliza únicamente para la evaluación de Sánchez Business & Corp.",
@@ -139,11 +139,12 @@ export const es = {
     registryExpiry: "Vencimiento del Registro Mercantil",
     exporterCodeExpiry: "Vencimiento del Código de Exportador",
     foundedDate: "Fecha de constitución / inicio de operaciones",
-    nationality: "Nacionalidad",
+    nationality: "País",
     searchCountry: "Buscar país…",
     noCountriesFound: "No se encontraron países",
+    selectCountryFirst: "Seleccione primero el país",
     legalAddress: "Domicilio legal",
-    provinceCountry: "Provincia / País",
+    provinceCountry: "Provincia / Estado",
     phoneEmail: "Teléfono y correo general",
     website: "Página web / redes comerciales",
     mainEconomicActivity: "Actividad económica principal",
@@ -153,7 +154,8 @@ export const es = {
     title: "Contactos autorizados",
     note: "Nota: Si su empresa cuenta con contactos distintos según el tipo de gestión, área o requerimiento, favor seleccionar el contacto que corresponda en cada caso y añadir todos los contactos que sean necesarios para asegurar una comunicación adecuada según la gestión requerida.",
     role: "Función",
-    name: "Nombre y cargo",
+    name: "Nombre",
+    position: "Cargo",
     phone: "Teléfono",
     email: "Correo electrónico",
     roles: {
@@ -362,9 +364,13 @@ export const es = {
     removeFailed: "No se pudo eliminar el archivo. Intente de nuevo.",
     removeNotConfigured: "La eliminación necesita la conexión con el repositorio de archivos. Vuelva a intentarlo más tarde.",
     tooLarge: "El archivo supera el tamaño máximo permitido (50 MB).",
-    dropHint: "Seleccionar archivo; se subirá al guardar el borrador o enviar el formulario",
+    dropHint: "Seleccionar archivo; se sube de inmediato y verá el progreso",
     noUploadsYet: "Ningún documento adjunto aún.",
     pending: "Pendiente",
+    processing: "Procesando archivo…",
+    processingCount: "Procesando {n} archivo(s)…",
+    progressLabel: "Subiendo {pct}%",
+    retry: "Reintentar",
     willReplace: "Reemplazará el archivo actual",
     missingCheckedDocuments:
       "Falta cargar {n} documento(s) marcado(s). Se guardó el borrador; puede continuar más tarde.",
@@ -624,6 +630,10 @@ export const es = {
       requestMailSent: "Correo de notificación enviado al proveedor.",
       requestMailFailed: "El enlace se generó, pero no se pudo enviar el correo. Compártalo manualmente.",
       requestMailSkipped: "No hay correo registrado para este proveedor. Comparta el enlace manualmente.",
+      sectionsTitle: "Información del proveedor",
+      viewDetails: "Ver detalles",
+      openSection: "Abrir sección",
+      contactsCount: "contactos",
     },
     invitations: {
       title: "Invitaciones",

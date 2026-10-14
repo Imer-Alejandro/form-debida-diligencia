@@ -1,6 +1,6 @@
 export const en = {
   brand: {
-    company: "Sanchez Business Corp",
+    company: "Sánchez Business & Corp.",
     app: "Supplier Portal",
     tagline: "Supplier registration and due diligence",
   },
@@ -53,7 +53,7 @@ export const en = {
     badge: "Tracking number #",
     heroTitle: "Your supplier registration",
     heroSubtitle:
-      "Complete the applicable sections and attach your documents. Everything is confidential and used solely for evaluation by Sanchez Business Corp.",
+      "Complete the applicable sections and attach your documents. Everything is confidential and used solely for evaluation by Sánchez Business & Corp.",
     introInstruction:
       "We invite you to complete this form. Receipt of it does not imply automatic approval or any commitment to purchase.",
     ctaStart: "Start my registration",
@@ -74,9 +74,9 @@ export const en = {
       },
     ],
     privacyNote:
-      "Your data is handled in accordance with Sanchez Business Corp's privacy policy and is used only to evaluate and manage the business relationship.",
+      "Your data is handled in accordance with Sánchez Business & Corp.'s privacy policy and is used only to evaluate and manage the business relationship.",
     missing:
-      "Invalid or expired link. Please request a new one from your contact at Sanchez Business Corp.",
+      "Invalid or expired link. Please request a new one from your contact at Sánchez Business & Corp.",
     expired: "This link has expired.",
     inviteTitle: "Enter your invitation code",
     inviteSubtitle:
@@ -85,9 +85,9 @@ export const en = {
     invitePlaceholder: "Paste your link or code here",
     inviteCta: "Continue",
     inviteError:
-      "That link or code is not valid. Check the email sent by Sanchez Business Corp.",
+      "That link or code is not valid. Check the email sent by Sánchez Business & Corp.",
     inviteHint:
-      "Don't have an invitation? Contact your buyer at Sanchez Business Corp.",
+      "Don't have an invitation? Contact your buyer at Sánchez Business & Corp.",
   },
   wizard: {
     title: "Supplier registration and due diligence form",
@@ -140,11 +140,12 @@ export const en = {
     registryExpiry: "Commercial Registry expiry",
     exporterCodeExpiry: "Exporter Code expiry",
     foundedDate: "Incorporation / start of operations date",
-    nationality: "Nationality",
+    nationality: "Country",
     searchCountry: "Search countries…",
     noCountriesFound: "No countries found",
+    selectCountryFirst: "Select the country first",
     legalAddress: "Legal address",
-    provinceCountry: "Province / Country",
+    provinceCountry: "State / Province",
     phoneEmail: "Phone and general email",
     website: "Website / business social media",
     mainEconomicActivity: "Main economic activity",
@@ -154,7 +155,8 @@ export const en = {
     title: "Authorized contacts",
     note: "Note: If your company has different contacts depending on the type of matter, area or requirement, please select the contact that applies in each case and add as many contacts as needed to ensure proper communication for the required matter.",
     role: "Function",
-    name: "Name and title",
+    name: "Name",
+    position: "Title",
     phone: "Phone",
     email: "Email",
     roles: {
@@ -171,7 +173,7 @@ export const en = {
     shareholders: "Main shareholders / partners",
     pep: "Is any owner, officer or ultimate beneficial owner a public official or politically exposed person (PEP)?",
     pepDetail: "Name, position, institution, country and relationship",
-    relatedToSbc: "Is there any kinship or close relationship with employees, executives, shareholders or board members of Sanchez Business Corp?",
+    relatedToSbc: "Is there any kinship or close relationship with employees, executives, shareholders or board members of Sánchez Business & Corp.?",
     relatedToSbcDetail: "Explain the relationship",
     relatedCompanies: "Related or affiliated companies",
   },
@@ -234,7 +236,7 @@ export const en = {
     },
     creditDays: "Credit days",
     advancePct: "Advance percentage",
-    offersCredit: "Do you extend credit to Sanchez Business Corp?",
+    offersCredit: "Do you extend credit to Sánchez Business & Corp.?",
     creditCompanies:
       "Which of our companies have credit with you? (you may select more than one)",
     fraudNote:
@@ -326,7 +328,7 @@ export const en = {
   s10: {
     title: "Supplier authorizations",
     intro:
-      "By signing, the supplier authorizes Sanchez Business Corp and its related companies to:",
+      "By signing, the supplier authorizes Sánchez Business & Corp. and its related companies to:",
     authorizations: [
       "Verify the authenticity and validity of the information provided against public sources, issuing entities, commercial references and permitted databases.",
       "Validate identity, legal existence, tax status, banking data, ultimate beneficial owners, conflicts of interest, sanctions and commercial reputation, according to the risk level.",
@@ -358,15 +360,19 @@ export const en = {
     uploading: "Uploading…",
     error: "Upload failed. Please try again.",
     notConfigured:
-      "File upload is not available yet. You may continue and the Sanchez Business Corp team will request the documents through another channel.",
+      "File upload is not available yet. You may continue and the Sánchez Business & Corp. team will request the documents through another channel.",
     remove: "Remove file",
     removeFailed: "The file could not be removed. Please try again.",
     removeNotConfigured:
       "Removal requires a connection with the file repository. Please try again later.",
     tooLarge: "The file exceeds the maximum allowed size (50 MB).",
-    dropHint: "Choose a file; it uploads when you save the draft or submit the form",
+    dropHint: "Choose a file; it uploads right away so you can track progress",
     noUploadsYet: "No documents attached yet.",
     pending: "Pending",
+    processing: "Processing file…",
+    processingCount: "Processing {n} file(s)…",
+    progressLabel: "Uploading {pct}%",
+    retry: "Retry",
     willReplace: "Will replace the current file",
     missingCheckedDocuments:
       "{n} selected document(s) still need uploading. Your draft was saved so you can continue later.",
@@ -375,7 +381,7 @@ export const en = {
     typeHint:
       "Supported formats: PDF, images and Office documents. Up to 50 MB per file.",
     onedriveNote:
-      "Your files are stored securely in Sanchez Business Corp's corporate repository (Microsoft OneDrive). They are not kept on public servers.",
+      "Your files are stored securely in Sánchez Business & Corp.'s corporate repository (Microsoft OneDrive). They are not kept on public servers.",
   },
   submit: {
     reviewTitle: "Review your information",
@@ -385,7 +391,7 @@ export const en = {
     draftSaved: "Draft saved. You can continue later.",
     submitSuccessTitle: "Registration submitted",
     submitSuccessSub:
-      "Thank you for completing your registration. The Sanchez Business Corp team will review the information.",
+      "Thank you for completing your registration. The Sánchez Business & Corp. team will review the information.",
     reference: "Your tracking number",
     whatNow:
       "Remember: receipt of this form does not imply automatic approval or any commitment to purchase. The company may request clarifications or additional documents.",
@@ -407,7 +413,7 @@ export const en = {
   admin: {
     login: {
       title: "Admin panel",
-      subtitle: "Restricted access to authorized Sanchez Business Corp staff",
+      subtitle: "Restricted access to authorized Sánchez Business & Corp. staff",
       email: "Email",
       password: "Password",
       signIn: "Sign in",
@@ -523,7 +529,7 @@ recent: "Recent registrations",
       addTag: "Add tag",
       tagPlaceholder: "Tag name",
       evaluationTitle: "Internal evaluation",
-      section12: "Section 12 — Sanchez Business Corp internal use",
+      section12: "Section 12 — Sánchez Business & Corp. internal use",
       section13: "Section 13 — Evaluation result",
       requestingCompany: "Requesting group company",
       requestingArea: "Requesting area / Responsible",
@@ -626,6 +632,10 @@ recent: "Recent registrations",
       requestMailSent: "Notification email sent to the supplier.",
       requestMailFailed: "The link was created, but the email could not be sent. Share it manually.",
       requestMailSkipped: "No email is registered for this supplier. Share the link manually.",
+      sectionsTitle: "Supplier information",
+      viewDetails: "View details",
+      openSection: "Open section",
+      contactsCount: "contacts",
     },
     invitations: {
       title: "Invitations",

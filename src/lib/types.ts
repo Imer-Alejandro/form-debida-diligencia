@@ -17,6 +17,7 @@ export type RiskLevel = "PENDIENTE" | "BAJO" | "MEDIO" | "ALTO" | "CRITICO";
 export interface ContactRow {
   role: string;
   name: string;
+  position: string;
   phone: string;
   email: string;
 }
@@ -155,7 +156,7 @@ export function emptyData(): SupplierData {
       mainEconomicActivity: "",
       goodsServices: "",
     },
-    section2: { contacts: [{ role: "representante", name: "", phone: "", email: "" }] },
+    section2: { contacts: [{ role: "representante", name: "", position: "", phone: "", email: "" }] },
     section3: {
       legalRepName: "",
       legalRepId: "",

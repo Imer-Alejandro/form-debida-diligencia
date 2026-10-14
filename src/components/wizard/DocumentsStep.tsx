@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useDict, useI18n } from "@/lib/i18n";
 import { documentCatalog, type DocumentIntent, type DocumentRow } from "@/lib/types";
 import { validateFile } from "@/lib/upload-policy";
@@ -13,15 +13,11 @@ interface DocumentsStepProps {
   token: string;
   attached: DocumentRow[];
   setAttached: (docs: DocumentRow[]) => void;
-  pendingFiles: PendingDocumentFile[];
-  setPendingFiles: (files: PendingDocumentFile[]) => void;
+  uploadFile: (ref: string, file: File, onProgress: (pct: number) => void) => Promise<DocumentRow>;
   onedriveOn: boolean;
 }
 
-export interface PendingDocumentFile {
-  ref: string;
-  file: File;
-}
+type BusyState = { pct: number; error?: boolean };
 
 export function DocumentsStep({
   documents,
@@ -29,19 +25,22 @@ export function DocumentsStep({
   token,
   attached,
   setAttached,
-  pendingFiles,
-  setPendingFiles,
+  uploadFile,
   onedriveOn,
 }: DocumentsStepProps) {
   const { t } = useI18n();
   const dict = useDict();
   const s9 = dict.s9;
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [busy, setBusy] = useState<Record<string, BusyState>>({});
 
   const toggle = (ref: string) => {
-    const document = documents.find((item) => item.ref === ref);
-    if (document?.checked) {
-      setPendingFiles(pendingFiles.filter((item) => item.ref !== ref));
+    if (documents.find((item) => item.ref === ref)?.checked) {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[ref];
+        return next;
+      });
     }
     setDocuments(
       documents.map((d) => (d.ref === ref ? { ...d, checked: !d.checked } : d))
@@ -51,7 +50,7 @@ export function DocumentsStep({
   const noteFor = (ref: string, e: string) =>
     setDocuments(documents.map((d) => (d.ref === ref ? { ...d, note: e } : d)));
 
-  const selectFile = (ref: string, file: File) => {
+  const selectFile = async (ref: string, file: File) => {
     const err = validateFile(file);
     if (err === "too_large") {
       window.alert(t("validation.fileTooLarge"));
@@ -61,10 +60,19 @@ export function DocumentsStep({
       window.alert(t("validation.unsupportedType"));
       return;
     }
-    setPendingFiles([
-      ...pendingFiles.filter((pending) => pending.ref !== ref),
-      { ref, file },
-    ]);
+    setBusy((b) => ({ ...b, [ref]: { pct: 0 } }));
+    try {
+      await uploadFile(ref, file, (pct) =>
+        setBusy((b) => ({ ...b, [ref]: { pct } }))
+      );
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[ref];
+        return next;
+      });
+    } catch {
+      setBusy((b) => ({ ...b, [ref]: { pct: 0, error: true } }));
+    }
   };
 
   const remove = async (doc: DocumentRow) => {
@@ -84,8 +92,8 @@ export function DocumentsStep({
   };
 
   const attachedCount = attached.length;
-  const pendingCount = pendingFiles.length;
-  const showsDeps = attachedCount > 0 || pendingCount > 0;
+  const processing = Object.keys(busy).length;
+  const showsDeps = attachedCount > 0 || processing > 0;
 
   return (
     <div className="space-y-5">
@@ -96,16 +104,23 @@ export function DocumentsStep({
       )}
       <p className="text-[13px] text-ink-muted">{s9.usesOnlyWhenNeeded}</p>
 
+      {processing > 0 && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-navy-800/15 bg-navy-50 px-4 py-3 text-[12.5px] font-medium text-navy-700">
+          <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-navy-800/25 border-t-navy-800" />
+          {t("docs.processingCount", { n: String(processing) })}
+        </div>
+      )}
+
       {showsDeps && (
         <div className="flex flex-wrap items-center gap-2 text-[12px]">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-800/10 bg-bone-50 px-3 py-1.5 font-medium text-ink">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
             {t("docs.attachedCount", { n: String(attachedCount) })}
           </span>
-          {pendingCount > 0 && (
+          {processing > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/5 px-3 py-1.5 font-medium text-warning">
               <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-              {t("docs.pendingCount", { n: String(pendingCount) })}
+              {t("docs.processingCount", { n: String(processing) })}
             </span>
           )}
         </div>
@@ -115,8 +130,8 @@ export function DocumentsStep({
         {documents.map((el) => {
           const meta = documentCatalog.find((d) => d.ref === el.ref);
           const attachedForRef = attached.filter((d) => d.ref === el.ref);
-          const pendingFile = pendingFiles.find((d) => d.ref === el.ref);
-          const isPending = el.checked && attachedForRef.length === 0;
+          const state = busy[el.ref];
+          const isPending = el.checked && attachedForRef.length === 0 && !state;
           return (
             <div key={el.ref} className={cn("px-4 py-4 sm:px-5", el.checked && "bg-bone-50/60")}>
               <div className="flex flex-wrap items-start gap-3">
@@ -157,10 +172,20 @@ export function DocumentsStep({
                         meta?.appliesTo}
                     </span>
                   </span>
-                  {isPending && onedriveOn && (
-                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 text-[11px] font-medium text-warning">
-                      {t("docs.pending")}
+                  {state ? (
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-navy-800/15 bg-navy-50 px-2.5 py-1 text-[11px] font-medium text-navy-700">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-navy-800/25 border-t-navy-800" />
+                      {state.error
+                        ? t("docs.error")
+                        : t("docs.progressLabel", { pct: String(state.pct) })}
                     </span>
+                  ) : (
+                    isPending &&
+                    onedriveOn && (
+                      <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 text-[11px] font-medium text-warning">
+                        {t("docs.pending")}
+                      </span>
+                    )
                   )}
                 </label>
               </div>
@@ -203,30 +228,48 @@ export function DocumentsStep({
                       ))}
                     </ul>
                   )}
-                  {pendingFile && (
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-sm">
-                      <span className="min-w-0 truncate">
-                        {pendingFile.file.name}
-                        <span className="ml-2 text-xs text-ink-muted">
-                          {formatBytes(pendingFile.file.size)} · {t("docs.pending")}
-                          {attachedForRef.length > 0 && (
-                            <span className="ml-2 font-medium text-warning">
-                              {t("docs.willReplace")}
+
+                  {state && (
+                    <div className="rounded-xl border border-navy-800/15 bg-navy-50/60 px-3 py-3">
+                      {state.error ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[12.5px] font-medium text-rose-600">
+                            {t("docs.error")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => inputRefs.current[el.ref]?.click()}
+                            className="text-xs font-semibold text-navy-700 underline underline-offset-2"
+                          >
+                            {t("docs.retry")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11.5px] font-medium text-navy-700">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-navy-800/25 border-t-navy-800" />
+                              {t("docs.processing")}
                             </span>
-                          )}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPendingFiles(pendingFiles.filter((d) => d.ref !== el.ref))
-                        }
-                        className="shrink-0 text-xs text-ink-muted underline hover:text-danger"
-                      >
-                        {t("docs.remove")}
-                      </button>
+                            <span className="tabular-nums">
+                              {t("docs.progressLabel", { pct: String(state.pct) })}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-navy-800/10">
+                            <div
+                              className="h-full rounded-full bg-navy-800 transition-all duration-300"
+                              style={{ width: `${state.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {attachedForRef.length > 0 && !state && (
+                    <p className="text-[11.5px] text-ink-muted">{t("docs.willReplace")}</p>
+                  )}
+
                   <input
                     ref={(n) => {
                       inputRefs.current[el.ref] = n;
@@ -236,14 +279,15 @@ export function DocumentsStep({
                     accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.odt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.txt,.rtf,.zip"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) selectFile(el.ref, f);
+                      if (f) void selectFile(el.ref, f);
                       e.target.value = "";
                     }}
                   />
                   <button
                     type="button"
+                    disabled={!!state}
                     onClick={() => inputRefs.current[el.ref]?.click()}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-800/20 bg-white px-4 py-5 text-sm transition-colors hover:border-navy-800/50 hover:bg-bone-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-800/20 bg-white px-4 py-5 text-sm transition-colors hover:border-navy-800/50 hover:bg-bone-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {t("docs.dropHint")}
                   </button>

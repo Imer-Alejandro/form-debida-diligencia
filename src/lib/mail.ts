@@ -36,7 +36,7 @@ export async function sendMail(msg: MailMessage): Promise<void> {
   });
   try {
     await transport.sendMail({
-      from: { name: "Sanchez Business Corp", address: MAIL_FROM() },
+      from: { name: "Sánchez Business & Corp.", address: MAIL_FROM() },
       to: msg.to,
       subject: msg.subject,
       text: msg.text,
@@ -71,13 +71,13 @@ export function invitationEmail(
     : "Invitation to the Due Diligence Form";
   const hello = isEs ? `Estimado(a) ${esc(args.company)},` : `Dear ${esc(args.company)},`;
   const intro = isEs
-    ? "Le invitamos a completar el formulario de debida diligencia de proveedores de Sanchez Business Corp. Para comenzar, abra el siguiente enlace y complete el registro:"
-    : "You are invited to complete the Sanchez Business Corp supplier due diligence form. To get started, open the link below and complete the registration:";
+    ? "Le invitamos a completar el formulario de debida diligencia de proveedores de Sánchez Business & Corp. Para comenzar, abra el siguiente enlace y complete el registro:"
+    : "You are invited to complete the Sánchez Business & Corp. supplier due diligence form. To get started, open the link below and complete the registration:";
   const noteLabel = isEs ? "Nota de su contacto:" : "Message from your contact:";
   const expiresLabel = isEs ? "Este enlace es válido hasta:" : "This link is valid until:";
   const footer = isEs
-    ? "Si tiene dudas, contacte a su equipo de compras de Sanchez Business Corp."
-    : "If you have any questions, contact your Sanchez Business Corp procurement team.";
+    ? "Si tiene dudas, contacte a su equipo de compras de Sánchez Business & Corp."
+    : "If you have any questions, contact your Sánchez Business & Corp. procurement team.";
   const expires = args.expiresAt
     ? new Date(args.expiresAt).toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
         year: "numeric",
@@ -129,13 +129,13 @@ export function requestChangesEmail(
     : "Changes requested - Due Diligence Form";
   const hello = isEs ? `Estimado(a) ${esc(args.company)},` : `Dear ${esc(args.company)},`;
   const intro = isEs
-    ? "Su solicitud de proveedor de Sanchez Business Corp necesita algunos ajustes. Por favor abra el enlace a continuación para revisar las observaciones, corregir la información y volver a enviar el formulario:"
-    : "Your Sanchez Business Corp supplier application needs a few adjustments. Please open the link below to review the notes, correct the information and resubmit the form:";
+    ? "Su solicitud de proveedor de Sánchez Business & Corp. necesita algunos ajustes. Por favor abra el enlace a continuación para revisar las observaciones, corregir la información y volver a enviar el formulario:"
+    : "Your Sánchez Business & Corp. supplier application needs a few adjustments. Please open the link below to review the notes, correct the information and resubmit the form:";
   const noteLabel = isEs ? "Observación del equipo de compras:" : "Message from the procurement team:";
   const expiresLabel = isEs ? "Este enlace es válido hasta:" : "This link is valid until:";
   const footer = isEs
-    ? "Si tiene dudas, contacte a su equipo de compras de Sanchez Business Corp."
-    : "If you have any questions, contact your Sanchez Business Corp procurement team.";
+    ? "Si tiene dudas, contacte a su equipo de compras de Sánchez Business & Corp."
+    : "If you have any questions, contact your Sánchez Business & Corp. procurement team.";
   const expires = args.expiresAt
     ? new Date(args.expiresAt).toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
         year: "numeric",
@@ -227,8 +227,8 @@ export function expirySupplierEmail(
     ? "Le solicitamos actualizar su registro enviado y adjuntar el documento vigente lo antes posible."
     : "Please update your submitted registration and attach the current document as soon as possible.";
   const footer = isEs
-    ? "Si tiene dudas, contacte a su equipo de compras de Sanchez Business Corp."
-    : "If you have any questions, contact your Sanchez Business Corp procurement team.";
+    ? "Si tiene dudas, contacte a su equipo de compras de Sánchez Business & Corp."
+    : "If you have any questions, contact your Sánchez Business & Corp. procurement team.";
   const body = `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${esc(hello)}</p><p style="margin:0;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${esc(ask)}</p>`;
   return {
     to: "",
@@ -274,14 +274,14 @@ export function formReminderEmail(
   const title = isEs ? "Recordatorio: complete su formulario de debida diligencia" : "Reminder: complete your due diligence form";
   const hello = isEs ? `Estimado(a) ${esc(args.company)},` : `Dear ${esc(args.company)},`;
   const intro = isEs
-    ? "Nos gustaría recordarle que aún no hemos recibido su formulario de debida diligencia de proveedores de Sanchez Business Corp."
-    : "We would like to remind you that we have not yet received your Sanchez Business Corp supplier due diligence form.";
+    ? "Nos gustaría recordarle que aún no hemos recibido su formulario de debida diligencia de proveedores de Sánchez Business & Corp."
+    : "We would like to remind you that we have not yet received your Sánchez Business & Corp. supplier due diligence form.";
   const ask = isEs
     ? "Puede continuar donde lo dejó usando el siguiente enlace. Si ya lo envió, ignore este mensaje."
     : "You can continue where you left off using the link below. If you already submitted it, please ignore this message.";
   const footer = isEs
-    ? "Si tiene dudas, contacte a su equipo de compras de Sanchez Business Corp."
-    : "If you have any questions, contact your Sanchez Business Corp procurement team.";
+    ? "Si tiene dudas, contacte a su equipo de compras de Sánchez Business & Corp."
+    : "If you have any questions, contact your Sánchez Business & Corp. procurement team.";
   const body = `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${esc(hello)}</p><p style="margin:0;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${esc(ask)}</p>`;
   return {
     to: "",

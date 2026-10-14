@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -19,6 +19,7 @@ import {
   type SupplierData,
 } from "@/lib/types";
 import { countryOptions, type CountryLanguage } from "@/lib/countries";
+import type { Subdivision } from "@/lib/subdivisions";
 import { cn } from "@/lib/utils";
 
 export type Setter = (fn: (d: SupplierData) => SupplierData) => void;
@@ -108,11 +109,11 @@ function CountryCombobox({
   return (
     <div className="relative">
       <Input
-        id="supplier-nationality"
+        id="supplier-country"
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={open}
-        aria-controls="supplier-nationality-options"
+        aria-controls="supplier-country-options"
         autoComplete="off"
         value={open ? query : selected ? `${selected.flag}  ${selected.name}` : ""}
         placeholder={placeholder}
@@ -143,7 +144,7 @@ function CountryCombobox({
       />
       {open && (
         <div
-          id="supplier-nationality-options"
+          id="supplier-country-options"
           role="listbox"
           className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
         >
@@ -180,6 +181,33 @@ export function Section1({ data, set, errors }: SectionProps) {
   const { t, lang } = useI18n();
   const put = (k: keyof SupplierData["section1"], v: string) =>
     set((d) => ({ ...d, section1: { ...d.section1, [k]: v } }));
+  const country = data.section1.nationality ?? "";
+  const [subdivState, setSubdivState] = useState<{ country: string; list: Subdivision[] }>({
+    country: "",
+    list: [],
+  });
+  useEffect(() => {
+    if (!country || subdivState.country === country) return;
+    let cancelled = false;
+    // Lazy import keeps the large state/province dataset out of the initial bundle.
+    import("@/lib/subdivisions")
+      .then((mod) => {
+        if (!cancelled) setSubdivState({ country, list: mod.subdivisionsFor(country) });
+      })
+      .catch(() => {
+        if (!cancelled) setSubdivState({ country, list: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [country, subdivState.country]);
+  const countrySubdivisions = subdivState.country === country ? subdivState.list : [];
+  const subdivisionsLoading = !!country && subdivState.country !== country;
+  const setCountry = (code: string) =>
+    set((d) => ({
+      ...d,
+      section1: { ...d.section1, nationality: code, provinceCountry: "" },
+    }));
 
   return (
     <div className="space-y-5">
@@ -242,15 +270,15 @@ export function Section1({ data, set, errors }: SectionProps) {
         </Field>
       </Row>
       <div>
-        <label htmlFor="supplier-nationality" className="mb-1.5 block text-[13px] font-medium text-slate-700">
+        <label htmlFor="supplier-country" className="mb-1.5 block text-[13px] font-medium text-slate-700">
           {t("s1.nationality")} <span className="text-rose-500">*</span>
         </label>
         <CountryCombobox
-          value={data.section1.nationality ?? ""}
+          value={country}
           language={lang}
           placeholder={t("s1.searchCountry")}
           emptyLabel={t("s1.noCountriesFound")}
-          onChange={(code) => put("nationality", code)}
+          onChange={setCountry}
         />
         {errors["s1.nationality"] && (
           <span className="mt-1 block text-xs text-danger">{errors["s1.nationality"]}</span>
@@ -260,8 +288,33 @@ export function Section1({ data, set, errors }: SectionProps) {
         <Field label={t("s1.foundedDate")}>
           <Input type="date" value={data.section1.foundedDate} onChange={(e) => put("foundedDate", e.target.value)} />
         </Field>
-        <Field label={t("s1.provinceCountry")}>
-          <Input value={data.section1.provinceCountry} onChange={(e) => put("provinceCountry", e.target.value)} />
+        <Field label={t("s1.provinceCountry")} hint={!country ? t("s1.selectCountryFirst") : undefined}>
+          {countrySubdivisions.length > 0 || subdivisionsLoading ? (
+            <Select
+              value={data.section1.provinceCountry}
+              onChange={(e) => put("provinceCountry", e.target.value)}
+              disabled={!country || subdivisionsLoading}
+            >
+              <option value="">—</option>
+              {data.section1.provinceCountry &&
+                !countrySubdivisions.some((s) => s.name === data.section1.provinceCountry) && (
+                  <option value={data.section1.provinceCountry}>
+                    {data.section1.provinceCountry}
+                  </option>
+                )}
+              {countrySubdivisions.map((s) => (
+                <option key={s.code} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <Input
+              value={data.section1.provinceCountry}
+              onChange={(e) => put("provinceCountry", e.target.value)}
+              disabled={!country}
+            />
+          )}
         </Field>
       </Row>
       <Field label={t("s1.legalAddress")}>
@@ -307,7 +360,7 @@ export function Section2({ data, set }: SectionProps) {
         ? {
             ...d,
             section2: {
-              contacts: [...d.section2.contacts, { role: "comercial", name: "", phone: "", email: "" }],
+              contacts: [...d.section2.contacts, { role: "comercial", name: "", position: "", phone: "", email: "" }],
             },
           }
         : d
@@ -348,13 +401,18 @@ export function Section2({ data, set }: SectionProps) {
               <Field label={t("s2.name")}>
                 <Input value={c.name} onChange={(e) => update(i, "name", e.target.value)} />
               </Field>
+              <Field label={t("s2.position")}>
+                <Input value={c.position} onChange={(e) => update(i, "position", e.target.value)} />
+              </Field>
+            </Row>
+            <Row>
               <Field label={t("s2.phone")}>
                 <Input value={c.phone} onChange={(e) => update(i, "phone", e.target.value)} />
               </Field>
+              <Field label={t("s2.email")}>
+                <Input type="email" value={c.email} onChange={(e) => update(i, "email", e.target.value)} />
+              </Field>
             </Row>
-            <Field label={t("s2.email")}>
-              <Input type="email" value={c.email} onChange={(e) => update(i, "email", e.target.value)} />
-            </Field>
           </div>
         </Card>
       ))}

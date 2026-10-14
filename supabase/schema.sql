@@ -1,5 +1,5 @@
 -- =====================================================================
--- Sanchez Business Corp — Proveedores (Supplier Due Diligence)
+-- Sánchez Business & Corp. — Proveedores (Supplier Due Diligence)
 -- Run this in: Supabase Dashboard -> SQL Editor -> New query
 -- =====================================================================
 
@@ -889,6 +889,87 @@ revoke all on function public.get_internal_access_for_token(text) from public;
 grant execute on function public.get_internal_access_for_token(text) to anon, authenticated, service_role;
 revoke all on function public.submit_internal_response(text, jsonb) from public;
 grant execute on function public.submit_internal_response(text, jsonb) to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 11. get_portal_status: public supplier status check
+-- ---------------------------------------------------------------------
+create or replace function public.get_portal_status(p_query text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_clean text;
+  v_row record;
+  v_inv record;
+  v_docs_count int := 0;
+begin
+  v_clean := trim(coalesce(p_query, ''));
+  if v_clean ~* '/i/' then
+    v_clean := substring(v_clean from '/i/([A-Za-z0-9]+)');
+  end if;
+  v_clean := upper(trim(v_clean));
+
+  if length(v_clean) = 0 then
+    return jsonb_build_object('found', false, 'error', 'empty_query');
+  end if;
+
+  -- 1. Try matching by invitation_token, reference_no, or tax_id
+  select r.* into v_row
+  from public.supplier_registrations r
+  where upper(r.invitation_token) = v_clean
+     or upper(r.reference_no) = v_clean
+     or replace(replace(upper(coalesce(r.tax_id, '')), '-', ''), ' ', '') = replace(replace(v_clean, '-', ''), ' ', '')
+  order by r.created_at desc limit 1;
+
+  -- If not in registrations, check invitations (brand new invited supplier who hasn't drafted yet)
+  if v_row is null then
+    select * into v_inv from public.invitations i where upper(i.token) = v_clean limit 1;
+    if v_inv is not null then
+      return jsonb_build_object(
+        'found', true,
+        'reference_no', null,
+        'company_name', v_inv.supplier_name,
+        'tax_id', null,
+        'provider_type', null,
+        'status', 'SIN_INICIAR',
+        'submitted_at', null,
+        'created_at', v_inv.created_at,
+        'updated_at', v_inv.created_at,
+        'can_edit', true,
+        'invitation_token', v_inv.token,
+        'note', v_inv.note,
+        'documents_count', 0
+      );
+    end if;
+    return jsonb_build_object('found', false);
+  end if;
+
+  -- Count uploaded documents
+  select count(*) into v_docs_count from public.registration_documents d where d.registration_id = v_row.id;
+
+  -- Get invitation note if any
+  select * into v_inv from public.invitations i where i.id = v_row.invitation_id or i.token = v_row.invitation_token limit 1;
+
+  return jsonb_build_object(
+    'found', true,
+    'reference_no', v_row.reference_no,
+    'company_name', coalesce(v_row.company_name, v_inv.supplier_name, 'Proveedor'),
+    'tax_id', v_row.tax_id,
+    'provider_type', v_row.provider_type,
+    'country', v_row.country,
+    'status', v_row.status,
+    'submitted_at', v_row.submitted_at,
+    'created_at', v_row.created_at,
+    'updated_at', v_row.updated_at,
+    'can_edit', (v_row.status in ('BORRADOR', 'SOLICITUD_CAMBIOS')),
+    'invitation_token', v_row.invitation_token,
+    'note', v_inv.note,
+    'documents_count', v_docs_count
+  );
+end; $$;
+
+revoke all on function public.get_portal_status from public;
+grant execute on function public.get_portal_status to anon, authenticated, service_role;
+
 
 -- =====================================================================
 -- Optional (recommended): create your first administrator.

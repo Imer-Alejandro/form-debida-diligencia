@@ -149,7 +149,7 @@ export function AdminShell({
             </span>
             <span className="hidden lg:block">
               <span className="block font-display text-[14px] font-bold leading-tight text-slate-900">
-                Sanchez Business
+                Sánchez Business & Corp.
               </span>
               <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                 Debida Diligencia

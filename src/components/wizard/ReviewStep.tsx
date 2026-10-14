@@ -72,6 +72,7 @@ export function ReviewStep({
               <div key={i} className="text-[13px]">
                 <span className="text-ink-soft">{dict.s2.roles[c.role as keyof typeof dict.s2.roles] ?? c.role}:</span>{" "}
                 <span className="text-ink">{c.name}</span>
+                {c.position && <span className="text-ink-muted"> — {c.position}</span>}
                 {c.phone && <span className="text-ink-muted"> · {c.phone}</span>}
                 {c.email && <span className="text-ink-muted"> · {c.email}</span>}
               </div>

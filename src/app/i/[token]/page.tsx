@@ -40,7 +40,7 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
         <div className="rounded-2xl border border-danger/20 bg-white p-8 text-center">
           <p className="font-display text-xl">Enlace no válido o expirado</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Solicítelo nuevamente a su contacto en Sanchez Business Corp.
+            Solicítelo nuevamente a su contacto en Sánchez Business & Corp.
           </p>
         </div>
       </WizardShell>

@@ -15,10 +15,23 @@ import {
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
-import { Badge, Button, Field, Input, Select, Textarea, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
 import { InternalReportsPanel } from "./InternalReportsPanel";
+
+type SectionKey =
+  | "s1"
+  | "s2"
+  | "s3"
+  | "s4"
+  | "s5"
+  | "s6"
+  | "s7"
+  | "s8"
+  | "s9"
+  | "s10"
+  | "s11";
 
 const CHECK_IDS = [
   "rnc",
@@ -125,6 +138,7 @@ export function SupplierDetail({
   const [reqNote, setReqNote] = useState("");
   const [showReq, setShowReq] = useState(false);
   const [reqMail, setReqMail] = useState<"sent" | "failed" | "skipped" | null>(null);
+  const [modal, setModal] = useState<SectionKey | null>(null);
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -974,6 +988,7 @@ function DataView({
             <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
               <FieldValue label={d.s2.role} value={mapOr(c.role, (d as never as { s2: { roles: Record<string, string> } }).s2.roles)} />
               <FieldValue label={d.s2.name} value={c.name} />
+              <FieldValue label={d.s2.position} value={c.position} />
               <FieldValue label={d.s2.phone} value={c.phone} />
               <FieldValue label={d.s2.email} value={c.email} />
             </div>

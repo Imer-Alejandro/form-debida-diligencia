@@ -28,8 +28,11 @@ import {
   Section11,
 } from "./sections";
 import { SignaturePad } from "./SignaturePad";
-import { DocumentsStep, type PendingDocumentFile } from "./DocumentsStep";
+import { DocumentsStep } from "./DocumentsStep";
 import { ReviewStep } from "./ReviewStep";
+import { uploadDocument } from "@/lib/upload-client";
+import { EvaluationStatusCard } from "@/components/portal/EvaluationStatusCard";
+import type { PortalStatusResult, SupplierStatus } from "@/components/portal/types";
 
 const TITLE_STEPS = [
   "wizard.steps.0",
@@ -61,6 +64,22 @@ const SUB_STEPS = [
 
 const TOTAL_STEPS = 11;
 
+function normalizeContacts(initial: SupplierData | null): SupplierData["section2"] {
+  const contacts = initial?.section2?.contacts;
+  if (!Array.isArray(contacts) || contacts.length === 0) {
+    return emptyData().section2;
+  }
+  return {
+    contacts: contacts.map((c) => ({
+      role: c.role ?? "representante",
+      name: c.name ?? "",
+      position: c.position ?? "",
+      phone: c.phone ?? "",
+      email: c.email ?? "",
+    })),
+  };
+}
+
 function initData(initial: SupplierData | null): SupplierData {
   const base = emptyData();
   if (initial) {
@@ -69,7 +88,7 @@ function initData(initial: SupplierData | null): SupplierData {
       ...base,
       ...initial,
       section1: { ...base.section1, ...initial.section1 },
-      section2: { ...base.section2, ...initial.section2 },
+      section2: normalizeContacts(initial),
       section3: { ...base.section3, ...initial.section3 },
       section4: { ...base.section4, ...initial.section4 },
       section5: { ...base.section5, ...initial.section5 },
@@ -117,7 +136,6 @@ export function SupplierWizard({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [attached, setAttached] = useState<DocumentRow[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<PendingDocumentFile[]>([]);
   const [onedriveOn, setOnedriveOn] = useState(true);
   const [submission, setSubmission] = useState<
     { reference: string; status: string } | null
@@ -274,92 +292,42 @@ export function SupplierWizard({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const saveDraftAndUpload = async (): Promise<DocumentRow[]> => {
-    const draftRes = await fetch("/api/registration/draft", {
+  const ensureDraft = async (): Promise<string> => {
+    const res = await fetch("/api/registration/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, data, language: currentLang }),
     });
-    const draft = await draftRes.json().catch(() => null);
-    if (!draftRes.ok || !draft?.registration?.id) {
-      throw new Error(draft?.message || draft?.error || "draft_save_failed");
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.registration?.id) {
+      throw new Error(json?.message || json?.error || "draft_save_failed");
     }
-    const regId = draft.registration.id as string;
+    return json.registration.id as string;
+  };
 
-    const uploadFile = async (ref: string, file: File): Promise<DocumentRow> => {
-      const sessionRes = await fetch("/api/upload/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          registrationId: regId,
-          ref,
-          fileName: file.name,
-          size: file.size,
-        }),
-      });
-      const session = await sessionRes.json().catch(() => null);
-      if (!sessionRes.ok) {
-        throw new Error(session?.message || session?.hint || session?.error || `upload_session_${sessionRes.status}`);
-      }
+  // Uploads a document right after the supplier selects it, so the UI can show
+  // live progress instead of waiting until draft save / submit.
+  const uploadDocumentFile = async (
+    ref: string,
+    file: File,
+    onProgress: (pct: number) => void
+  ): Promise<DocumentRow> => {
+    const registrationId = await ensureDraft();
+    const doc = await uploadDocument({ token, registrationId, ref, file, onProgress });
+    const previous = attached.filter((a) => a.ref === ref);
+    for (const old of previous) {
+      await fetch(`/api/upload/${old.id}?token=${encodeURIComponent(token)}`, {
+        method: "DELETE",
+      }).catch(() => null);
+    }
+    setAttached((current) => [...current.filter((a) => a.ref !== ref), doc]);
+    setSavedAt(Date.now());
+    return doc;
+  };
 
-      const chunkSize = 10 * 1024 * 1024;
-      for (let start = 0; start < file.size; start += chunkSize) {
-        const end = Math.min(start + chunkSize, file.size);
-        const uploadRes = await fetch(session.uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-            "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
-          },
-          body: file.slice(start, end),
-        });
-        const isLastChunk = end === file.size;
-        const expectedStatus = isLastChunk
-          ? uploadRes.status === 200 || uploadRes.status === 201
-          : uploadRes.status === 202;
-        if (!expectedStatus) {
-          throw new Error(`sharepoint_upload_${uploadRes.status}`);
-        }
-      }
-
-      const finalizeRes = await fetch("/api/upload/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          registrationId: regId,
-          ref,
-          fileName: file.name,
-          mimeType: file.type,
-          size: file.size,
-        }),
-      });
-      const finalized = await finalizeRes.json().catch(() => null);
-      if (!finalizeRes.ok || !finalized?.doc) {
-        throw new Error(finalized?.message || finalized?.hint || finalized?.error || `upload_finalize_${finalizeRes.status}`);
-      }
-      return finalized.doc as DocumentRow;
-    };
-
+  const saveDraftAndUpload = async (): Promise<DocumentRow[]> => {
+    const registrationId = await ensureDraft();
     let uploaded = [...attached];
-    const queuedFiles = [...pendingFiles];
-    for (const pending of queuedFiles) {
-      try {
-        const doc = await uploadFile(pending.ref, pending.file);
-        uploaded.push(doc);
-      } finally {
-        setPendingFiles((current) => current.filter((item) => item !== pending));
-      }
-      setAttached([...uploaded]);
-    }
-
-    // Replace semantics: a re-uploaded ref must supersede the previous one, so
-    // stale documents never show up again in the form.
-    const uploadedByRef = new Map<string, DocumentRow>();
-    for (const d of uploaded) uploadedByRef.set(d.ref, d);
-    uploaded = [...uploadedByRef.values()];
-    setAttached([...uploaded]);
 
     // Digital signature → persist the image inside the supplier's SharePoint folder.
     const signatureDataUrl = data.section11.signatureDataUrl;
@@ -372,11 +340,16 @@ export function SupplierWizard({
       uploaded = uploaded.filter((x) => x.ref !== SIGNATURE_REF);
       const blob = await (await fetch(signatureDataUrl)).blob();
       const file = new File([blob], "Firma.png", { type: blob.type || "image/png" });
-      const sigDoc = await uploadFile(SIGNATURE_REF, file);
+      const sigDoc = await uploadDocument({ token, registrationId, ref: SIGNATURE_REF, file });
       uploaded.push(sigDoc);
-      setAttached([...uploaded]);
     }
 
+    // Replace semantics: a re-uploaded ref must supersede the previous one, so
+    // stale documents never show up again in the form.
+    const uploadedByRef = new Map<string, DocumentRow>();
+    for (const d of uploaded) uploadedByRef.set(d.ref, d);
+    uploaded = [...uploadedByRef.values()];
+    setAttached([...uploaded]);
     setSavedAt(Date.now());
     return uploaded;
   };
@@ -464,50 +437,52 @@ export function SupplierWizard({
   const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
 
   if (submission) {
+    const statusData: PortalStatusResult = {
+      found: true,
+      reference_no: submission.reference || registration?.reference_no,
+      company_name: registration?.company_name || data.section1.legalName || "Proveedor Registrado",
+      tax_id: registration?.tax_id || data.section1.taxId,
+      provider_type: registration?.provider_type || data.section1.providerType,
+      country: registration?.country || data.section1.nationality,
+      status: (submission.status || registration?.status || "PENDIENTE") as SupplierStatus,
+      submitted_at: registration?.submitted_at,
+      updated_at: registration?.updated_at,
+      created_at: registration?.created_at,
+      can_edit: false,
+      invitation_token: token,
+      documents_count: attached.length,
+    };
+
     return (
-      <div className="mx-auto max-w-2xl">
-        <div className="rounded-3xl border border-navy-800/10 bg-white p-8 text-center shadow-[0_6px_24px_rgba(10,28,49,0.08)] sm:p-12">
-          <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-full bg-success/10">
-            <svg className="h-8 w-8 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </div>
-          <h1 className="font-display text-2xl font-semibold text-navy-900 sm:text-3xl">
-            {t("submit.submitSuccessTitle")}
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-soft">
-            {t("submit.submitSuccessSub")}
-          </p>
-          <div className="mx-auto mt-7 w-fit rounded-2xl border border-navy-800/10 bg-bone-50 px-6 py-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-              {t("submit.reference")}
-            </p>
-            <p className="mt-1 font-mono text-xl font-semibold text-navy-800">
-              {submission.reference || "—"}
-            </p>
-          </div>
-          <p className="mx-auto mt-6 max-w-md text-[12.5px] leading-relaxed text-ink-muted">
-            {t("submit.whatNow")}
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button variant="secondary" onClick={() => window.print()}>
-              {t("submit.printCopy")}
-            </Button>
-            <Link href="/" className="text-sm font-medium text-navy-700 underline underline-offset-2">
-              {t("submit.backHome")}
-            </Link>
-          </div>
-        </div>
+      <div className="mx-auto max-w-3xl">
+        <EvaluationStatusCard data={statusData} />
       </div>
     );
   }
 
   return (
     <div>
+      {registration?.status === "SOLICITUD_CAMBIOS" && (
+        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/90 p-5 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-rose-200 text-xs font-bold text-rose-800">
+              !
+            </div>
+            <div className="flex-1 text-xs">
+              <h3 className="font-display text-sm font-bold text-rose-950">
+                Atención: Subsanación de Información Requerida
+              </h3>
+              <p className="mt-1 text-rose-900 leading-relaxed">
+                El Oficial de Cumplimiento ha revisado su expediente y solicita actualizar datos o anexar documentación complementaria. Modifique las secciones indicadas y presione <strong>"Enviar registro"</strong> en el paso final para reenviar su expediente.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-[12px] font-medium uppercase tracking-[0.18em] text-navy-700">
-            Sanchez Business Corp
+            Sánchez Business & Corp.
           </span>
           <div className="flex flex-wrap items-center gap-3">
             <span className="hidden text-[12px] text-ink-muted sm:block">
@@ -633,8 +608,7 @@ export function SupplierWizard({
                 token={token}
                 attached={attached}
                 setAttached={setAttached}
-                pendingFiles={pendingFiles}
-                setPendingFiles={setPendingFiles}
+                uploadFile={uploadDocumentFile}
                 onedriveOn={onedriveOn}
               />
             )}

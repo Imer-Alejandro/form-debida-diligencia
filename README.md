@@ -1,4 +1,4 @@
-# Formulario de Debida Diligencia — Sanchez Business Corp
+# Formulario de Debida Diligencia — Sánchez Business & Corp.
 
 Plataforma de registro de proveedores con formulario de debida diligencia (bilingüe ES/EN), panel de administración con evaluación interna, y subida de documentos a una biblioteca de Microsoft SharePoint. Construida con Next.js 16 (App Router + Turbopack), Supabase y Tailwind CSS.
 
