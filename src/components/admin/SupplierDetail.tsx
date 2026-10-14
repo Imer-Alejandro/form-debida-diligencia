@@ -10,7 +10,6 @@ import {
   type Evaluation,
   type RegistrationRow,
   type RegistrationStatus,
-  type RiskLevel,
   type SupplierData,
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
@@ -18,6 +17,8 @@ import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
 import { Badge, Button, Field, Input, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
+import { RiskMatrix } from "./RiskMatrix";
+import { InternalReportsPanel } from "./InternalReportsPanel";
 
 const CHECK_IDS = [
   "rnc",
@@ -485,18 +486,6 @@ export function SupplierDetail({
                       onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, estimatedAnnualAmount: e.target.value } }))}
                     />
                   </Field>
-                  <Field label={t("admin.detail.classification")}>
-                    <Select
-                      value={evaluation.section12.risk}
-                      onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, risk: e.target.value as RiskLevel } }))}
-                    >
-                      {(["PENDIENTE", "BAJO", "MEDIO", "ALTO", "CRITICO"] as RiskLevel[]).map((r) => (
-                        <option key={r} value={r}>
-                          {t(`risk.${r}` as never)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
                   <Field label={t("admin.detail.reviewType")}>
                     <Select
                       value={evaluation.section12.reviewType}
@@ -509,6 +498,10 @@ export function SupplierDetail({
                       ))}
                     </Select>
                   </Field>
+                </div>
+
+                <div className="mt-4">
+                  <RiskMatrix evaluation={evaluation} onChange={patchEval} />
                 </div>
 
                 <div className="mt-5">
@@ -797,6 +790,8 @@ export function SupplierDetail({
             </div>
           </section>
 
+          <InternalReportsPanel registrationId={reg.id} />
+
           <section className="rounded-2xl border border-navy-800/10 bg-white p-5">
             <h2 className="font-display text-[15px] font-semibold text-navy-900">
               {t("admin.detail.requestChanges")}
@@ -959,6 +954,7 @@ function DataView({
         />
         <FieldValue label={d.s1.registryNo} value={s1.registryNo} />
         <FieldValue label={d.s1.registryExpiry} value={s1.registryExpiry} />
+        <FieldValue label={d.s1.exporterCodeExpiry} value={s1.exporterCodeExpiry} />
         <FieldValue label={d.s1.foundedDate} value={s1.foundedDate} />
         <FieldValue label={d.s1.legalAddress} value={s1.legalAddress} />
         <FieldValue label={d.s1.provinceCountry} value={s1.provinceCountry} />
@@ -1031,6 +1027,8 @@ function DataView({
         <FieldValue label={d.s5.paymentTerms} value={s5.paymentTerms.map((k) => mapOr(k, d.s5.paymentTermsOptions)).join(" · ")} />
         <FieldValue label={d.s5.creditDays} value={s5.creditDays} />
         <FieldValue label={d.s5.advancePct} value={s5.advancePct} />
+        <FieldValue label={d.s5.offersCredit} value={yn(s5.offersCredit)} />
+        <FieldValue label={d.s5.creditCompanies} value={(s5.creditCompanies ?? []).join(" · ")} />
       </div>
 
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">

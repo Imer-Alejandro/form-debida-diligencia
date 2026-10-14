@@ -202,13 +202,30 @@ end; $$;
 revoke all on function public.save_registration_draft from public;
 grant execute on function public.save_registration_draft to anon, authenticated;
 
+-- Whether the compliance answers force a hard, automatic rejection:
+-- questions 1, 2, 3, 4 and 6 answered "si" (fraud/corruption, sanctions,
+-- termination for breach, litigation/insolvency, improper benefits).
+create or replace function public.should_auto_reject(p_data jsonb)
+returns boolean language sql immutable set search_path = public as $$
+  select coalesce(bool_or(
+    (p_data #>> array['section8','compliance',(q - 1)::text,'answer']) = 'si'
+  ), false)
+  from unnest(array[1,2,3,4,6]) as q;
+$$;
+revoke all on function public.should_auto_reject from public;
+grant execute on function public.should_auto_reject to anon, authenticated;
+
 -- Submits the registration: BORRADOR / SOLICITUD_CAMBIOS -> PENDIENTE.
+-- Registers flagged by should_auto_reject() are rejected on the spot.
 create or replace function public.submit_registration(p_token text, p_data jsonb, p_language text)
 returns public.supplier_registrations
 language plpgsql security definer set search_path = public as $$
 declare
   v_inv public.invitations;
   v_row public.supplier_registrations;
+  v_auto_reject boolean;
+  v_reasons jsonb := '[]'::jsonb;
+  v_q int;
 begin
   select * into v_inv from public.invitations i where i.token = p_token;
   if not found then
@@ -227,12 +244,23 @@ begin
     raise exception 'already_submitted' using errcode = '22000';
   end if;
 
+  -- Automatic rejection: any of the hard-stop compliance questions = "si".
+  v_auto_reject := public.should_auto_reject(p_data);
+  if v_auto_reject then
+    foreach v_q in array array[1,2,3,4,6] loop
+      if (p_data #>> array['section8','compliance',(v_q - 1)::text,'answer']) = 'si' then
+        v_reasons := v_reasons || to_jsonb(v_q);
+      end if;
+    end loop;
+  end if;
+
   -- populate denormalized analytics / filter columns
   v_row.data := p_data;
   update public.supplier_registrations
     set data = p_data,
         language = p_language,
-        status = 'PENDIENTE',
+        status = case when v_auto_reject then 'RECHAZADO' else 'PENDIENTE' end,
+        risk_level = case when v_auto_reject then 'ALTO' else risk_level end,
         submitted_at = now(),
         company_name = coalesce(nullif(p_data #>> '{section1,legalName}', ''), v_row.company_name),
         commercial_name = coalesce(nullif(p_data #>> '{section1,commercialName}', ''), v_row.commercial_name),
@@ -247,7 +275,14 @@ begin
     where id = v_inv.id;
 
   insert into public.activity_log (actor, action, subject_type, subject_id, detail)
-    values (p_token, 'submitted', 'registration', v_row.id::text, jsonb_build_object('reference', v_row.reference_no));
+    values (
+      p_token,
+      case when v_auto_reject then 'auto_rejected' else 'submitted' end,
+      'registration',
+      v_row.id::text,
+      jsonb_build_object('reference', v_row.reference_no)
+        || case when v_auto_reject then jsonb_build_object('reasons', v_reasons) else '{}'::jsonb end
+    );
 
   return v_row;
 end; $$;
@@ -402,6 +437,458 @@ drop trigger if exists trg_app_config_updated on public.app_config;
 create trigger trg_app_config_updated
   before update on public.app_config
   for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------
+-- 7. supplier_alerts: outbound notification queue + log (email-first)
+--    Rows are created by the alert engine (cron / admin "run now") and
+--    sent through the corporate mailbox. `dedupe_key` makes the engine
+--    idempotent: re-running it never re-sends the same reminder.
+-- ---------------------------------------------------------------------
+create table if not exists public.supplier_alerts (
+  id bigint generated always as identity primary key,
+  kind text not null,                            -- REGISTRY_EXPIRING | EXPORTER_CODE_EXPIRING | FORM_INCOMPLETE
+  channel text not null default 'EMAIL',         -- EMAIL | WHATSAPP (future)
+  audience text not null default 'SUPPLIER',     -- SUPPLIER | PURCHASING
+  registration_id uuid references public.supplier_registrations(id) on delete cascade,
+  invitation_id uuid references public.invitations(id) on delete cascade,
+  recipient text,                                -- resolved e-mail at send time
+  language text not null default 'es',
+  subject text,
+  body text,
+  context jsonb not null default '{}'::jsonb,    -- {company, reference, date, days, link...}
+  due_at date,
+  status text not null default 'PENDING',        -- PENDING | SENT | FAILED | SKIPPED
+  attempts int not null default 0,
+  dedupe_key text not null unique,
+  error text,
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists supplier_alerts_status_idx
+  on public.supplier_alerts (status, created_at);
+create index if not exists supplier_alerts_registration_idx
+  on public.supplier_alerts (registration_id);
+
+alter table public.supplier_alerts enable row level security;
+
+-- Admins can inspect the log; only the service-role (cron) writes.
+drop policy if exists "supplier alerts are admin readable" on public.supplier_alerts;
+create policy "supplier alerts are admin readable"
+  on public.supplier_alerts for select
+  using (auth.role() = 'authenticated');
+
+drop trigger if exists trg_supplier_alerts_updated on public.supplier_alerts;
+create trigger trg_supplier_alerts_updated
+  before update on public.supplier_alerts
+  for each row execute function public.set_updated_at();
+
+-- Pure (read-only) discovery of everything that deserves a reminder today.
+-- Returns one jsonb per (record, kind, threshold); the engine turns each
+-- entry into a deduplicated email. Approved suppliers get registry /
+-- exporter-code reminders at each threshold in p_expiry_days, both to the
+-- supplier and to the purchasing team; unfinished invitations get a weekly
+-- nudge until they are completed or expire.
+create or replace function public.get_alert_candidates(
+  p_expiry_days int[] default array[30,15,5],
+  p_form_min_age_days int default 3
+) returns setof jsonb
+language sql security definer set search_path = public stable as $$
+  with approved as (
+    select s.id,
+           s.reference_no,
+           s.company_name,
+           s.language,
+           s.invitation_id,
+           i.supplier_email,
+           nullif(s.data #>> '{section1,registryExpiry}', '')::date as registry_exp,
+           nullif(s.data #>> '{section1,exporterCodeExpiry}', '')::date as exporter_exp
+    from public.supplier_registrations s
+    left join public.invitations i on i.id = s.invitation_id
+    where s.status in ('APROBADO', 'APROBADO_CONDICIONES')
+  ),
+  windows as (select v as days from unnest(p_expiry_days) as v)
+  select jsonb_build_object(
+    'kind', 'REGISTRY_EXPIRING', 'audience', 'SUPPLIER',
+    'registration_id', a.id, 'invitation_id', a.invitation_id,
+    'recipient', a.supplier_email, 'language', a.language,
+    'company', a.company_name, 'reference', a.reference_no,
+    'date', a.registry_exp, 'days', w.days, 'due_at', a.registry_exp,
+    'dedupe_key', 'REGISTRY_EXPIRING:SUPPLIER:' || a.id || ':' || a.registry_exp || ':' || w.days
+  )
+  from approved a cross join windows w
+  where a.registry_exp is not null and a.registry_exp = current_date + w.days
+  union all
+  select jsonb_build_object(
+    'kind', 'REGISTRY_EXPIRING', 'audience', 'PURCHASING',
+    'registration_id', a.id, 'invitation_id', a.invitation_id,
+    'recipient', null, 'language', a.language,
+    'company', a.company_name, 'reference', a.reference_no,
+    'date', a.registry_exp, 'days', w.days, 'due_at', a.registry_exp,
+    'dedupe_key', 'REGISTRY_EXPIRING:PURCHASING:' || a.id || ':' || a.registry_exp || ':' || w.days
+  )
+  from approved a cross join windows w
+  where a.registry_exp is not null and a.registry_exp = current_date + w.days
+  union all
+  select jsonb_build_object(
+    'kind', 'EXPORTER_CODE_EXPIRING', 'audience', 'SUPPLIER',
+    'registration_id', a.id, 'invitation_id', a.invitation_id,
+    'recipient', a.supplier_email, 'language', a.language,
+    'company', a.company_name, 'reference', a.reference_no,
+    'date', a.exporter_exp, 'days', w.days, 'due_at', a.exporter_exp,
+    'dedupe_key', 'EXPORTER_CODE_EXPIRING:SUPPLIER:' || a.id || ':' || a.exporter_exp || ':' || w.days
+  )
+  from approved a cross join windows w
+  where a.exporter_exp is not null and a.exporter_exp = current_date + w.days
+  union all
+  select jsonb_build_object(
+    'kind', 'EXPORTER_CODE_EXPIRING', 'audience', 'PURCHASING',
+    'registration_id', a.id, 'invitation_id', a.invitation_id,
+    'recipient', null, 'language', a.language,
+    'company', a.company_name, 'reference', a.reference_no,
+    'date', a.exporter_exp, 'days', w.days, 'due_at', a.exporter_exp,
+    'dedupe_key', 'EXPORTER_CODE_EXPIRING:PURCHASING:' || a.id || ':' || a.exporter_exp || ':' || w.days
+  )
+  from approved a cross join windows w
+  where a.exporter_exp is not null and a.exporter_exp = current_date + w.days
+  union all
+  select jsonb_build_object(
+    'kind', 'FORM_INCOMPLETE', 'audience', 'SUPPLIER',
+    'registration_id', r.id, 'invitation_id', i.id,
+    'recipient', i.supplier_email, 'language', i.language, 'token', i.token,
+    'company', coalesce(nullif(i.supplier_name, ''), r.company_name),
+    'reference', r.reference_no, 'date', null,
+    'days', greatest(floor(extract(epoch from (now() - least(i.created_at, coalesce(r.updated_at, i.created_at)))) / 86400)::int, 0),
+    'due_at', null,
+    'dedupe_key', 'FORM_INCOMPLETE:' || i.id || ':' || to_char(now(), 'IYYY-IW')
+  )
+  from public.invitations i
+  left join public.supplier_registrations r on r.invitation_token = i.token
+  where i.status in ('sent', 'in_progress')
+    and coalesce(i.supplier_email, '') <> ''
+    and (i.expires_at is null or i.expires_at > now())
+    and least(i.created_at, coalesce(r.updated_at, i.created_at))
+        < now() - make_interval(days => p_form_min_age_days);
+$$;
+revoke all on function public.get_alert_candidates(int[], int) from public;
+grant execute on function public.get_alert_candidates(int[], int) to authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 8. supplier_evaluations: append-only risk-assessment history.
+--    One row per "save" of the evaluation form, holding the 12-category
+--    ratings, the red-flag marker, the computed level and the decision
+--    snapshot. The registration's denormalized `risk_level` is kept in
+--    sync via save_supplier_evaluation().
+-- ---------------------------------------------------------------------
+create table if not exists public.supplier_evaluations (
+  id bigint generated always as identity primary key,
+  registration_id uuid not null references public.supplier_registrations(id) on delete cascade,
+  reference_no text,
+  company_name text,
+  outcome text not null default 'EN_REVISION',    -- status/decision at save time
+  risk_level text not null default 'PENDIENTE',   -- computed risk level
+  proposed_risk text,                             -- level proposed by purchasing
+  review_type text,
+  estimated_amount text,
+  red_flag boolean not null default false,
+  red_flag_notes text,
+  average numeric(4,2),
+  ratings jsonb not null default '{}'::jsonb,     -- {category: 1|2|3}
+  triggers jsonb not null default '{}'::jsonb,    -- {finance,legal,technology}
+  specialized jsonb not null default '{}'::jsonb, -- {finance,legal,technology} validations
+  evaluation jsonb not null,                      -- full {section12, section13} snapshot
+  created_by uuid,
+  created_by_email text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists supplier_evaluations_registration_idx
+  on public.supplier_evaluations (registration_id, created_at desc);
+
+alter table public.supplier_evaluations enable row level security;
+
+drop policy if exists "supplier evaluations are admin readable" on public.supplier_evaluations;
+create policy "supplier evaluations are admin readable"
+  on public.supplier_evaluations for select
+  using (auth.role() = 'authenticated');
+
+drop policy if exists "supplier evaluations are admin insertable" on public.supplier_evaluations;
+create policy "supplier evaluations are admin insertable"
+  on public.supplier_evaluations for insert
+  with check (auth.role() = 'authenticated');
+
+-- Records one evaluation snapshot and syncs the registration's risk_level.
+-- SECURITY DEFINER so the admin API can call it in a single round-trip.
+create or replace function public.save_supplier_evaluation(
+  p_registration_id uuid,
+  p_payload jsonb
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint;
+  v_risk text;
+  v_reference text;
+  v_company text;
+begin
+  v_risk := coalesce(nullif(p_payload->>'risk_level', ''), 'PENDIENTE');
+  if v_risk not in ('BAJO', 'MEDIO', 'ALTO', 'CRITICO', 'PENDIENTE') then
+    v_risk := 'PENDIENTE';
+  end if;
+
+  select reference_no, company_name
+    into v_reference, v_company
+    from public.supplier_registrations
+   where id = p_registration_id;
+
+  if not found then
+    raise exception 'registration % not found', p_registration_id;
+  end if;
+
+  insert into public.supplier_evaluations (
+    registration_id, reference_no, company_name, outcome, risk_level,
+    proposed_risk, review_type, estimated_amount, red_flag, red_flag_notes,
+    average, ratings, triggers, specialized, evaluation, created_by, created_by_email
+  ) values (
+    p_registration_id, v_reference, v_company,
+    coalesce(nullif(p_payload->>'outcome', ''), 'EN_REVISION'),
+    v_risk,
+    nullif(p_payload->>'proposed_risk', ''),
+    nullif(p_payload->>'review_type', ''),
+    nullif(p_payload->>'estimated_amount', ''),
+    coalesce((p_payload->>'red_flag')::boolean, false),
+    nullif(p_payload->>'red_flag_notes', ''),
+    nullif(p_payload->>'average', '')::numeric,
+    coalesce(p_payload->'ratings', '{}'::jsonb),
+    coalesce(p_payload->'triggers', '{}'::jsonb),
+    coalesce(p_payload->'specialized', '{}'::jsonb),
+    coalesce(p_payload->'evaluation', '{}'::jsonb),
+    nullif(p_payload->>'created_by', '')::uuid,
+    nullif(p_payload->>'created_by_email', '')
+  )
+  returning id into v_id;
+
+  update public.supplier_registrations
+     set risk_level = v_risk,
+         evaluation = coalesce(p_payload->'evaluation', evaluation),
+         updated_at = now()
+   where id = p_registration_id;
+
+  return v_id;
+end;
+$$;
+revoke all on function public.save_supplier_evaluation(uuid, jsonb) from public;
+grant execute on function public.save_supplier_evaluation(uuid, jsonb) to authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 9. Requesting-area reports (no login): internal access links + the two
+--    forms the area fills after being invited by Purchasing:
+--      FIRST_PURCHASE -> service_evaluations (first purchase / service)
+--      INCIDENT       -> supplier_incidents (incident report + follow-up)
+-- ---------------------------------------------------------------------
+create table if not exists public.internal_access_tokens (
+  id uuid primary key default gen_random_uuid(),
+  registration_id uuid not null references public.supplier_registrations(id) on delete cascade,
+  kind text not null,                              -- FIRST_PURCHASE | INCIDENT
+  area text,
+  recipient text,
+  language text not null default 'es',
+  token text not null unique,
+  status text not null default 'PENDIENTE',        -- PENDIENTE | USADO | EXPIRADO
+  expires_at timestamptz,
+  used_at timestamptz,
+  created_by uuid,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists internal_access_tokens_registration_idx
+  on public.internal_access_tokens (registration_id, created_at desc);
+create index if not exists internal_access_tokens_token_idx
+  on public.internal_access_tokens (token);
+
+alter table public.internal_access_tokens enable row level security;
+
+drop policy if exists "internal tokens are admin readable" on public.internal_access_tokens;
+create policy "internal tokens are admin readable"
+  on public.internal_access_tokens for select
+  using (auth.role() = 'authenticated');
+
+drop policy if exists "internal tokens are admin insertable" on public.internal_access_tokens;
+create policy "internal tokens are admin insertable"
+  on public.internal_access_tokens for insert
+  with check (auth.role() = 'authenticated');
+
+create table if not exists public.service_evaluations (
+  id uuid primary key default gen_random_uuid(),
+  registration_id uuid not null references public.supplier_registrations(id) on delete cascade,
+  token_id uuid references public.internal_access_tokens(id) on delete set null,
+  area text,
+  purchase_date date,
+  category text,
+  quality int,
+  delivery int,
+  price int,
+  compliance int,
+  service int,
+  comments text,
+  recommendation text,                             -- SEGUIR | MEJORAR | CAMBIAR
+  created_at timestamptz not null default now()
+);
+
+create index if not exists service_evaluations_registration_idx
+  on public.service_evaluations (registration_id, created_at desc);
+
+alter table public.service_evaluations enable row level security;
+
+drop policy if exists "service evaluations are admin readable" on public.service_evaluations;
+create policy "service evaluations are admin readable"
+  on public.service_evaluations for select
+  using (auth.role() = 'authenticated');
+
+create table if not exists public.supplier_incidents (
+  id uuid primary key default gen_random_uuid(),
+  registration_id uuid not null references public.supplier_registrations(id) on delete cascade,
+  token_id uuid references public.internal_access_tokens(id) on delete set null,
+  area text,
+  incident_date date,
+  kind text,
+  description text,
+  impact text,
+  severity text not null default 'MEDIA',          -- BAJA | MEDIA | ALTA
+  status text not null default 'ABIERTA',          -- ABIERTA | EN_SEGUIMIENTO | CORRECCION_SOLICITADA | RESUELTA | CERRADA
+  recommended_action text not null default 'NINGUNO', -- NINGUNO | CORREGIR | SUSPENDER | DESHOMOLOGAR
+  resolution_notes text,
+  resolved_at timestamptz,
+  reported_by text,
+  contact text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists supplier_incidents_registration_idx
+  on public.supplier_incidents (registration_id, created_at desc);
+
+alter table public.supplier_incidents enable row level security;
+
+drop policy if exists "supplier incidents are admin readable" on public.supplier_incidents;
+create policy "supplier incidents are admin readable"
+  on public.supplier_incidents for select
+  using (auth.role() = 'authenticated');
+
+drop policy if exists "supplier incidents are admin editable" on public.supplier_incidents;
+create policy "supplier incidents are admin editable"
+  on public.supplier_incidents for update
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+drop trigger if exists trg_supplier_incidents_updated on public.supplier_incidents;
+create trigger trg_supplier_incidents_updated
+  before update on public.supplier_incidents
+  for each row execute function public.set_updated_at();
+
+-- Resolve a link token into everything the public form needs (no auth).
+create or replace function public.get_internal_access_for_token(p_token text)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'id', t.id,
+    'kind', t.kind,
+    'area', t.area,
+    'language', t.language,
+    'status', case
+      when t.used_at is not null then 'USADO'
+      when t.expires_at is not null and t.expires_at <= now() then 'EXPIRADO'
+      else 'PENDIENTE' end,
+    'registration_id', t.registration_id,
+    'company', r.company_name,
+    'reference', r.reference_no
+  )
+  from public.internal_access_tokens t
+  join public.supplier_registrations r on r.id = t.registration_id
+  where t.token = p_token
+  limit 1;
+$$;
+
+-- Store a filled form and burn the token. SECURITY DEFINER so the anonymous
+-- requesting area can write without any table privileges.
+create or replace function public.submit_internal_response(p_token text, p_data jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_t public.internal_access_tokens;
+  v_id uuid;
+begin
+  select * into v_t from public.internal_access_tokens where token = p_token for update;
+  if not found then raise exception 'invalid_token'; end if;
+  if v_t.used_at is not null then raise exception 'already_used'; end if;
+  if v_t.expires_at is not null and v_t.expires_at <= now() then raise exception 'expired_token'; end if;
+
+  if v_t.kind = 'FIRST_PURCHASE' then
+    insert into public.service_evaluations (
+      registration_id, token_id, area, purchase_date, category,
+      quality, delivery, price, compliance, service, comments, recommendation
+    ) values (
+      v_t.registration_id, v_t.id,
+      coalesce(nullif(p_data->>'area', ''), v_t.area),
+      nullif(p_data->>'purchase_date', '')::date,
+      nullif(p_data->>'category', ''),
+      nullif(p_data->>'quality', '')::int,
+      nullif(p_data->>'delivery', '')::int,
+      nullif(p_data->>'price', '')::int,
+      nullif(p_data->>'compliance', '')::int,
+      nullif(p_data->>'service', '')::int,
+      nullif(p_data->>'comments', ''),
+      nullif(p_data->>'recommendation', '')
+    ) returning id into v_id;
+  elsif v_t.kind = 'INCIDENT' then
+    insert into public.supplier_incidents (
+      registration_id, token_id, area, incident_date, kind, description,
+      impact, severity, reported_by, contact
+    ) values (
+      v_t.registration_id, v_t.id,
+      coalesce(nullif(p_data->>'area', ''), v_t.area),
+      nullif(p_data->>'incident_date', '')::date,
+      nullif(p_data->>'kind', ''),
+      nullif(p_data->>'description', ''),
+      nullif(p_data->>'impact', ''),
+      coalesce(nullif(p_data->>'severity', ''), 'MEDIA'),
+      nullif(p_data->>'reported_by', ''),
+      nullif(p_data->>'contact', '')
+    ) returning id into v_id;
+  else
+    raise exception 'invalid_kind';
+  end if;
+
+  update public.internal_access_tokens
+     set used_at = now(), status = 'USADO'
+   where id = v_t.id;
+
+  insert into public.activity_log (actor, action, subject_type, subject_id, detail)
+  values (
+    coalesce(nullif(p_data->>'reported_by', ''), nullif(p_data->>'area', ''), v_t.area, 'area'),
+    case when v_t.kind = 'FIRST_PURCHASE'
+         then 'SERVICE_EVALUATION_SUBMITTED' else 'INCIDENT_REPORTED' end,
+    'registration', v_t.registration_id::text,
+    jsonb_build_object('kind', v_t.kind, 'record_id', v_id)
+  );
+
+  return jsonb_build_object('id', v_id, 'kind', v_t.kind);
+end;
+$$;
+
+revoke all on function public.get_internal_access_for_token(text) from public;
+grant execute on function public.get_internal_access_for_token(text) to anon, authenticated, service_role;
+revoke all on function public.submit_internal_response(text, jsonb) from public;
+grant execute on function public.submit_internal_response(text, jsonb) to anon, authenticated, service_role;
 
 -- =====================================================================
 -- Optional (recommended): create your first administrator.

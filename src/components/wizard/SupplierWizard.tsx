@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   documentCatalog,
   emptyData,
+  requiredDocumentRefs,
   type DocumentRow,
   type RegistrationRow,
   type SupplierData,
@@ -61,20 +62,29 @@ const SUB_STEPS = [
 const TOTAL_STEPS = 11;
 
 function initData(initial: SupplierData | null): SupplierData {
+  const base = emptyData();
   if (initial) {
-    const hasDocs = (initial.section9.documents?.length ?? 0) > 0;
+    const hasDocs = (initial.section9?.documents?.length ?? 0) > 0;
     return {
-      ...emptyData(),
+      ...base,
       ...initial,
-      section1: { ...emptyData().section1, ...initial.section1 },
+      section1: { ...base.section1, ...initial.section1 },
+      section2: { ...base.section2, ...initial.section2 },
+      section3: { ...base.section3, ...initial.section3 },
+      section4: { ...base.section4, ...initial.section4 },
+      section5: { ...base.section5, ...initial.section5 },
+      section6: { ...base.section6, ...initial.section6 },
+      section7: { ...base.section7, ...initial.section7 },
+      section8: { ...base.section8, ...initial.section8 },
       section9: {
         documents: hasDocs
           ? initial.section9.documents
           : documentCatalog.map((d) => ({ ref: d.ref, checked: false, note: "" })),
       },
+      section10: { ...base.section10, ...initial.section10 },
+      section11: { ...base.section11, ...initial.section11 },
     };
   }
-  const base = emptyData();
   base.section9.documents = documentCatalog.map((d) => ({
     ref: d.ref,
     checked: false,
@@ -202,7 +212,23 @@ export function SupplierWizard({
         if (!data.section1.providerType) errs["s1.providerType"] = t("validation.requiredField");
         if (!data.section1.legalName.trim()) errs["s1.legalName"] = t("validation.requiredField");
         if (!data.section1.taxId.trim()) errs["s1.taxId"] = t("validation.requiredField");
+        if (data.section1.providerType === "juridica" && !data.section1.registryNo.trim()) {
+          errs["s1.registryNo"] = t("validation.requiredField");
+        }
         if (!data.section1.nationality) errs["s1.nationality"] = t("validation.requiredField");
+      }
+      if (idx === 8) {
+        const required = requiredDocumentRefs({
+          providerType: data.section1.providerType,
+          nationality: data.section1.nationality,
+          isContractor: data.section1.isContractor,
+        });
+        const missing = required.filter(
+          (ref) => !data.section9.documents.find((d) => d.ref === ref)?.checked
+        );
+        if (missing.length > 0) {
+          errs["s9"] = t("validation.documentsRequired", { refs: missing.join(", ") });
+        }
       }
       if (idx === 9) {
         if (data.section10.authorizations.length < 4) {
@@ -371,7 +397,7 @@ export function SupplierWizard({
 
   const submit = async () => {
     let invalid = false;
-    for (const idx of [0, 9, 10]) {
+    for (const idx of [0, 8, 9, 10]) {
       const errs = validateStep(idx);
       for (const k of Object.keys(errs)) {
         if (errs[k]) {
@@ -581,6 +607,11 @@ export function SupplierWizard({
 
         <div className="min-w-0">
           <div className="rounded-3xl border border-navy-800/10 bg-white p-5 shadow-[0_6px_24px_rgba(10,28,49,0.08)] sm:p-10">
+            {errors["s9"] && step === 8 && (
+              <p className="mb-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
+                {errors["s9"]}
+              </p>
+            )}
             {errors["s10"] && step === 9 && (
               <p className="mb-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
                 {errors["s10"]}

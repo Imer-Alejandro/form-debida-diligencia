@@ -54,6 +54,8 @@ export function ReviewStep({
             <KV k={dict.s1.taxId} v={data.section1.taxId} />
             <KV k={dict.s1.nationality} v={countryName(data.section1.nationality, lang)} />
             <KV k={dict.s1.registryNo} v={data.section1.registryNo} />
+            <KV k={dict.s1.registryExpiry} v={data.section1.registryExpiry} />
+            <KV k={dict.s1.exporterCodeExpiry} v={data.section1.exporterCodeExpiry} />
             <KV k={dict.s1.provinceCountry} v={data.section1.provinceCountry} />
             <KV k={dict.s1.phoneEmail} v={data.section1.phoneEmail} />
             <KV k={dict.s1.mainEconomicActivity} v={data.section1.mainEconomicActivity} />
@@ -139,6 +141,17 @@ export function ReviewStep({
             <KV k={dict.s5.accountHolder} v={data.section5.accountHolder} />
             <KV k={dict.s5.currency} v={data.section5.currency} />
             <KV k={dict.s5.paymentTerms} v={data.section5.paymentTerms.join(", ")} />
+            {data.section5.offersCredit && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-wide text-ink-muted">{dict.s5.offersCredit}</dt>
+                <dd className="mt-0.5 text-[13px]">
+                  <YesNo v={data.section5.offersCredit} />
+                  {data.section5.offersCredit === "si" && (data.section5.creditCompanies?.length ?? 0) > 0 && (
+                    <span className="block text-ink-soft">{(data.section5.creditCompanies ?? []).join(", ")}</span>
+                  )}
+                </dd>
+              </div>
+            )}
           </dl>
         }
       />

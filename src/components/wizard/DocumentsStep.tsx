@@ -135,6 +135,21 @@ export function DocumentsStep({
                       <span className="text-sm font-medium leading-snug text-ink">
                         {s9.docDescriptions[el.ref as keyof typeof s9.docDescriptions]}
                       </span>
+                      {meta?.requirement === "required" && (
+                        <span className="rounded-full border border-rose-200/70 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600">
+                          {t("s9.requirements.required")}
+                        </span>
+                      )}
+                      {meta?.requirement === "optional" && (
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          {t("s9.requirements.optional")}
+                        </span>
+                      )}
+                      {meta?.requirement === "contractor" && (
+                        <span className="rounded-full border border-navy-800/15 bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy-700">
+                          {t("s9.requirements.contractor")}
+                        </span>
+                      )}
                     </span>
                     <span className="ml-1 mt-0.5 block text-[11.5px] text-ink-muted sm:ml-10">
                       {s9.appliesTo}:{" "}

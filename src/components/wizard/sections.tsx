@@ -11,11 +11,12 @@ import {
   Card,
 } from "@/components/ui";
 import { useDict, useI18n } from "@/lib/i18n";
-import type {
-  ComplianceRow,
-  ContactRow,
-  ReferenceRow,
-  SupplierData,
+import {
+  sbcGroupCompanies,
+  type ComplianceRow,
+  type ContactRow,
+  type ReferenceRow,
+  type SupplierData,
 } from "@/lib/types";
 import { countryOptions, type CountryLanguage } from "@/lib/countries";
 import { cn } from "@/lib/utils";
@@ -189,18 +190,31 @@ export function Section1({ data, set, errors }: SectionProps) {
         <ChoiceGrid
           multiple={false}
           selected={data.section1.providerType ? [data.section1.providerType] : []}
-          options={["juridica", "fisica", "eirl", "extranjero", "otro"]}
+          options={["juridica", "fisica"]}
           onToggle={(v) => put("providerType", v)}
         />
         {errors["s1.providerType"] && (
           <span className="mt-1 block text-xs text-danger">{errors["s1.providerType"]}</span>
         )}
       </div>
-      {data.section1.providerType === "otro" && (
-        <Field label={t("s1.providerTypeOther")}>
-          <Input value={data.section1.providerTypeOther} onChange={(e) => put("providerTypeOther", e.target.value)} />
-        </Field>
-      )}
+      <div>
+        <span className="mb-1.5 block text-[13px] font-medium text-ink">
+          {t("s1.isContractor")}
+        </span>
+        <YesNoOptions
+          options={[
+            { label: t("common.yes"), value: "si", on: data.section1.isContractor === "si" },
+            { label: t("common.no"), value: "no", on: data.section1.isContractor === "no" },
+          ]}
+          onChange={(v) =>
+            set((d) => ({
+              ...d,
+              section1: { ...d.section1, isContractor: v as "" | "no" | "si" },
+            }))
+          }
+        />
+        <span className="mt-1 block text-[12px] text-ink-muted">{t("s1.contractorHint")}</span>
+      </div>
       <Field label={t("s1.legalName")} required error={errors["s1.legalName"]}>
         <Input value={data.section1.legalName} onChange={(e) => put("legalName", e.target.value)} />
       </Field>
@@ -212,12 +226,19 @@ export function Section1({ data, set, errors }: SectionProps) {
           <Input value={data.section1.taxId} onChange={(e) => put("taxId", e.target.value)} />
         </Field>
       </Row>
-      <Row className="sm:grid-cols-[2fr_1.25fr] sm:items-end">
-        <Field label={t("s1.registryNo")}>
-          <Input value={data.section1.registryNo} onChange={(e) => put("registryNo", e.target.value)} />
-        </Field>
+      <Field
+        label={t("s1.registryNo")}
+        required={data.section1.providerType === "juridica"}
+        error={errors["s1.registryNo"]}
+      >
+        <Input value={data.section1.registryNo} onChange={(e) => put("registryNo", e.target.value)} />
+      </Field>
+      <Row className="sm:grid-cols-2 sm:items-end">
         <Field label={t("s1.registryExpiry")}>
           <Input type="date" value={data.section1.registryExpiry} onChange={(e) => put("registryExpiry", e.target.value)} />
+        </Field>
+        <Field label={t("s1.exporterCodeExpiry")}>
+          <Input type="date" value={data.section1.exporterCodeExpiry} onChange={(e) => put("exporterCodeExpiry", e.target.value)} />
         </Field>
       </Row>
       <div>
@@ -271,7 +292,8 @@ const CONTACT_ROLES = ["representante", "comercial", "facturacion", "servicio"] 
 
 export function Section2({ data, set }: SectionProps) {
   const { t } = useI18n();
-  const roleLabels = useDict().s2.roles;
+  const s2 = useDict().s2;
+  const roleLabels = s2.roles;
 
   const update = (idx: number, k: keyof ContactRow, v: string) =>
     set((d) => {
@@ -299,6 +321,9 @@ export function Section2({ data, set }: SectionProps) {
 
   return (
     <div className="space-y-4">
+      <p className="rounded-xl border border-navy-800/15 bg-bone-50 px-4 py-3 text-[12.5px] leading-relaxed text-ink-soft">
+        {s2.note}
+      </p>
       {data.section2.contacts.map((c, i) => (
         <Card key={i} className="p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
@@ -504,11 +529,12 @@ export function Section4({ data, set }: SectionProps) {
 // Section 5 — Bancaria
 // ---------------------------------------------------------------------------
 export function Section5({ data, set }: SectionProps) {
+  const { t } = useI18n();
   const s5 = useDict().s5;
   const put = (k: string, v: string) =>
     set((fn) => ({ ...fn, section5: { ...fn.section5, [k]: v } }));
 
-  const toggleIn = (key: "accountType" | "paymentTerms", v: string) => {
+  const toggleIn = (key: "accountType" | "paymentTerms" | "creditCompanies", v: string) => {
     set((fn) => {
       const cur = fn.section5[key];
       const next = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
@@ -585,6 +611,36 @@ export function Section5({ data, set }: SectionProps) {
           </Field>
         )}
       </Row>
+      <div className="rounded-2xl border border-navy-800/10 bg-bone-50 p-4 sm:p-5">
+        <p className="mb-3 text-sm font-medium text-ink">{s5.offersCredit}</p>
+        <YesNoOptions
+          options={[
+            { label: t("common.yes"), value: "si", on: data.section5.offersCredit === "si" },
+            { label: t("common.no"), value: "no", on: data.section5.offersCredit === "no" },
+          ]}
+          onChange={(v) =>
+            set((fn) => ({
+              ...fn,
+              section5: {
+                ...fn.section5,
+                offersCredit: v as "" | "no" | "si",
+                creditCompanies: v === "si" ? fn.section5.creditCompanies : [],
+              },
+            }))
+          }
+        />
+        {data.section5.offersCredit === "si" && (
+          <div className="mt-4">
+            <span className="mb-2 block text-[13px] font-medium text-ink">{s5.creditCompanies}</span>
+            <ChoiceGrid
+              multiple
+              options={sbcGroupCompanies}
+              selected={data.section5.creditCompanies}
+              onToggle={(v) => toggleIn("creditCompanies", v)}
+            />
+          </div>
+        )}
+      </div>
       <p className="rounded-xl border border-warning/25 bg-warning/5 px-4 py-3 text-[12.5px] leading-relaxed text-warning">
         {s5.fraudNote}
       </p>

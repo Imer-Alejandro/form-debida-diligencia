@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { LangToggle } from "@/components/LangToggle";
 
-type NavKey = "dashboard" | "suppliers" | "invitations" | "users" | "settings";
+type NavKey = "dashboard" | "suppliers" | "invitations" | "alerts" | "users" | "settings";
 
 interface NavItem {
   href: string;
@@ -33,6 +33,7 @@ const NAV_GROUPS_RAW: NavGroup[] = [
     items: [
       { href: "/admin/suppliers", key: "suppliers", icon: "users" },
       { href: "/admin/invitations", key: "invitations", icon: "qr" },
+      { href: "/admin/alerts", key: "alerts", icon: "bell" },
     ],
   },
   {
@@ -76,6 +77,12 @@ const ICONS: Record<string, ReactNode> = {
       <rect x="3" y="14" width="7" height="7" rx="2" />
       <path d="M14 14h3v3h-3z" />
       <path d="M20 14v.01M20 20v.01M16 20h.01" />
+    </svg>
+  ),
+  bell: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   ),
   gear: (

@@ -51,11 +51,13 @@ export interface SupplierData {
   section1: {
     providerType: string;
     providerTypeOther: string;
+    isContractor: "" | "no" | "si";
     legalName: string;
     commercialName: string;
     taxId: string;
     registryNo: string;
     registryExpiry: string;
+    exporterCodeExpiry: string;
     foundedDate: string;
     nationality: string;
     legalAddress: string;
@@ -98,6 +100,8 @@ export interface SupplierData {
     paymentTerms: string[];
     creditDays: string;
     advancePct: string;
+    offersCredit: "" | "no" | "si";
+    creditCompanies: string[];
   };
   section6: {
     yearsExperience: string;
@@ -135,11 +139,13 @@ export function emptyData(): SupplierData {
     section1: {
       providerType: "",
       providerTypeOther: "",
+      isContractor: "",
       legalName: "",
       commercialName: "",
       taxId: "",
       registryNo: "",
       registryExpiry: "",
+      exporterCodeExpiry: "",
       foundedDate: "",
       nationality: "",
       legalAddress: "",
@@ -180,6 +186,8 @@ export function emptyData(): SupplierData {
       paymentTerms: [],
       creditDays: "",
       advancePct: "",
+      offersCredit: "",
+      creditCompanies: [],
     },
     section6: {
       yearsExperience: "",
@@ -227,6 +235,31 @@ export interface ReviewSignature {
   date: string;
 }
 
+/**
+ * Specialized validations recorded by Purchasing (Compras owns the whole
+ * process; other departments do not intervene). A trigger turns the matching
+ * area into PENDIENTE, which Compras must then close.
+ */
+export type SpecializedStatus = "NO_APLICA" | "PENDIENTE" | "APROBADA" | "CON_OBSERVACIONES";
+export type SpecializedKind = "finance" | "legal" | "technology";
+
+export interface SpecializedValidation {
+  status: SpecializedStatus;
+  notes: string;
+  date: string;
+  by: string;
+}
+
+export type SpecializedMap = Record<SpecializedKind, SpecializedValidation>;
+
+export function emptySpecialized(): SpecializedValidation {
+  return { status: "NO_APLICA", notes: "", date: "", by: "" };
+}
+
+export function emptySpecializedMap(): SpecializedMap {
+  return { finance: emptySpecialized(), legal: emptySpecialized(), technology: emptySpecialized() };
+}
+
 export interface Evaluation {
   section12: {
     requestingCompany: string;
@@ -235,6 +268,18 @@ export interface Evaluation {
     estimatedAnnualAmount: string;
     risk: RiskLevel;
     reviewType: string; // INICIAL | ACTUALIZACION | EVENTO | CAMBIO_BANCARIO
+    /** Per-category ratings: 1 = Bajo, 2 = Medio, 3 = Alto (0/absent = N/A). */
+    riskCategories: Record<string, number>;
+    /** Red flag / critical finding → forces ALTO. */
+    redFlag: boolean;
+    redFlagNotes: string;
+    /** Risk computed from the categories by the engine (authoritative on save). */
+    computedRisk: RiskLevel;
+    /**
+     * Specialized validations owned by Purchasing. Optional because legacy
+     * evaluations were saved before this field existed.
+     */
+    specialized?: SpecializedMap;
     checks: ValidationCheck[];
   };
   section13: {
@@ -267,6 +312,11 @@ export function emptyEvaluation(): Evaluation {
       estimatedAnnualAmount: "",
       risk: "PENDIENTE",
       reviewType: "INICIAL",
+      riskCategories: {},
+      redFlag: false,
+      redFlagNotes: "",
+      computedRisk: "PENDIENTE",
+      specialized: emptySpecializedMap(),
       checks: checkIds.map((id) => ({ id, result: "", date: "", notes: "" })),
     },
     section13: {
@@ -337,26 +387,93 @@ export interface AppConfigRow {
   updated_at: string;
 }
 
+/**
+ * Compliance questions that trigger an automatic rejection when answered "si":
+ * 1 fraud/corruption, 2 sanctions/debarment, 3 termination for breach,
+ * 4 litigation/insolvency, 6 improper benefits.
+ */
+export const AUTO_REJECT_QUESTION_IDS = [1, 2, 3, 4, 6] as const;
+
+/** Group companies selectable when a supplier extends credit. */
+export const sbcGroupCompanies: string[] = [
+  "Fideicomiso Ciudad del Sol",
+  "Jose Sanchez Comercial",
+  "Jose Sanchez Polanco",
+  "Jose Sanchez Polanco Business Corp S.R.L.",
+  "Kexford Company",
+  "Suncity",
+  "Sunrise Gardens",
+  "Sunset Gardens",
+  "TANDIKER INTERNATIONAL GROUP SRL",
+  "UPLAND INVESTMENTS SRL",
+];
+
 export const DOCUMENT_REFS = "";
 
-export const documentCatalog: { ref: string; appliesTo: string }[] = [
-  { ref: "A", appliesTo: "todos" },
-  { ref: "B", appliesTo: "todos" },
-  { ref: "C", appliesTo: "nacionales" },
-  { ref: "D", appliesTo: "juridica" },
-  { ref: "E", appliesTo: "juridica" },
-  { ref: "F", appliesTo: "juridica" },
-  { ref: "G", appliesTo: "segun_politica" },
-  { ref: "H", appliesTo: "segun_aplique" },
-  { ref: "I", appliesTo: "pagos" },
-  { ref: "J", appliesTo: "todos" },
-  { ref: "K", appliesTo: "segun_monto" },
-  { ref: "L", appliesTo: "regulada" },
-  { ref: "M", appliesTo: "obras" },
-  { ref: "N", appliesTo: "solo_rpe" },
-  { ref: "O", appliesTo: "extranjero" },
-  { ref: "P", appliesTo: "segun_politica" },
+/** How strictly a document is required per the due-diligence policy. */
+export type DocumentRequirement = "required" | "optional" | "contractor";
+
+export const documentCatalog: {
+  ref: string;
+  appliesTo: string;
+  requirement: DocumentRequirement;
+}[] = [
+  { ref: "A", appliesTo: "todos", requirement: "required" },
+  { ref: "B", appliesTo: "todos", requirement: "required" },
+  { ref: "C", appliesTo: "nacionales", requirement: "required" },
+  { ref: "D", appliesTo: "juridica", requirement: "required" },
+  { ref: "E", appliesTo: "juridica", requirement: "required" },
+  { ref: "F", appliesTo: "juridica", requirement: "required" },
+  { ref: "G", appliesTo: "segun_politica", requirement: "required" },
+  { ref: "H", appliesTo: "segun_aplique", requirement: "optional" },
+  { ref: "I", appliesTo: "pagos", requirement: "required" },
+  { ref: "J", appliesTo: "todos", requirement: "required" },
+  { ref: "K", appliesTo: "segun_monto", requirement: "required" },
+  { ref: "L", appliesTo: "regulada", requirement: "optional" },
+  { ref: "M", appliesTo: "contratista", requirement: "contractor" },
+  { ref: "N", appliesTo: "solo_rpe", requirement: "optional" },
+  { ref: "O", appliesTo: "extranjero", requirement: "required" },
+  { ref: "P", appliesTo: "segun_politica", requirement: "optional" },
 ];
+
+/** Whether a catalog item applies to a given supplier profile. */
+export function documentApplies(
+  appliesTo: string,
+  profile: { providerType?: string; nationality?: string; isContractor?: string }
+): boolean {
+  const nat = (profile.nationality ?? "").trim();
+  const foreign =
+    nat !== "" &&
+    nat.toUpperCase() !== "DO" &&
+    !/rep[úu]blica dominicana|dominican republic/i.test(nat);
+  switch (appliesTo) {
+    case "juridica":
+      return profile.providerType === "juridica";
+    case "contratista":
+      return profile.isContractor === "si";
+    case "extranjero":
+      return foreign;
+    case "nacionales":
+      return !foreign;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Documents the supplier must check (and upload) before submitting: required
+ * items that apply to their profile. Contractor insurance policies are only
+ * mandatory for contractors.
+ */
+export function requiredDocumentRefs(profile: {
+  providerType?: string;
+  nationality?: string;
+  isContractor?: string;
+}): string[] {
+  return documentCatalog
+    .filter((d) => d.requirement !== "optional" && documentApplies(d.appliesTo, profile))
+    .map((d) => d.ref);
+}
 
 export const registrationStatusLabels: Record<RegistrationStatus, string> = {
   BORRADOR: "Borrador",

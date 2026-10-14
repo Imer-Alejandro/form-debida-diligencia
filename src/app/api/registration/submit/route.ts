@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
-import { type SupplierData } from "@/lib/types";
+import { requiredDocumentRefs, type SupplierData } from "@/lib/types";
 
 export interface SubmitBody {
   token: string;
@@ -23,6 +23,24 @@ export async function POST(req: NextRequest) {
   const problem = validate(data);
   if (problem) {
     return Response.json({ error: "validation", field: problem }, { status: 422 });
+  }
+
+  // Policy: required documents (B–K, plus O for foreign and M for contractors)
+  // must be checked before submitting.
+  const requiredRefs = requiredDocumentRefs({
+    providerType: data.section1.providerType,
+    nationality: data.section1.nationality,
+    isContractor: data.section1.isContractor,
+  });
+  const checkedSet = new Set(
+    (data.section9.documents ?? []).filter((d) => d.checked).map((d) => d.ref)
+  );
+  const missingRequired = requiredRefs.filter((ref) => !checkedSet.has(ref));
+  if (missingRequired.length > 0) {
+    return Response.json(
+      { error: "missing_required_documents", refs: missingRequired },
+      { status: 422 }
+    );
   }
 
   const supabase = createPublicClient();
@@ -74,6 +92,9 @@ function validate(d: SupplierData): string | null {
   if (!d.section1.legalName?.trim()) return "section1.legalName";
   if (!d.section1.taxId?.trim()) return "section1.taxId";
   if (!d.section1.providerType) return "section1.providerType";
+  if (d.section1.providerType === "juridica" && !d.section1.registryNo?.trim()) {
+    return "section1.registryNo";
+  }
   if (!d.section1.nationality) return "section1.nationality";
   if ((d.section10.authorizations?.length ?? 0) < 4) return "section10";
   if (!d.section11.signerName?.trim()) return "section11.signerName";
