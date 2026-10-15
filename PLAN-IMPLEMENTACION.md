@@ -57,7 +57,7 @@ node node_modules/typescript/bin/tsc --noEmit
 | `build` | Build de producción |
 | `start` | Sirve el build |
 | `lint` | ESLint (debe quedar en **0 errores**) |
-| `test` | `vitest run` — **50/50 pruebas** |
+| `test` | `vitest run` — **64/64 pruebas** |
 | `setup:db` | Crea tablas + usuario admin en Supabase |
 
 ---
@@ -264,7 +264,14 @@ CERRADA               → (terminal)
 - ✅ **Vista 360° del detalle del proveedor** (`SupplierDetail.tsx`): tarjetas resumen por sección
   + **Modal** por sección (`SectionCards`, `SectionBody`), con `RiskMatrix` e `InternalReportsPanel`
   integrados. `Modal` añadido a `ui.tsx` (overlay, backdrop-blur, ESC, `role="dialog"`).
-- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **47/47 tests** · `build` OK.
+- ✅ **Vista 360° con acordeones:** los bloques pesados del detalle (documentos, datos de solicitud,
+  riesgo, validaciones especializadas, verificación y decisión) son plegables (`Accordion`,
+  `<details>` en documentos); `section13` abierto por defecto.
+- ✅ **Integración ADM (§7.4 parcial):** `src/lib/adm.ts` (leer config, buscar proveedor por RNC
+  normalizado, desactivar vía `PUT /api/Vendors`), ruta `POST /api/admin/adm/vendor`
+  (auth admin + log en `activity_log`) y botón "Desactivar en ADM" en `SupplierDetail`.
+  14 tests en `adm.test.ts`.
+- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **64/64 tests** · `build` OK.
 
 ---
 
@@ -299,10 +306,13 @@ CERRADA               → (terminal)
 
 ### 7.4 🟠 Integración ADM (ERP)
 
-- [ ] `ADM_BASE_URL = "https://api.admcloud.net/api"`.
 - [ ] **Rotar la contraseña de ADM** (se expuso en el chat; no commitear).
-- [ ] Implementar **desactivar proveedor**: `PUT /api/Vendors` con `Inactive=true`.
-- [ ] Definir disparadores de sincronización (alta/actualización/baja de proveedor).
+- [x] Config: `ADM_BASE_URL` (default `https://api.admcloud.net/api`), `ADM_COMPANY`, `ADM_ROLE`,
+  `ADM_APPID`, `ADM_USERNAME`/`ADM_PASSWORD` (Basic) o `ADM_TOKEN` (query param) en `.env.example`.
+- [x] **Desactivar proveedor:** `PUT /api/Vendors` con `Inactive=true` (`src/lib/adm.ts`,
+  ruta `POST /api/admin/adm/vendor`, botón en `SupplierDetail`).
+- [ ] Definir disparadores de sincronización (alta/actualización de proveedor) y desplegar las
+  variables ADM en Vercel.
 
 ### 7.5 🟡 Alertas — canal WhatsApp (diferido)
 
@@ -341,7 +351,7 @@ CERRADA               → (terminal)
 ```powershell
 node node_modules/typescript/bin/tsc --noEmit
 & "C:\Program Files\nodejs\npm.cmd" run lint     # 0 errores
-& "C:\Program Files\nodejs\npm.cmd" run test     # 47/47
+& "C:\Program Files\nodejs\npm.cmd" run test     # 64/64
 & "C:\Program Files\nodejs\npm.cmd" run build
 ```
 
@@ -356,4 +366,4 @@ node node_modules/typescript/bin/tsc --noEmit
 | 3 | `PURCHASING_EMAILS` / `CRON_SECRET` | Definir en Vercel |
 | 4 | Carpeta raíz OneDrive | ¿Renombrar o conservar el nombre actual? |
 | 5 | Proveedor WhatsApp | Elegir y diseñar integración |
-| 6 | Método ADM para desactivar proveedor | Confirmar `PUT /api/Vendors` (`Inactive=true`) |
+| 6 | Contrato real de desactivación en ADM | Validar contra el ERP el `PUT /api/Vendors` (`Inactive=true`) ya implementado |

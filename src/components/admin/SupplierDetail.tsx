@@ -540,6 +540,7 @@ export function SupplierDetail({
                   </h3>
                 </div>
 
+                <div className="mt-4 space-y-3">
                 <Accordion title={t("admin.detail.requestData")}>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label={t("admin.detail.requestingCompany")}>
@@ -721,6 +722,7 @@ export function SupplierDetail({
                     })}
                   </div>
                 </Accordion>
+                </div>
               </div>
 
               <div className="border-t border-navy-800/10 pt-6">
@@ -733,6 +735,7 @@ export function SupplierDetail({
                   </h3>
                 </div>
 
+                <div className="mt-4">
                 <Accordion title={t("admin.detail.decisionFollowUp")} defaultOpen={true}>
                 <div>
                 <p className="mb-2 mt-4 text-[13px] font-medium text-ink">{t("admin.detail.decision")}</p>
@@ -870,6 +873,7 @@ export function SupplierDetail({
                   </div>
                 </div>
                 </Accordion>
+                </div>
 
                 <div className="mt-6 flex items-center justify-between gap-3 border-t border-navy-800/10 pt-4">
                   <p className="text-[11.5px] text-ink-muted">
@@ -1123,28 +1127,51 @@ function Accordion({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-2xl border border-navy-800/10 bg-white/90 shadow-sm overflow-hidden">
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-white shadow-xs transition-colors",
+        open
+          ? "border-navy-800/20 shadow-sm ring-1 ring-navy-800/5"
+          : "border-navy-800/10 hover:border-navy-800/20"
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/80 sm:px-5"
+        className={cn(
+          "group flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-navy-700 sm:px-5",
+          open ? "bg-navy-50/70" : "bg-white hover:bg-bone-50/80"
+        )}
         aria-expanded={open}
       >
-        <h4 className="text-[14px] font-semibold text-slate-900">{title}</h4>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={cn("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
-          aria-hidden
+        <h4 className="text-[14px] font-semibold leading-snug text-slate-900">{title}</h4>
+        <span
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-colors",
+            open
+              ? "border-navy-800/15 bg-white text-navy-800"
+              : "border-slate-200 bg-slate-50 text-slate-500 group-hover:border-navy-800/15 group-hover:text-navy-800"
+          )}
         >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={cn("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
+            aria-hidden
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
       </button>
-      {open && <div className="space-y-4 border-t border-navy-800/5 px-4 py-4 sm:px-5">{children}</div>}
+      {open && (
+        <div className="space-y-4 border-t border-navy-800/10 bg-bone-50/30 px-4 py-5 sm:px-5">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
