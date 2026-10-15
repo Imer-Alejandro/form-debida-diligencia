@@ -858,6 +858,13 @@ export const es = {
       admDeactivateNotConfigured: "La integración con ADM no está configurada.",
       admDeactivateFailed: "No se pudo desactivar el proveedor en ADM.",
       admDeactivateNoTaxId: "El proveedor no tiene RNC/identificación registrada.",
+      documentsDetail: "Detalle de documentos",
+      internalEvaluation: "Evaluación interna",
+      requestData: "Datos de la solicitud",
+      riskEvaluation: "Evaluación de riesgo",
+      specializedValidation: "Validaciones especializadas",
+      dueDiligenceVerification: "Verificación de debida diligencia",
+      decisionFollowUp: "Decisión y seguimiento",
     },
     invitations: {
       title: "Invitaciones",

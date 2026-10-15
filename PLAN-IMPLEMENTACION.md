@@ -11,7 +11,7 @@ Plataforma de **registro de proveedores con debida diligencia** (bilingüe ES/EN
 **panel de administración** con evaluación interna, gestión de riesgo, validaciones
 especializadas y seguimiento de incidencias. Los documentos se suben a una
 biblioteca de **Microsoft SharePoint/OneDrive**; las notificaciones salen por
-**correo SMTP** corporativo.
+**correo SMTP** corporativo 
 
 | Área | Detalle |
 | --- | --- |

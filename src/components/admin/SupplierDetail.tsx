@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDict, useI18n } from "@/lib/i18n";
@@ -429,11 +429,18 @@ export function SupplierDetail({
                   <li
                     key={ref}
                     className={cn(
-                      "rounded-xl border px-3 py-3 transition-colors",
+                      "rounded-xl border transition-colors",
                       pending ? "border-dashed border-warning/40 bg-warning/5" : "border-navy-800/10 bg-white"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <details className="group">
+                    <summary
+                      className={cn(
+                        "flex list-none items-start justify-between gap-3 px-3 py-3 transition-colors [&::-webkit-details-marker]:hidden",
+                        files.length > 0 ? "cursor-pointer hover:bg-bone-50/60" : "cursor-default"
+                      )}
+                    >
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-2.5">
                         <span className="grid h-7 w-8 shrink-0 place-items-center rounded-lg bg-navy-800 text-[11px] font-bold text-white">
                           {ref}
@@ -448,7 +455,13 @@ export function SupplierDetail({
                       <Badge tone={pending ? "amber" : "green"}>
                         {pending ? t("docs.pending") : t("docs.uploaded")}
                       </Badge>
+                      {files.length > 0 && (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden>
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      )}
                     </div>
+                    </summary>
 
                     {files.length > 0 && (
                       <ul className="mt-2.5 space-y-1.5">
@@ -489,6 +502,7 @@ export function SupplierDetail({
                         ))}
                       </ul>
                     )}
+                    </details>
                   </li>
                 );
               })}
@@ -526,6 +540,7 @@ export function SupplierDetail({
                   </h3>
                 </div>
 
+                <Accordion title={t("admin.detail.requestData")}>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label={t("admin.detail.requestingCompany")}>
                     <Input
@@ -564,19 +579,20 @@ export function SupplierDetail({
                     </Select>
                   </Field>
                 </div>
+                </Accordion>
 
-                <div className="mt-4">
+                <Accordion title={t("admin.detail.riskEvaluation")}>
                   <RiskMatrix evaluation={evaluation} onChange={patchEval} />
-                </div>
+                </Accordion>
 
-                <div className="mt-5">
+                <Accordion title={t("admin.detail.specializedValidation")}>
                   <SpecializedHistory
                     entries={specializedHistory}
                     unavailable={specializedHistoryUnavailable}
                   />
-                </div>
+                </Accordion>
 
-                <div className="mt-5">
+                <Accordion title={t("admin.detail.dueDiligenceVerification")}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[12.5px] font-semibold text-ink">
                       {t("admin.detail.verificationsTitle")}
@@ -704,7 +720,7 @@ export function SupplierDetail({
                       );
                     })}
                   </div>
-                </div>
+                </Accordion>
               </div>
 
               <div className="border-t border-navy-800/10 pt-6">
@@ -717,6 +733,8 @@ export function SupplierDetail({
                   </h3>
                 </div>
 
+                <Accordion title={t("admin.detail.decisionFollowUp")} defaultOpen={true}>
+                <div>
                 <p className="mb-2 mt-4 text-[13px] font-medium text-ink">{t("admin.detail.decision")}</p>
                 <div className="flex flex-wrap gap-2">
                   {DECISION_OPTIONS.map((st) => {
@@ -760,6 +778,8 @@ export function SupplierDetail({
                       onChange={(e) => patchEval((ev) => ({ ...ev, section13: { ...ev.section13, nextRenewal: e.target.value } }))}
                     />
                   </Field>
+                </div>
+
                 </div>
 
                 <div className="mt-5">
@@ -849,6 +869,7 @@ export function SupplierDetail({
                     </Button>
                   </div>
                 </div>
+                </Accordion>
 
                 <div className="mt-6 flex items-center justify-between gap-3 border-t border-navy-800/10 pt-4">
                   <p className="text-[11.5px] text-ink-muted">
@@ -1087,6 +1108,44 @@ function SummaryCard({
         )}
       </div>
     </button>
+  );
+}
+
+function Accordion({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-2xl border border-navy-800/10 bg-white/90 shadow-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/80 sm:px-5"
+        aria-expanded={open}
+      >
+        <h4 className="text-[14px] font-semibold text-slate-900">{title}</h4>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cn("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && <div className="space-y-4 border-t border-navy-800/5 px-4 py-4 sm:px-5">{children}</div>}
+    </div>
   );
 }
 
