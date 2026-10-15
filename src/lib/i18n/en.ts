@@ -863,6 +863,14 @@ recent: "Recent registrations",
       admSyncUpdated: "Evaluation saved · vendor updated in ADM.",
       admSyncDeactivated: "Evaluation saved · vendor deactivated in ADM.",
       admSyncFailed: "Evaluation saved · could not sync with ADM.",
+      admSyncRejectedNotFound:
+        "Evaluation saved · vendor not found in ADM; no ERP changes were made.",
+      admSyncNotConfigured:
+        "Evaluation saved · the ADM integration is not configured.",
+      admSyncNoTaxId:
+        "Evaluation saved · tax ID is required to locate the vendor in ADM.",
+      admSyncNoName:
+        "Evaluation saved · legal name is required to register the vendor in ADM.",
       documentsDetail: "Documents detail",
       internalEvaluation: "Internal evaluation",
       requestData: "Request data",

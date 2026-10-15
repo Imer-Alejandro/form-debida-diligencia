@@ -74,6 +74,10 @@ en archivos versionados ni publiques la plantilla con credenciales.
 | `ALERTS_AUTO_RENEW` | Si se reabre automáticamente el registro para edición |
 | `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Solo para `npm run setup:db` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Opcional; acceso de servidor para crear el administrador y gestionar usuarios. Nunca exponer al navegador |
+| `ADM_BASE_URL` | Base URL de la API de ADM (opcional; por defecto `https://api.admcloud.net/api`) |
+| `ADM_COMPANY`, `ADM_ROLE`, `ADM_APPID` | Contexto requerido por ADM en cada solicitud |
+| `ADM_USERNAME`, `ADM_PASSWORD` | Autenticación Basic de ADM; use esta opción o `ADM_TOKEN` |
+| `ADM_TOKEN` | Token de ADM enviado como parámetro de consulta; alternativa a usuario/contraseña |
 
 Generar el secreto:
 
@@ -87,6 +91,15 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 2. El proveedor abre `/i/[token]`, completa el formulario en dos idiomas, adjunta los documentos (se suben directo a la biblioteca de SharePoint) y los firma.
 3. Puede guardar un borrador y retomarlo; al **enviar**, el registro queda en revisión.
 4. El administrador evalúa el registro (secciones 12–13 del detalle), añade tags, consulta el historial por área de las validaciones especializadas y toma una decisión. Si se solicitan cambios, el sistema regenera el enlace de invitación y el proveedor puede reenviar.
+
+Al guardar una decisión final, la integración opcional con ADM busca el proveedor por
+RNC/`FiscalID`: crea o actualiza en decisiones aprobadas y lo marca inactivo si es
+rechazado. Para actualizar, consulta primero `/api/Vendors/{ID}` y preserva los campos,
+contactos y direcciones existentes que el portal no administra. El formulario envía
+los campos con correspondencia directa; datos bancarios, fiscales y de debida
+diligencia que no tienen campo equivalente se agregan a `Notes`. No se inventan IDs
+para catálogos de ADM (por ejemplo, banco, moneda, país o condiciones de pago); los
+lookups específicos deben validarse con ADM antes de asignar esos campos.
 
 ## Comandos
 

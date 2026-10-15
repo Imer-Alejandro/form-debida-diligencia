@@ -185,6 +185,14 @@ export function SupplierDetail({
         return t("admin.detail.admSyncUpdated");
       case "deactivated":
         return t("admin.detail.admSyncDeactivated");
+      case "rejected_not_in_adm":
+        return t("admin.detail.admSyncRejectedNotFound");
+      case "skipped_not_configured":
+        return t("admin.detail.admSyncNotConfigured");
+      case "skipped_no_tax_id":
+        return t("admin.detail.admSyncNoTaxId");
+      case "skipped_no_name":
+        return t("admin.detail.admSyncNoName");
       default:
         return null;
     }

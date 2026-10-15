@@ -862,6 +862,14 @@ export const es = {
       admSyncUpdated: "Evaluación guardada · proveedor actualizado en ADM.",
       admSyncDeactivated: "Evaluación guardada · proveedor desactivado en ADM.",
       admSyncFailed: "Evaluación guardada · no se pudo sincronizar con ADM.",
+      admSyncRejectedNotFound:
+        "Evaluación guardada · no se encontró el proveedor en ADM; no se cambió el ERP.",
+      admSyncNotConfigured:
+        "Evaluación guardada · la integración con ADM no está configurada.",
+      admSyncNoTaxId:
+        "Evaluación guardada · falta el RNC para localizar el proveedor en ADM.",
+      admSyncNoName:
+        "Evaluación guardada · falta la razón social para registrar el proveedor en ADM.",
       documentsDetail: "Detalle de documentos",
       internalEvaluation: "Evaluación interna",
       requestData: "Datos de la solicitud",
