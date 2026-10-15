@@ -52,16 +52,28 @@ Plataforma de registro de proveedores con formulario de debida diligencia (bilin
 
 ## Variables de entorno
 
+Completa `.env.example` en `.env.local` para desarrollo. No copies secretos reales
+en archivos versionados ni publiques la plantilla con credenciales.
+
 | Variable | Descripción |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clave publishable de Supabase |
 | `NEXT_PUBLIC_APP_URL` | URL pública de la app (para enlaces de invitación y OAuth) |
 | `ONEDRIVE_CONFIG_SECRET` | Secreto AES para cifrar el refresh token (32 bytes hex) |
-| `ONEDRIVE_CLIENT_ID` | Client ID del app registration (solo subidas) |
-| `ONEDRIVE_TENANT_ID` | Tenant ID de Microsoft Entra (obligatorio con tipo \"Solo mi organización\") |
-| `ONEDRIVE_CLIENT_SECRET` | Secreto de cliente del app registration (flujo confidencial) |
-| `SHAREPOINT_SITE_URL` | URL del sitio de SharePoint donde se guardan los documentos, p. ej. `https://empresa.sharepoint.com/sites/Repositorio` |
+| `ONEDRIVE_CLIENT_ID` | Client ID del app registration (solo subidas; opcional) |
+| `ONEDRIVE_TENANT_ID` | Tenant ID de Microsoft Entra (obligatorio con tipo "Solo mi organización") |
+| `ONEDRIVE_CLIENT_SECRET` | Secreto de cliente del app registration (flujo confidencial; opcional) |
+| `SHAREPOINT_SITE_URL` | URL del sitio de SharePoint donde se guardan los documentos |
+| `SMTP_HOST`, `SMTP_PORT` | Servidor y puerto SMTP para notificaciones por correo |
+| `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Cuenta SMTP y remitente de correo |
+| `PURCHASING_EMAILS` | Correos de Compras que reciben alertas (separados por coma) |
+| `CRON_SECRET` | Secreto para autorizar la ejecución programada de alertas |
+| `ALERTS_EXPIRY_DAYS` | Días de antelación para alertar vencimientos (por defecto `30,15,5`) |
+| `ALERTS_FORM_MIN_AGE_DAYS` | Días antes del primer recordatorio de formulario incompleto |
+| `ALERTS_AUTO_RENEW` | Si se reabre automáticamente el registro para edición |
+| `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Solo para `npm run setup:db` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Opcional; acceso de servidor para crear el administrador y gestionar usuarios. Nunca exponer al navegador |
 
 Generar el secreto:
 
@@ -74,7 +86,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 1. El administrador crea una **invitación** (desde `/admin/invitations`) y comparte el enlace **o el QR**.
 2. El proveedor abre `/i/[token]`, completa el formulario en dos idiomas, adjunta los documentos (se suben directo a la biblioteca de SharePoint) y los firma.
 3. Puede guardar un borrador y retomarlo; al **enviar**, el registro queda en revisión.
-4. El administrador evalúa el registro (secciones 12–13 del detalle), añade tags y toma una decisión. Si se solicitan cambios, el sistema regenera el enlace de invitación y el proveedor puede reenviar.
+4. El administrador evalúa el registro (secciones 12–13 del detalle), añade tags, consulta el historial por área de las validaciones especializadas y toma una decisión. Si se solicitan cambios, el sistema regenera el enlace de invitación y el proveedor puede reenviar.
 
 ## Comandos
 

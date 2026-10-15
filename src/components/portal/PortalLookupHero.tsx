@@ -139,7 +139,7 @@ export function PortalLookupHero({
                     setError(null);
                   }}
                   className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  title="Clear"
+                  aria-label={t("portal.clearSearch")}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 6 6 18" />
@@ -195,6 +195,15 @@ export function PortalLookupHero({
                 className="font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
               >
                 {t("portal.haveInviteLink")}
+              </button>
+            )}
+            {onOpenRequirementsModal && (
+              <button
+                type="button"
+                onClick={onOpenRequirementsModal}
+                className="font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+              >
+                {t("portal.viewReqs")}
               </button>
             )}
           </div>

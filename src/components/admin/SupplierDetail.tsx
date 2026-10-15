@@ -10,6 +10,7 @@ import {
   type Evaluation,
   type RegistrationRow,
   type RegistrationStatus,
+  type SpecializedHistoryEntry,
   type SupplierData,
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
@@ -19,6 +20,7 @@ import { Badge, Button, Field, Input, Modal, Select, Textarea, type BadgeTone } 
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
 import { InternalReportsPanel } from "./InternalReportsPanel";
+import { SpecializedHistory } from "./SpecializedHistory";
 
 type SectionKey =
   | "s1"
@@ -118,9 +120,13 @@ function checkResultKey(k: string): string {
 export function SupplierDetail({
   reg,
   docs,
+  specializedHistory,
+  specializedHistoryUnavailable,
 }: {
   reg: RegistrationRow;
   docs: DocumentRow[];
+  specializedHistory: SpecializedHistoryEntry[];
+  specializedHistoryUnavailable: boolean;
 }) {
   const { t } = useI18n();
   const dict = useDict();
@@ -132,6 +138,7 @@ export function SupplierDetail({
   const [tags, setTags] = useState<string[]>(reg.tags ?? []);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState<"eval" | "tags" | null>(null);
+  const [admLoading, setAdmLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [reqLoading, setReqLoading] = useState(false);
   const [reqLink, setReqLink] = useState<string | null>(null);
@@ -173,7 +180,7 @@ export function SupplierDetail({
       body: JSON.stringify({ id: reg.id, tags }),
     });
     setSaving(null);
-    if (res.ok) notify("Etiquetas guardadas");
+    if (res.ok) notify(t("admin.detail.tagsSaved"));
   };
 
   const addTag = () => {
@@ -181,6 +188,31 @@ export function SupplierDetail({
     if (!v || tags.includes(v)) return;
     setTags([...tags, v]);
     setTagInput("");
+  };
+
+  const deactivateAdm = async () => {
+    if (!window.confirm(t("admin.detail.admDeactivateConfirm"))) return;
+    setAdmLoading(true);
+    const res = await fetch("/api/admin/adm/vendor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: reg.id }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    setAdmLoading(false);
+    if (res.ok) {
+      notify(t("admin.detail.admDeactivateOk"));
+      return;
+    }
+    notify(
+      data.error === "adm_not_found"
+        ? t("admin.detail.admDeactivateNotFound")
+        : data.error === "adm_not_configured"
+          ? t("admin.detail.admDeactivateNotConfigured")
+          : data.error === "no_tax_id"
+            ? t("admin.detail.admDeactivateNoTaxId")
+            : t("admin.detail.admDeactivateFailed")
+    );
   };
 
   const requestChanges = async () => {
@@ -319,6 +351,22 @@ export function SupplierDetail({
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            {t("admin.detail.admTitle")}
+          </p>
+          <p className="mb-3 text-[12px] text-slate-500">{t("admin.detail.admDeactivateNote")}</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            type="button"
+            onClick={() => void deactivateAdm()}
+            disabled={admLoading}
+          >
+            {admLoading ? t("common.loading") : t("admin.detail.admDeactivate")}
+          </Button>
         </div>
       </div>
 
@@ -519,6 +567,13 @@ export function SupplierDetail({
 
                 <div className="mt-4">
                   <RiskMatrix evaluation={evaluation} onChange={patchEval} />
+                </div>
+
+                <div className="mt-5">
+                  <SpecializedHistory
+                    entries={specializedHistory}
+                    unavailable={specializedHistoryUnavailable}
+                  />
                 </div>
 
                 <div className="mt-5">

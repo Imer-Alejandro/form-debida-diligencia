@@ -110,6 +110,7 @@ export const es = {
     navHow: "Cómo Funciona",
     navContact: "Contacto",
     navStartForm: "Iniciar Formulario →",
+    clearSearch: "Limpiar búsqueda",
     navAdmin: "Acceso Administrativo (Oficial de Cumplimiento)",
     processHeading: "Flujo de Homologación Corporativa",
     processTitle: "Proceso de Debida Diligencia Paso a Paso",
@@ -727,6 +728,16 @@ export const es = {
       documents: "Documentos",
       tagsTitle: "Etiquetas",
       addTag: "Añadir etiqueta",
+      tagsSaved: "Etiquetas guardadas",
+      specializedHistoryTitle: "Historial de validaciones especializadas",
+      specializedHistoryHelp:
+        "Cambios guardados por área, con estado anterior, responsable y notas.",
+      specializedHistoryCount: "{n} evaluaciones registradas",
+      specializedHistoryUnavailable:
+        "No se pudo cargar el historial. Verifique que la migración de evaluaciones esté aplicada y que su usuario tenga acceso.",
+      specializedHistoryEmpty: "Sin cambios registrados para esta área.",
+      specializedHistoryResponsible: "Responsable",
+      specializedHistoryDate: "Fecha de validación",
       tagPlaceholder: "Nombre de etiqueta",
       evaluationTitle: "Evaluación interna",
       section12: "Sección 12 — Uso exclusivo de Sánchez Business & Corp",
@@ -836,6 +847,17 @@ export const es = {
       viewDetails: "Ver detalles",
       openSection: "Abrir sección",
       contactsCount: "contactos",
+      admTitle: "Integración ADM",
+      admDeactivate: "Desactivar en ADM",
+      admDeactivateConfirm:
+        "¿Desactivar este proveedor en ADM? El proveedor quedará inactivo y no podrá usarse en nuevas compras.",
+      admDeactivateNote:
+        "Marca el proveedor como inactivo en el ERP ADM (no elimina el registro).",
+      admDeactivateOk: "Proveedor desactivado en ADM.",
+      admDeactivateNotFound: "No se encontró el proveedor en ADM (por RNC).",
+      admDeactivateNotConfigured: "La integración con ADM no está configurada.",
+      admDeactivateFailed: "No se pudo desactivar el proveedor en ADM.",
+      admDeactivateNoTaxId: "El proveedor no tiene RNC/identificación registrada.",
     },
     invitations: {
       title: "Invitaciones",

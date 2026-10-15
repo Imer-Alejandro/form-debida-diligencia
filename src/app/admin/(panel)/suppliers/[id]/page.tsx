@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getAdminSession } from "@/lib/supabase/auth";
-import type { DocumentRow, RegistrationRow } from "@/lib/types";
+import type {
+  DocumentRow,
+  RegistrationRow,
+  SpecializedHistoryEntry,
+} from "@/lib/types";
 import { SupplierDetail } from "@/components/admin/SupplierDetail";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +29,13 @@ export default async function AdminSupplierDetailPage({
     .eq("registration_id", id)
     .order("created_at", { ascending: true });
 
+  const { data: history, error: historyError } = await supabase
+    .from("supplier_evaluations")
+    .select("id, created_at, created_by_email, specialized, evaluation")
+    .eq("registration_id", id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
   if (!reg) {
     return (
       <div>
@@ -45,6 +56,8 @@ export default async function AdminSupplierDetailPage({
     <SupplierDetail
       reg={reg as RegistrationRow}
       docs={(docs ?? []) as DocumentRow[]}
+      specializedHistory={(history ?? []) as SpecializedHistoryEntry[]}
+      specializedHistoryUnavailable={Boolean(historyError)}
     />
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui";
 import { LangToggle } from "@/components/LangToggle";
 import { useI18n } from "@/lib/i18n";

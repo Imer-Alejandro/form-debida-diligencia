@@ -253,6 +253,14 @@ export interface SpecializedValidation {
 
 export type SpecializedMap = Record<SpecializedKind, SpecializedValidation>;
 
+export interface SpecializedHistoryEntry {
+  id: number;
+  created_at: string;
+  created_by_email: string | null;
+  specialized: Partial<SpecializedMap> | null;
+  evaluation: Evaluation | null;
+}
+
 export function emptySpecialized(): SpecializedValidation {
   return { status: "NO_APLICA", notes: "", date: "", by: "" };
 }

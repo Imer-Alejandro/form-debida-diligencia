@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Badge, Button } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import type { PortalStatusResult, SupplierStatus } from "./types";
 import { cn } from "@/lib/utils";
 import { useI18n, useDict } from "@/lib/i18n";
@@ -10,13 +10,11 @@ import { useI18n, useDict } from "@/lib/i18n";
 interface EvaluationStatusCardProps {
   data: PortalStatusResult;
   onReset?: () => void;
-  compact?: boolean;
 }
 
 export function EvaluationStatusCard({
   data,
   onReset,
-  compact = false,
 }: EvaluationStatusCardProps) {
   const { t, lang } = useI18n();
   const dict = useDict();

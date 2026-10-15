@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Modal, Input, Button } from "@/components/ui";
-import { useI18n, useDict } from "@/lib/i18n";
+import { useDict } from "@/lib/i18n";
 
 interface StartFormModalProps {
   open: boolean;
@@ -19,7 +19,6 @@ function extractToken(input: string): string | null {
 
 export function StartFormModal({ open, onClose }: StartFormModalProps) {
   const router = useRouter();
-  const { t } = useI18n();
   const dict = useDict();
   const m = dict.portal.modals;
 
