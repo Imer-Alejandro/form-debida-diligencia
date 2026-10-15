@@ -1,3 +1,5 @@
+import type { SupplierData } from "./types";
+
 export const ADM_DEFAULT_BASE_URL = "https://api.admcloud.net/api";
 
 export interface AdmConfig {
@@ -157,4 +159,97 @@ export async function deactivateVendorByTaxId(
   if (!vendor) return { ok: false, reason: "not_found" };
   await deactivateAdmVendor(config, vendor, fetchImpl);
   return { ok: true, vendor };
+}
+
+export const ADM_APPROVE_DECISIONS = ["APROBADO", "APROBADO_CONDICIONES"];
+export const ADM_FINAL_DECISIONS = [...ADM_APPROVE_DECISIONS, "RECHAZADO"];
+
+export type AdmSyncAction =
+  | "created"
+  | "updated"
+  | "deactivated"
+  | "rejected_not_in_adm"
+  | "skipped_decision"
+  | "skipped_not_configured"
+  | "skipped_no_tax_id"
+  | "skipped_no_data";
+
+export interface AdmSyncResult {
+  ok: boolean;
+  action?: AdmSyncAction;
+  error?: string;
+}
+
+export function buildVendorPayload(data: SupplierData): AdmVendor {
+  const s1 = data.section1;
+  const contact = data.section2?.contacts?.[0];
+  const payload: AdmVendor = {
+    Name: trim(s1.legalName),
+    IsVendor: true,
+    Inactive: false,
+  };
+  if (trim(s1.commercialName)) payload.ComercialName = trim(s1.commercialName);
+  if (trim(s1.taxId)) payload.FiscalID = trim(s1.taxId);
+  if (trim(contact?.email)) payload.EMail = trim(contact?.email);
+  if (trim(contact?.phone)) payload.Phone1 = trim(contact?.phone);
+  if (trim(s1.website)) payload.WebPage = trim(s1.website);
+  if (trim(s1.mainEconomicActivity)) payload.BusinessActivity = trim(s1.mainEconomicActivity);
+  return payload;
+}
+
+export async function upsertVendorByTaxId(
+  config: AdmConfig,
+  data: SupplierData,
+  fetchImpl: AdmFetch = fetch
+): Promise<{ action: "created" | "updated" }> {
+  const vendors = await fetchAdmVendors(config, fetchImpl);
+  const payload = buildVendorPayload(data);
+  const url = `${config.baseUrl}/Vendors?${buildAdmQuery(config)}`;
+  const headers = { ...admAuthHeaders(config), "Content-Type": "application/json" };
+  const existing = findAdmVendorByTaxId(vendors, trim(data.section1?.taxId));
+
+  if (existing) {
+    const merged = { ...existing, ...payload };
+    const res = await fetchImpl(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(merged),
+    });
+    if (!res.ok) throw new Error(`adm_vendor_update_${res.status}`);
+    return { action: "updated" };
+  }
+
+  const res = await fetchImpl(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`adm_vendor_create_${res.status}`);
+  return { action: "created" };
+}
+
+export async function syncVendorAfterDecision(
+  config: AdmConfig | null,
+  data: SupplierData | null | undefined,
+  decision: string | undefined,
+  fetchImpl: AdmFetch = fetch
+): Promise<AdmSyncResult> {
+  if (!data) return { ok: true, action: "skipped_no_data" };
+  if (!decision || !ADM_FINAL_DECISIONS.includes(decision)) {
+    return { ok: true, action: "skipped_decision" };
+  }
+  if (!config) return { ok: true, action: "skipped_not_configured" };
+
+  const taxId = trim(data.section1?.taxId);
+  if (!taxId) return { ok: true, action: "skipped_no_tax_id" };
+
+  if (decision === "RECHAZADO") {
+    const result = await deactivateVendorByTaxId(config, taxId, fetchImpl);
+    return result.ok
+      ? { ok: true, action: "deactivated" }
+      : { ok: true, action: "rejected_not_in_adm" };
+  }
+
+  const { action } = await upsertVendorByTaxId(config, data, fetchImpl);
+  return { ok: true, action };
 }

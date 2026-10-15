@@ -168,8 +168,26 @@ export function SupplierDetail({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: reg.id, evaluation }),
     });
+    const data = (await res.json().catch(() => ({}))) as {
+      adm?: { ok?: boolean; action?: string };
+    };
     setSaving(null);
-    if (res.ok) notify(t("admin.detail.savedEvaluation"));
+    if (res.ok) notify(admFlash(data.adm) ?? t("admin.detail.savedEvaluation"));
+  };
+
+  const admFlash = (adm?: { ok?: boolean; action?: string }): string | null => {
+    if (!adm) return null;
+    if (adm.ok === false) return t("admin.detail.admSyncFailed");
+    switch (adm.action) {
+      case "created":
+        return t("admin.detail.admSyncCreated");
+      case "updated":
+        return t("admin.detail.admSyncUpdated");
+      case "deactivated":
+        return t("admin.detail.admSyncDeactivated");
+      default:
+        return null;
+    }
   };
 
   const saveTags = async () => {

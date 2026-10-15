@@ -4,6 +4,7 @@ import {
   admAuthHeaders,
   buildAdmQuery,
   buildVendorInactivePayload,
+  buildVendorPayload,
   deactivateVendorByTaxId,
   extractAdmVendors,
   fetchAdmVendors,
@@ -11,8 +12,11 @@ import {
   getVendorTaxId,
   normalizeTaxId,
   readAdmConfig,
+  syncVendorAfterDecision,
+  upsertVendorByTaxId,
   type AdmConfig,
 } from "./adm";
+import { emptyData } from "./types";
 
 const baseConfig: AdmConfig = {
   baseUrl: ADM_DEFAULT_BASE_URL,
@@ -182,5 +186,124 @@ describe("deactivateVendorByTaxId", () => {
       ID: "b",
       Inactive: true,
     });
+  });
+});
+
+describe("buildVendorPayload", () => {
+  it("maps basic fields to the ADM vendor shape", () => {
+    const data = emptyData();
+    data.section1.legalName = "Sánchez Business & Corp.";
+    data.section1.commercialName = "SBC";
+    data.section1.taxId = "1-31-12345-6";
+    data.section1.website = "https://sbc.do";
+    data.section1.mainEconomicActivity = "Servicios";
+    data.section2.contacts[0].email = "compras@sbc.do";
+    data.section2.contacts[0].phone = "8095551234";
+
+    const payload = buildVendorPayload(data);
+    expect(payload.Name).toBe("Sánchez Business & Corp.");
+    expect(payload.ComercialName).toBe("SBC");
+    expect(payload.FiscalID).toBe("1-31-12345-6");
+    expect(payload.EMail).toBe("compras@sbc.do");
+    expect(payload.Phone1).toBe("8095551234");
+    expect(payload.WebPage).toBe("https://sbc.do");
+    expect(payload.BusinessActivity).toBe("Servicios");
+    expect(payload.IsVendor).toBe(true);
+    expect(payload.Inactive).toBe(false);
+  });
+});
+
+describe("upsertVendorByTaxId", () => {
+  it("creates a vendor when none is found", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return jsonResponse({ ID: "new" }, { status: 201 });
+      return jsonResponse({ data: [] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Acme SRL";
+    data.section1.taxId = "131123456";
+
+    const result = await upsertVendorByTaxId(baseConfig, data, fetchMock as unknown as typeof fetch);
+    expect(result.action).toBe("created");
+    const postCall = fetchMock.mock.calls.find(
+      (call) => (call[1] as RequestInit | undefined)?.method === "POST"
+    );
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(String((postCall?.[1] as RequestInit).body));
+    expect(body.Name).toBe("Acme SRL");
+    expect(body.Inactive).toBe(false);
+    expect(body.IsVendor).toBe(true);
+  });
+
+  it("updates an existing vendor when found", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") return jsonResponse({}, { status: 200 });
+      return jsonResponse({ data: [{ ID: "b", TaxID: "1-31-12345-6" }] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Acme Updated";
+    data.section1.taxId = "131123456";
+
+    const result = await upsertVendorByTaxId(baseConfig, data, fetchMock as unknown as typeof fetch);
+    expect(result.action).toBe("updated");
+    const putCall = fetchMock.mock.calls.find(
+      (call) => (call[1] as RequestInit | undefined)?.method === "PUT"
+    );
+    expect(putCall).toBeDefined();
+    const body = JSON.parse(String((putCall?.[1] as RequestInit).body));
+    expect(body.ID).toBe("b");
+    expect(body.Name).toBe("Acme Updated");
+    expect(body.Inactive).toBe(false);
+  });
+});
+
+describe("syncVendorAfterDecision", () => {
+  it("does not create on REJECTED if not found in ADM", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ data: [] }));
+    const data = emptyData();
+    data.section1.legalName = "Rejected";
+    data.section1.taxId = "131123456";
+
+    const res = await syncVendorAfterDecision(baseConfig, data, "RECHAZADO", fetchMock as unknown as typeof fetch);
+    expect(res.ok).toBe(true);
+    expect(res.action).toBe("rejected_not_in_adm");
+    const methods = fetchMock.mock.calls.map((c) => {
+      const call = c as unknown as [unknown, RequestInit | undefined];
+      return call[1]?.method;
+    }) as (string|undefined)[];
+    expect(methods.includes("GET")).toBe(true);
+    expect(methods.includes("POST")).toBe(false);
+    expect(methods.includes("PUT")).toBe(false);
+  });
+
+  it("creates vendor on APROBADO", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return jsonResponse({ ID: "n1" }, { status: 201 });
+      return jsonResponse({ data: [] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Ok";
+    data.section1.taxId = "131123456";
+
+    const res = await syncVendorAfterDecision(baseConfig, data, "APROBADO", fetchMock as unknown as typeof fetch);
+    expect(res.ok).toBe(true);
+    expect(res.action).toBe("created");
+  });
+
+  it("skips when not configured or no decision", async () => {
+    const data = emptyData();
+    data.section1.taxId = "131123456";
+    const r1 = await syncVendorAfterDecision(null, data, "APROBADO", vi.fn() as unknown as typeof fetch);
+    const r2 = await syncVendorAfterDecision(baseConfig, data, "PENDIENTE", vi.fn() as unknown as typeof fetch);
+    const r3 = await syncVendorAfterDecision(baseConfig, data, undefined, vi.fn() as unknown as typeof fetch);
+    expect(r1.action).toBe("skipped_not_configured");
+    expect(r2.action).toBe("skipped_decision");
+    expect(r3.action).toBe("skipped_decision");
+  });
+
+  it("skips when no tax id", async () => {
+    const data = emptyData();
+    const res = await syncVendorAfterDecision(baseConfig, data, "APROBADO", vi.fn() as unknown as typeof fetch);
+    expect(res.action).toBe("skipped_no_tax_id");
   });
 });

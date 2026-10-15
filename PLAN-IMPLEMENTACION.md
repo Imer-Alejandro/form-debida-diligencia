@@ -267,11 +267,10 @@ CERRADA               → (terminal)
 - ✅ **Vista 360° con acordeones:** los bloques pesados del detalle (documentos, datos de solicitud,
   riesgo, validaciones especializadas, verificación y decisión) son plegables (`Accordion`,
   `<details>` en documentos); `section13` abierto por defecto.
-- ✅ **Integración ADM (§7.4 parcial):** `src/lib/adm.ts` (leer config, buscar proveedor por RNC
-  normalizado, desactivar vía `PUT /api/Vendors`), ruta `POST /api/admin/adm/vendor`
-  (auth admin + log en `activity_log`) y botón "Desactivar en ADM" en `SupplierDetail`.
-  14 tests en `adm.test.ts`.
-- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **64/64 tests** · `build` OK.
+- ✅ **Integración ADM:** `src/lib/adm.ts` (upsert/PUT/POST por RNC, desactivación), rutas
+  `POST /api/admin/adm/vendor` y sincronización automática en `POST /api/admin/evaluation`
+  según decisión (APROBADO/APROBADO_CONDICIONES crea/actualiza; RECHAZADO solo desactiva si existe).
+- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **71/71 tests** · `build` OK.
 
 ---
 
@@ -308,11 +307,12 @@ CERRADA               → (terminal)
 
 - [ ] **Rotar la contraseña de ADM** (se expuso en el chat; no commitear).
 - [x] Config: `ADM_BASE_URL` (default `https://api.admcloud.net/api`), `ADM_COMPANY`, `ADM_ROLE`,
-  `ADM_APPID`, `ADM_USERNAME`/`ADM_PASSWORD` (Basic) o `ADM_TOKEN` (query param) en `.env.example`.
-- [x] **Desactivar proveedor:** `PUT /api/Vendors` con `Inactive=true` (`src/lib/adm.ts`,
-  ruta `POST /api/admin/adm/vendor`, botón en `SupplierDetail`).
-- [ ] Definir disparadores de sincronización (alta/actualización de proveedor) y desplegar las
-  variables ADM en Vercel.
+  `ADM_APPID`, `ADM_USERNAME`/`ADM_PASSWORD` (Basic) o `ADM_TOKEN` (query param).
+- [x] **Sincronización al guardar precalificación:** `APROBADO`/`APROBADO_CONDICIONES` → `upsert`
+  (POST/PUT) a `/api/Vendors`; `RECHAZADO` → marca inactivo si existe, **no crea** el proveedor
+  (`src/lib/adm.ts`, `POST /api/admin/evaluation` dispara sync).
+- [ ] Definir valores de lookup en ADM (Moneda, Tipo cuenta, Banco, Categoría, País, etc.)
+  antes del primer alta, y desplegar las variables ADM en Vercel.
 
 ### 7.5 🟡 Alertas — canal WhatsApp (diferido)
 

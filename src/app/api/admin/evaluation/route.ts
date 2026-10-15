@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
 import { computeRisk, evaluateTriggers } from "@/lib/risk";
 import { specializedForTriggers } from "@/lib/process";
-import type { Evaluation } from "@/lib/types";
+import { ADM_FINAL_DECISIONS, readAdmConfig, syncVendorAfterDecision } from "@/lib/adm";
+import type { Evaluation, SupplierData } from "@/lib/types";
 
 const ALLOWED_STATUS = [
   "PENDIENTE",
@@ -99,5 +100,43 @@ export async function POST(req: Request) {
     detail: { decision: status ?? null, risk: result.level, escalated: triggers.requiresEscalation },
   });
 
-  return NextResponse.json({ ok: true, risk: result.level, triggers });
+  let adm: { ok: boolean; action?: string; error?: string } | null = null;
+  if (status && ADM_FINAL_DECISIONS.includes(status)) {
+    try {
+      const { data: reg } = await supabase
+        .from("supplier_registrations")
+        .select("data")
+        .eq("id", body.id)
+        .maybeSingle();
+
+      const sync = await syncVendorAfterDecision(
+        readAdmConfig(),
+        (reg?.data ?? null) as SupplierData | null,
+        status
+      );
+      adm = sync;
+
+      await supabase.from("activity_log").insert({
+        actor: user.email ?? "",
+        action: `ADM_VENDOR_SYNC_${(sync.action ?? "unknown").toUpperCase()}`,
+        subject_type: "registration",
+        subject_id: body.id,
+        detail: { decision: status, action: sync.action ?? null, error: sync.error ?? null },
+      });
+    } catch (err) {
+      adm = { ok: false, error: "adm_error" };
+      await supabase.from("activity_log").insert({
+        actor: user.email ?? "",
+        action: "ADM_VENDOR_SYNC_ERROR",
+        subject_type: "registration",
+        subject_id: body.id,
+        detail: {
+          decision: status,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
+    }
+  }
+
+  return NextResponse.json({ ok: true, risk: result.level, triggers, adm });
 }
