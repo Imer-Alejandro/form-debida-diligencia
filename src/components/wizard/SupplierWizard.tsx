@@ -473,7 +473,7 @@ export function SupplierWizard({
                 Atención: Subsanación de Información Requerida
               </h3>
               <p className="mt-1 text-rose-900 leading-relaxed">
-                El Oficial de Cumplimiento ha revisado su expediente y solicita actualizar datos o anexar documentación complementaria. Modifique las secciones indicadas y presione <strong>"Enviar registro"</strong> en el paso final para reenviar su expediente.
+                El Oficial de Cumplimiento ha revisado su expediente y solicita actualizar datos o anexar documentación complementaria. Modifique las secciones indicadas y presione <strong>&quot;Enviar registro&quot;</strong> en el paso final para reenviar su expediente.
               </p>
             </div>
           </div>

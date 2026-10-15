@@ -328,14 +328,17 @@ export function SupplierDetail({
         </div>
       )}
 
-      <div className="mt-5 space-y-5 lg:grid lg:grid-cols-5 lg:gap-5 lg:space-y-0">
-        {/* Supplier data */}
-        <section className="rounded-2xl border border-navy-800/10 bg-white p-5 lg:col-span-3">
-          <DataView data={data} regId={reg.id} signatureDoc={signatureDoc} />
-        </section>
+      <div className="mt-5 space-y-5">
+        {/* 360° summary — each card opens a detail modal */}
+        <SectionCards
+          data={data}
+          docs={docs}
+          pendingDocs={pendingDocs}
+          onOpen={(k) => setModal(k)}
+        />
 
-        {/* Documents */}
-        <div className="space-y-5 lg:col-span-2">
+        {/* Documents & evaluation */}
+        <div className="space-y-5">
           <section className="rounded-2xl border border-navy-800/10 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-[15px] font-semibold text-navy-900">
@@ -910,6 +913,22 @@ export function SupplierDetail({
           </section>
         </div>
       </div>
+
+      <Modal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        title={modal ? sectionTitle(modal, dict) : ""}
+        maxWidth="max-w-4xl"
+      >
+        {modal && (
+          <SectionBody
+            section={modal}
+            data={data}
+            regId={reg.id}
+            signatureDoc={signatureDoc}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -931,11 +950,256 @@ function FieldValue({ label, value }: { label: string; value: string }) {
   ) : null;
 }
 
-function DataView({
+type Dict = ReturnType<typeof useDict>;
+
+function sectionTitle(key: SectionKey, d: Dict): string {
+  const titles: Record<SectionKey, string> = {
+    s1: d.s1.title,
+    s2: d.s2.title,
+    s3: d.s3.title,
+    s4: d.s4.title,
+    s5: d.s5.title,
+    s6: d.s6.title,
+    s7: d.s7.title,
+    s8: d.s8.title,
+    s9: d.s9.title,
+    s10: d.s10.title,
+    s11: d.s11.title,
+  };
+  return titles[key];
+}
+
+function MiniRow({ label, value }: { label?: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      {label ? (
+        <span className="truncate text-[12px] text-ink-muted">{label}</span>
+      ) : null}
+      <span
+        className={cn(
+          "break-words text-[12.5px] font-medium text-ink",
+          label ? "max-w-[62%] text-right" : "w-full text-left"
+        )}
+      >
+        {value || "—"}
+      </span>
+    </div>
+  );
+}
+
+function SummaryCard({
+  title,
+  rows,
+  onOpen,
+}: {
+  title: string;
+  rows: Array<{ label?: string; value: string }>;
+  onOpen: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-navy-800/10 bg-white p-5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-navy-800/25 hover:shadow-md"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-display text-[14px] font-semibold tracking-tight text-navy-900">
+          {title}
+        </h3>
+        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-ink-muted transition-colors group-hover:text-navy-700">
+          {t("admin.detail.viewDetails")}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          >
+            <path d="M5 12h14" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
+        </span>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {rows.length === 0 ? (
+          <p className="text-[12.5px] text-ink-muted">—</p>
+        ) : (
+          rows.map((r, i) => <MiniRow key={i} label={r.label} value={r.value} />)
+        )}
+      </div>
+    </button>
+  );
+}
+
+function SectionCards({
+  data,
+  docs,
+  pendingDocs,
+  onOpen,
+}: {
+  data: SupplierData;
+  docs: DocumentRow[];
+  pendingDocs: string[];
+  onOpen: (k: SectionKey) => void;
+}) {
+  const { t, lang } = useI18n();
+  const d = useDict();
+  const s1 = data.section1;
+  const yn = (v: string) => (v === "si" ? t("common.yes") : v === "no" ? t("common.no") : "—");
+  const mapOr = (v: string, m?: Record<string, string>) =>
+    m && m[v] ? m[v] : v || "—";
+
+  const yesCount = data.section8.compliance.filter((c) => c.answer === "si").length;
+
+  const cards: Array<{
+    key: SectionKey;
+    title: string;
+    rows: Array<{ label?: string; value: string }>;
+  }> = [
+    {
+      key: "s1",
+      title: d.s1.title,
+      rows: [
+        { label: d.s1.taxId, value: s1.taxId },
+        {
+          label: d.s1.nationality,
+          value: s1.nationality ? countryName(s1.nationality, lang) : "",
+        },
+        { label: d.s1.provinceCountry, value: s1.provinceCountry },
+        { label: d.s1.mainEconomicActivity, value: s1.mainEconomicActivity },
+      ],
+    },
+    {
+      key: "s2",
+      title: d.s2.title,
+      rows: data.section2.contacts.slice(0, 2).map((c) => ({
+        label: mapOr(c.role, (d as never as { s2: { roles: Record<string, string> } }).s2.roles),
+        value: [c.name, c.position].filter(Boolean).join(" · "),
+      })),
+    },
+    {
+      key: "s3",
+      title: d.s3.title,
+      rows: [
+        { label: d.s3.legalRepName, value: data.section3.legalRepName },
+        { label: d.s3.pep, value: yn(data.section3.pep) },
+        { label: d.s3.relatedToSbc, value: yn(data.section3.relatedToSbc) },
+      ],
+    },
+    {
+      key: "s4",
+      title: d.s4.title,
+      rows: [
+        {
+          label: d.s4.taxCondition,
+          value: mapOr(data.section4.taxCondition, d.s4.taxConditions),
+        },
+        {
+          label: d.s4.tss,
+          value: data.section4.tss.map((k) => mapOr(k, d.s4.tssOptions)).join(" · "),
+        },
+        {
+          label: d.s4.specialRegime,
+          value: data.section4.specialRegime
+            .map((k) => mapOr(k, d.s4.specialRegimeOptions))
+            .join(" · "),
+        },
+      ],
+    },
+    {
+      key: "s5",
+      title: d.s5.title,
+      rows: [
+        { label: d.s5.bank, value: data.section5.bank },
+        { label: d.s5.accountHolder, value: data.section5.accountHolder },
+        { label: d.s5.currency, value: mapOr(data.section5.currency, d.s5.currencies) },
+        { label: d.s5.offersCredit, value: yn(data.section5.offersCredit) },
+      ],
+    },
+    {
+      key: "s6",
+      title: d.s6.title,
+      rows: [
+        { label: d.s6.yearsExperience, value: data.section6.yearsExperience },
+        {
+          label: d.s6.coverage,
+          value: data.section6.coverage.map((k) => mapOr(k, d.s6.coverageOptions)).join(" · "),
+        },
+      ],
+    },
+    {
+      key: "s7",
+      title: d.s7.title,
+      rows: data.section7.references.slice(0, 2).map((r) => ({
+        label: r.client || d.s7.client,
+        value: [r.contact, r.phoneEmail].filter(Boolean).join(" · "),
+      })),
+    },
+    {
+      key: "s8",
+      title: d.s8.title,
+      rows: [
+        {
+          label: t("admin.detail.resultsSummary"),
+          value: `${yesCount} / ${data.section8.compliance.length}`,
+        },
+      ],
+    },
+    {
+      key: "s9",
+      title: d.s9.title,
+      rows: [
+        { label: t("admin.detail.documents"), value: String(docs.length) },
+        { label: t("docs.pending"), value: String(pendingDocs.length) },
+      ],
+    },
+    {
+      key: "s10",
+      title: d.s10.title,
+      rows: data.section10.authorizations
+        .slice(0, 3)
+        .map((a) => ({ value: d.s10.authorizations[Number(a)] ?? a })),
+    },
+    {
+      key: "s11",
+      title: d.s11.title,
+      rows: [
+        { label: d.s11.signerName, value: data.section11.signerName },
+        { label: d.s11.signDate, value: data.section11.signedDate },
+      ],
+    },
+  ];
+
+  return (
+    <div>
+      <h2 className="mb-3 font-display text-[15px] font-semibold text-navy-900">
+        {t("admin.detail.sectionsTitle")}
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((c) => (
+          <SummaryCard
+            key={c.key}
+            title={c.title}
+            rows={c.rows}
+            onOpen={() => onOpen(c.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionBody({
+  section,
   data,
   regId,
   signatureDoc,
 }: {
+  section: SectionKey;
   data: SupplierData;
   regId: string;
   signatureDoc?: DocumentRow;
@@ -951,9 +1215,12 @@ function DataView({
   const yn = (v: string) => (v === "si" ? t("common.yes") : v === "no" ? t("common.no") : "—");
   const mapOr = (v: string, m?: Record<string, string>) =>
     m && m[v] ? m[v] : v || "—";
+  const show = (k: SectionKey) => section === k;
 
   return (
     <div>
+      {show("s1") && (
+        <>
       <h2 className="font-display text-[15px] font-semibold text-navy-900">
         {d.s1.title}
       </h2>
@@ -977,7 +1244,11 @@ function DataView({
         <FieldValue label={d.s1.mainEconomicActivity} value={s1.mainEconomicActivity} />
         <FieldValue label={d.s1.goodsServices} value={s1.goodsServices} />
       </div>
+        </>
+      )}
 
+      {show("s2") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s2.title}
       </h3>
@@ -995,7 +1266,11 @@ function DataView({
           </div>
         ))}
       </div>
+        </>
+      )}
 
+      {show("s3") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s3.title}
       </h3>
@@ -1009,7 +1284,11 @@ function DataView({
         <FieldValue label={d.s3.relatedToSbcDetail} value={s3.relatedToSbcDetail} />
         <FieldValue label={d.s3.relatedCompanies} value={s3.relatedCompanies} />
       </div>
+        </>
+      )}
 
+      {show("s4") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s4.title}
       </h3>
@@ -1026,7 +1305,11 @@ function DataView({
         <FieldValue label={d.s4.specialRegime} value={s4.specialRegime.map((k) => mapOr(k, d.s4.specialRegimeOptions)).join(" · ")} />
         <FieldValue label={d.s4.specialRegimeOther} value={s4.specialRegimeOther} />
       </div>
+        </>
+      )}
 
+      {show("s5") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s5.title}
       </h3>
@@ -1045,7 +1328,11 @@ function DataView({
         <FieldValue label={d.s5.offersCredit} value={yn(s5.offersCredit)} />
         <FieldValue label={d.s5.creditCompanies} value={(s5.creditCompanies ?? []).join(" · ")} />
       </div>
+        </>
+      )}
 
+      {show("s6") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s6.title}
       </h3>
@@ -1058,7 +1345,11 @@ function DataView({
         <FieldValue label={d.s6.warrantyPolicy} value={s6.warrantyPolicy} />
         <FieldValue label={d.s6.brands} value={s6.brands} />
       </div>
+        </>
+      )}
 
+      {show("s7") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s7.title}
       </h3>
@@ -1073,7 +1364,11 @@ function DataView({
           </div>
         ))}
       </div>
+        </>
+      )}
 
+      {show("s8") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s8.title}
       </h3>
@@ -1092,7 +1387,11 @@ function DataView({
           </div>
         ))}
       </div>
+        </>
+      )}
 
+      {show("s9") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s9.title}
       </h3>
@@ -1114,7 +1413,11 @@ function DataView({
           <p className="text-[13px] text-ink-muted">—</p>
         )}
       </div>
+        </>
+      )}
 
+      {show("s10") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s10.title}
       </h3>
@@ -1129,7 +1432,11 @@ function DataView({
           </div>
         ))}
       </div>
+        </>
+      )}
 
+      {show("s11") && (
+        <>
       <h3 className="mt-7 border-t border-navy-800/10 pt-5 font-display text-[15px] font-semibold text-navy-900">
         {d.s11.title}
       </h3>
@@ -1163,6 +1470,8 @@ function DataView({
             </Link>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );
