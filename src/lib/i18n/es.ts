@@ -891,6 +891,28 @@ export const es = {
         "Evaluación guardada · falta el RNC para localizar el proveedor en ADM.",
       admSyncNoName:
         "Evaluación guardada · falta la razón social para registrar el proveedor en ADM.",
+      sharepointFolderLinkFailed:
+        "Proveedor sincronizado con ADM, pero no se pudo obtener el enlace a su carpeta de SharePoint.",
+      deleteZoneTitle: "Zona peligrosa",
+      deleteZoneNote: "Elimina este proveedor del sistema de forma permanente.",
+      deleteSupplier: "Eliminar proveedor",
+      deleteTitle: "Eliminar proveedor",
+      deleteWarning:
+        "Esta acción elimina el registro del sistema de forma permanente, junto con sus documentos, evaluaciones y alertas. No se puede deshacer.",
+      deleteAdmOption: "Desactivar también el proveedor en ADM (ERP)",
+      deleteAdmOptionNote:
+        "Si no lo marcas, el proveedor solo se elimina del sistema y permanece activo en ADM.",
+      deleteConfirm: "Eliminar definitivamente",
+      deleteCancel: "Cancelar",
+      deleteOk: "Proveedor eliminado del sistema.",
+      deleteOkAdm: "Proveedor eliminado del sistema y desactivado en ADM.",
+      deleteOkAdmNotFound:
+        "Proveedor eliminado del sistema. No se encontró en ADM; el ERP no cambió.",
+      deleteFailed: "No se pudo eliminar el proveedor.",
+      deleteAdmNotConfigured: "La integración con ADM no está configurada.",
+      deleteAdmNoTaxId: "El proveedor no tiene RNC/identificación registrada.",
+      deleteAdmFailed:
+        "No se pudo desactivar en ADM. No se eliminó el registro; inténtalo de nuevo.",
       documentsDetail: "Detalle de documentos",
       internalEvaluation: "Evaluación interna",
       requestData: "Datos de la solicitud",

@@ -261,7 +261,7 @@ describe("buildVendorPayload", () => {
     data.section4.taxCondition = "aldia";
     data.section6.yearsExperience = "10";
 
-    const payload = buildVendorPayload(data);
+    const payload = buildVendorPayload(data, "https://contoso.sharepoint.com/sites/dd/Acme");
     expect(payload.Name).toBe("Sánchez Business & Corp.");
     expect(payload.ComercialName).toBe("SBC");
     expect(payload.FiscalID).toBe("1-31-12345-6");
@@ -288,6 +288,9 @@ describe("buildVendorPayload", () => {
       { Address1: "Calle Principal 10", State: "Santo Domingo" },
     ]);
     expect(payload.Notes).toContain("Banco: Banco Demo");
+    expect(payload.Notes).toContain(
+      "Documentos de debida diligencia en SharePoint: https://contoso.sharepoint.com/sites/dd/Acme"
+    );
     expect(payload.Notes).toContain("Condición fiscal: aldia");
     expect(payload.Notes).toContain("Experiencia (años): 10");
     expect(payload.IsVendor).toBe(true);
@@ -433,9 +436,21 @@ describe("syncVendorAfterDecision", () => {
     data.section1.legalName = "Ok";
     data.section1.taxId = "131123456";
 
-    const res = await syncVendorAfterDecision(baseConfig, data, "APROBADO", fetchMock as unknown as typeof fetch);
+    const sharePointFolderUrl = "https://contoso.sharepoint.com/sites/dd/Ok";
+    const res = await syncVendorAfterDecision(
+      baseConfig,
+      data,
+      "APROBADO",
+      fetchMock as unknown as typeof fetch,
+      sharePointFolderUrl
+    );
     expect(res.ok).toBe(true);
     expect(res.action).toBe("created");
+    const postCall = fetchMock.mock.calls.find(
+      (call) => (call[1] as RequestInit | undefined)?.method === "POST"
+    );
+    const body = JSON.parse(String((postCall?.[1] as RequestInit | undefined)?.body));
+    expect(body.Notes).toContain(sharePointFolderUrl);
   });
 
   it("skips when not configured or no decision", async () => {

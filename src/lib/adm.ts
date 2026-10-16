@@ -234,7 +234,10 @@ export interface AdmSyncResult {
   error?: string;
 }
 
-export function buildVendorPayload(data: SupplierData): AdmVendor {
+export function buildVendorPayload(
+  data: SupplierData,
+  sharePointFolderUrl?: string
+): AdmVendor {
   const s1 = data.section1;
   const contacts = (data.section2?.contacts ?? [])
     .map((contact) => {
@@ -294,6 +297,7 @@ export function buildVendorPayload(data: SupplierData): AdmVendor {
   if (Object.keys(address).length > 0) payload.Addresses = [address];
 
   const notes = [
+    ["Documentos de debida diligencia en SharePoint", sharePointFolderUrl],
     ["Tipo de proveedor", s1.providerType === "otro" ? s1.providerTypeOther : s1.providerType],
     ["Contratista", s1.isContractor],
     ["Fecha de constitución / inicio", s1.foundedDate],
@@ -450,10 +454,11 @@ export function mergeVendorPayload(existing: AdmVendor, payload: AdmVendor): Adm
 export async function upsertVendorByTaxId(
   config: AdmConfig,
   data: SupplierData,
-  fetchImpl: AdmFetch = fetch
+  fetchImpl: AdmFetch = fetch,
+  sharePointFolderUrl?: string
 ): Promise<{ action: "created" | "updated" }> {
   const vendors = await fetchAdmVendors(config, fetchImpl);
-  const payload = buildVendorPayload(data);
+  const payload = buildVendorPayload(data, sharePointFolderUrl);
   const url = `${config.baseUrl}/Vendors?${buildAdmQuery(config)}`;
   const headers = { ...admAuthHeaders(config), "Content-Type": "application/json" };
   const existing = findAdmVendorByTaxId(vendors, trim(data.section1?.taxId));
@@ -485,7 +490,8 @@ export async function syncVendorAfterDecision(
   config: AdmConfig | null,
   data: SupplierData | null | undefined,
   decision: string | undefined,
-  fetchImpl: AdmFetch = fetch
+  fetchImpl: AdmFetch = fetch,
+  sharePointFolderUrl?: string
 ): Promise<AdmSyncResult> {
   if (!data) return { ok: true, action: "skipped_no_data" };
   if (!decision || !ADM_FINAL_DECISIONS.includes(decision)) {
@@ -507,6 +513,6 @@ export async function syncVendorAfterDecision(
 
   if (!trim(data.section1?.legalName)) return { ok: true, action: "skipped_no_name" };
 
-  const { action } = await upsertVendorByTaxId(config, data, fetchImpl);
+  const { action } = await upsertVendorByTaxId(config, data, fetchImpl, sharePointFolderUrl);
   return { ok: true, action };
 }

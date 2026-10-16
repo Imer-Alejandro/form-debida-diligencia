@@ -892,6 +892,28 @@ recent: "Recent registrations",
         "Evaluation saved · tax ID is required to locate the vendor in ADM.",
       admSyncNoName:
         "Evaluation saved · legal name is required to register the vendor in ADM.",
+      sharepointFolderLinkFailed:
+        "Vendor synced with ADM, but its SharePoint folder link could not be retrieved.",
+      deleteZoneTitle: "Danger zone",
+      deleteZoneNote: "Permanently delete this supplier from the system.",
+      deleteSupplier: "Delete supplier",
+      deleteTitle: "Delete supplier",
+      deleteWarning:
+        "This permanently deletes the registration from the system, together with its documents, evaluations and alerts. It cannot be undone.",
+      deleteAdmOption: "Also deactivate the supplier in ADM (ERP)",
+      deleteAdmOptionNote:
+        "If unchecked, the supplier is only removed from the system and remains active in ADM.",
+      deleteConfirm: "Delete permanently",
+      deleteCancel: "Cancel",
+      deleteOk: "Supplier deleted from the system.",
+      deleteOkAdm: "Supplier deleted from the system and deactivated in ADM.",
+      deleteOkAdmNotFound:
+        "Supplier deleted from the system. Not found in ADM; the ERP was not changed.",
+      deleteFailed: "The supplier could not be deleted.",
+      deleteAdmNotConfigured: "The ADM integration is not configured.",
+      deleteAdmNoTaxId: "The supplier has no registered tax ID.",
+      deleteAdmFailed:
+        "Could not deactivate in ADM. The record was not deleted; please try again.",
       documentsDetail: "Documents detail",
       internalEvaluation: "Internal evaluation",
       requestData: "Request data",

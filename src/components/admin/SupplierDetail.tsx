@@ -19,7 +19,7 @@ import {
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
-import { Badge, Button, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Checkbox, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
 import { InternalReportsPanel } from "./InternalReportsPanel";
@@ -149,6 +149,9 @@ export function SupplierDetail({
   const [showReq, setShowReq] = useState(false);
   const [reqMail, setReqMail] = useState<"sent" | "failed" | "skipped" | null>(null);
   const [modal, setModal] = useState<SectionKey | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deactivateAdmOnDelete, setDeactivateAdmOnDelete] = useState(false);
+  const [delLoading, setDelLoading] = useState(false);
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -173,9 +176,15 @@ export function SupplierDetail({
     });
     const data = (await res.json().catch(() => ({}))) as {
       adm?: { ok?: boolean; action?: string };
+      sharepoint?: { ok?: boolean; error?: string } | null;
     };
     setSaving(null);
-    if (res.ok) notify(admFlash(data.adm) ?? t("admin.detail.savedEvaluation"));
+    if (res.ok) {
+      const message = data.sharepoint?.ok === false
+        ? t("admin.detail.sharepointFolderLinkFailed")
+        : admFlash(data.adm) ?? t("admin.detail.savedEvaluation");
+      notify(message);
+    }
   };
 
   const admFlash = (adm?: { ok?: boolean; action?: string }): string | null => {
@@ -241,6 +250,32 @@ export function SupplierDetail({
           : data.error === "no_tax_id"
             ? t("admin.detail.admDeactivateNoTaxId")
             : t("admin.detail.admDeactivateFailed")
+    );
+  };
+
+  const deleteSupplier = async () => {
+    setDelLoading(true);
+    const res = await fetch("/api/admin/suppliers/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: reg.id, deactivateAdm: deactivateAdmOnDelete }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (res.ok) {
+      setShowDelete(false);
+      router.push("/admin/suppliers");
+      router.refresh();
+      return;
+    }
+    setDelLoading(false);
+    notify(
+      data.error === "adm_not_configured"
+        ? t("admin.detail.deleteAdmNotConfigured")
+        : data.error === "no_tax_id"
+          ? t("admin.detail.deleteAdmNoTaxId")
+          : data.error === "adm_delete_failed"
+            ? t("admin.detail.deleteAdmFailed")
+            : t("admin.detail.deleteFailed")
     );
   };
 
@@ -406,6 +441,64 @@ export function SupplierDetail({
           {flash}
         </div>
       )}
+
+      <div className="mt-5 rounded-2xl border border-rose-200/70 bg-rose-50/40 p-5">
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600">
+          {t("admin.detail.deleteZoneTitle")}
+        </p>
+        <p className="mb-3 text-[12px] text-slate-600">{t("admin.detail.deleteZoneNote")}</p>
+        <Button size="sm" variant="danger" type="button" onClick={() => setShowDelete(true)}>
+          {t("admin.detail.deleteSupplier")}
+        </Button>
+      </div>
+
+      <Modal
+        open={showDelete}
+        onClose={() => {
+          if (!delLoading) setShowDelete(false);
+        }}
+        title={t("admin.detail.deleteTitle")}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] leading-relaxed text-slate-600">
+            {t("admin.detail.deleteWarning")}
+          </p>
+          <Checkbox
+            checked={deactivateAdmOnDelete}
+            onChange={setDeactivateAdmOnDelete}
+            disabled={delLoading}
+            label={
+              <span>
+                <span className="block">{t("admin.detail.deleteAdmOption")}</span>
+                <span className="mt-0.5 block text-[12px] text-slate-500">
+                  {t("admin.detail.deleteAdmOptionNote")}
+                </span>
+              </span>
+            }
+          />
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              type="button"
+              onClick={() => setShowDelete(false)}
+              disabled={delLoading}
+            >
+              {t("admin.detail.deleteCancel")}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              type="button"
+              onClick={() => void deleteSupplier()}
+              disabled={delLoading}
+            >
+              {delLoading ? t("common.loading") : t("admin.detail.deleteConfirm")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="mt-5 space-y-5">
         {/* 360° summary — each card opens a detail modal */}

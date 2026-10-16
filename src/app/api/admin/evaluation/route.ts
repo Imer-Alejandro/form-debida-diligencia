@@ -3,7 +3,19 @@ import { getAdminSession } from "@/lib/supabase/auth";
 import { computeRisk, evaluateTriggers } from "@/lib/risk";
 import { specializedForTriggers } from "@/lib/process";
 import { ADM_FINAL_DECISIONS, readAdmConfig, syncVendorAfterDecision } from "@/lib/adm";
-import type { Evaluation, SupplierData } from "@/lib/types";
+import {
+  getAccessToken,
+  getItemIdByPath,
+  getItemWebUrl,
+  ItemNotFoundError,
+  OneDriveNotConfiguredError,
+  supplierFolderPath,
+} from "@/lib/onedrive";
+import {
+  isRegistrationApproved,
+  type Evaluation,
+  type SupplierData,
+} from "@/lib/types";
 
 const ALLOWED_STATUS = [
   "PENDIENTE",
@@ -101,6 +113,7 @@ export async function POST(req: Request) {
   });
 
   let adm: { ok: boolean; action?: string; error?: string } | null = null;
+  let sharepoint: { ok: boolean; error?: string } | null = null;
   if (status && ADM_FINAL_DECISIONS.includes(status)) {
     try {
       const { data: reg } = await supabase
@@ -109,10 +122,41 @@ export async function POST(req: Request) {
         .eq("id", body.id)
         .maybeSingle();
 
+      const supplierData = (reg?.data ?? null) as SupplierData | null;
+      const admConfig = readAdmConfig();
+      let sharePointFolderUrl: string | undefined;
+      if (admConfig && isRegistrationApproved(status) && supplierData) {
+        try {
+          const accessToken = await getAccessToken();
+          const folderId = await getItemIdByPath(
+            accessToken,
+            supplierFolderPath(supplierData.section1.legalName)
+          );
+          sharePointFolderUrl = await getItemWebUrl(accessToken, folderId);
+          sharepoint = { ok: true };
+        } catch (err) {
+          const error = err instanceof OneDriveNotConfiguredError
+            ? "onedrive_not_configured"
+            : err instanceof ItemNotFoundError
+              ? "supplier_folder_not_found"
+              : "sharepoint_link_unavailable";
+          sharepoint = { ok: false, error };
+          await supabase.from("activity_log").insert({
+            actor: user.email ?? "",
+            action: "SHAREPOINT_VENDOR_FOLDER_LINK_ERROR",
+            subject_type: "registration",
+            subject_id: body.id,
+            detail: { error },
+          });
+        }
+      }
+
       const sync = await syncVendorAfterDecision(
-        readAdmConfig(),
-        (reg?.data ?? null) as SupplierData | null,
-        status
+        admConfig,
+        supplierData,
+        status,
+        undefined,
+        sharePointFolderUrl
       );
       adm = sync;
 
@@ -121,7 +165,12 @@ export async function POST(req: Request) {
         action: `ADM_VENDOR_SYNC_${(sync.action ?? "unknown").toUpperCase()}`,
         subject_type: "registration",
         subject_id: body.id,
-        detail: { decision: status, action: sync.action ?? null, error: sync.error ?? null },
+        detail: {
+          decision: status,
+          action: sync.action ?? null,
+          error: sync.error ?? null,
+          sharepointFolderLinked: sharepoint?.ok ?? false,
+        },
       });
     } catch (err) {
       adm = { ok: false, error: "adm_error" };
@@ -138,5 +187,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, risk: result.level, triggers, adm });
+  return NextResponse.json({ ok: true, risk: result.level, triggers, adm, sharepoint });
 }

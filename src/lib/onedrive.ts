@@ -173,6 +173,14 @@ export function folderPath(registrationId: string): string {
   return `${ONEDRIVE_ROOT}/${registrationId}`;
 }
 
+function supplierFolderName(supplierName: string): string {
+  return sanitizeFileName(supplierName).replace(/[. ]+$/g, "").slice(0, 150) || "Proveedor";
+}
+
+export function supplierFolderPath(supplierName: string): string {
+  return `${ONEDRIVE_ROOT}/${supplierFolderName(supplierName)}`;
+}
+
 const REF_FOLDER_NAMES: Record<string, string> = {
   POL: "Políticas de garantías y devoluciones",
 };
@@ -205,10 +213,7 @@ export function supplierFilePath(
   ref: string,
   fileName: string
 ): string {
-  const supplierFolder = sanitizeFileName(supplierName)
-    .replace(/[. ]+$/g, "")
-    .slice(0, 150) || "Proveedor";
-  return `${ONEDRIVE_ROOT}/${supplierFolder}/${refFolderName(ref)} - ${registrationId}/${sanitizeFileName(fileName)}`;
+  return `${supplierFolderPath(supplierName)}/${refFolderName(ref)} - ${registrationId}/${sanitizeFileName(fileName)}`;
 }
 
 export function previousSupplierFilePath(
@@ -217,10 +222,7 @@ export function previousSupplierFilePath(
   ref: string,
   fileName: string
 ): string {
-  const supplierFolder = sanitizeFileName(supplierName)
-    .replace(/[. ]+$/g, "")
-    .slice(0, 150) || "Proveedor";
-  return `${ONEDRIVE_ROOT}/${supplierFolder}/${registrationId}/${ref}/${sanitizeFileName(fileName)}`;
+  return `${supplierFolderPath(supplierName)}/${registrationId}/${ref}/${sanitizeFileName(fileName)}`;
 }
 
 /** Previous storage path for documents uploaded before supplier folders. */
