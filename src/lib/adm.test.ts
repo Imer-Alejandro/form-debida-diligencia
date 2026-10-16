@@ -239,6 +239,7 @@ describe("buildVendorPayload", () => {
     data.section1.taxId = "1-31-12345-6";
     data.section1.website = "https://sbc.do";
     data.section1.mainEconomicActivity = "Servicios";
+    data.section1.goodsServices = "Consultoría y soporte";
     data.section1.legalAddress = "Calle Principal 10";
     data.section1.provinceCountry = "Santo Domingo";
     data.section3.relatedToSbc = "no";
@@ -268,13 +269,16 @@ describe("buildVendorPayload", () => {
     expect(payload.Phone1).toBe("8095551234");
     expect(payload.WebPage).toBe("https://sbc.do");
     expect(payload.BusinessActivity).toBe("Servicios");
+    expect(payload.Profile).toBe("Consultoría y soporte");
     expect(payload.IsRelated).toBe(false);
     expect(payload.CurrencyID).toBe("USD");
     expect(payload.BankAccountCurrencyID).toBe("USD");
     expect(payload.BankAccountNumber).toBe("001234");
     expect(payload.Contacts).toEqual([
       expect.objectContaining({
-        FirstName: "María Pérez",
+        FirstName: "María",
+        LastName: "Pérez",
+        ShortName: "María Pérez",
         Position: "Representante",
         Phone1: "8095551234",
         EMail: "compras@sbc.do",

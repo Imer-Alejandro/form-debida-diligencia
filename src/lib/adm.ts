@@ -246,16 +246,15 @@ export function buildVendorPayload(data: SupplierData): AdmVendor {
       if (!name && !position && !phone && !email) return row;
 
       if (name) {
-        row.FirstName = name;
+        const [firstName, ...lastName] = name.split(/\s+/);
+        row.FirstName = firstName;
+        if (lastName.length > 0) row.LastName = lastName.join(" ");
         row.ShortName = name;
       }
       if (position) row.Position = position;
       if (trim(contact.role)) row.Department = trim(contact.role);
       if (phone) row.Phone1 = phone;
-      if (email) {
-        row.EMail = email;
-        row.PersonalEMail = email;
-      }
+      if (email) row.EMail = email;
       return row;
     })
     .filter((contact) => Object.keys(contact).length > 0);
@@ -280,6 +279,7 @@ export function buildVendorPayload(data: SupplierData): AdmVendor {
   if (phones[1]) payload.Phone2 = phones[1];
   if (trim(s1.website)) payload.WebPage = trim(s1.website);
   if (trim(s1.mainEconomicActivity)) payload.BusinessActivity = trim(s1.mainEconomicActivity);
+  if (trim(s1.goodsServices)) payload.Profile = trim(s1.goodsServices);
   if (data.section3.relatedToSbc === "si" || data.section3.relatedToSbc === "no") {
     payload.IsRelated = data.section3.relatedToSbc === "si";
   }
@@ -301,7 +301,6 @@ export function buildVendorPayload(data: SupplierData): AdmVendor {
     ["Registro mercantil / código de exportador", s1.registryNo],
     ["Vencimiento del registro mercantil", s1.registryExpiry],
     ["Vencimiento del código de exportador", s1.exporterCodeExpiry],
-    ["Bienes y servicios", s1.goodsServices],
     ["Teléfono / correo general", s1.phoneEmail],
     ["Representante legal", data.section3.legalRepName],
     ["Identificación del representante legal", data.section3.legalRepId],
