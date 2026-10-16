@@ -87,7 +87,7 @@ export default async function AdminSuppliersPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {regs.map((r) => {
-                const name = r.company_name || r.commercial_name || "—";
+                const name = r.commercial_name || r.company_name || "—";
                 const initials = name.slice(0, 2).toUpperCase();
                 return (
                   <tr key={r.id} className="group transition-colors hover:bg-slate-50/70">

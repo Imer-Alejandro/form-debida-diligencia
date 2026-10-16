@@ -150,7 +150,7 @@ export default async function AdminDashboardPage({
 
   const recent = regs.slice(0, 8).map((r) => ({
     id: r.id,
-    name: r.company_name || r.commercial_name || "—",
+    name: r.commercial_name || r.company_name || "—",
     reference: r.reference_no ?? "",
     submitted: r.submitted_at ?? r.created_at,
     status: r.status,

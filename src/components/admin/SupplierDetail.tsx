@@ -303,7 +303,7 @@ export function SupplierDetail({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              {data.section1.legalName || data.section1.commercialName || "—"}
+              {data.section1.commercialName || data.section1.legalName || "—"}
             </h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
               <span className="font-mono font-semibold text-slate-700">{reg.reference_no}</span>

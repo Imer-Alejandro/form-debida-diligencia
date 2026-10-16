@@ -912,7 +912,7 @@ begin
     return jsonb_build_object('found', false, 'error', 'empty_query');
   end if;
 
-  -- 1. Try matching by invitation_token, reference_no, or tax_id
+  -- 1. Try matching by invitation_token, reference_no, or tax_id (exact)
   select r.* into v_row
   from public.supplier_registrations r
   where upper(r.invitation_token) = v_clean
@@ -920,9 +920,35 @@ begin
      or replace(replace(upper(coalesce(r.tax_id, '')), '-', ''), ' ', '') = replace(replace(v_clean, '-', ''), ' ', '')
   order by r.created_at desc limit 1;
 
+  -- 2. If not found, try matching by provider NAME (exact, case-insensitive)
+  if v_row is null then
+    select r.* into v_row
+    from public.supplier_registrations r
+    where upper(trim(coalesce(r.company_name, ''))) = v_clean
+       or upper(trim(coalesce(r.commercial_name, ''))) = v_clean
+       or upper(trim(coalesce(r.data->'section1'->>'legalName', ''))) = v_clean
+       or upper(trim(coalesce(r.data->'section1'->>'commercialName', ''))) = v_clean
+    order by r.created_at desc limit 1;
+  end if;
+
+  -- 3. If still not found, try a partial NAME match (min. 3 characters)
+  if v_row is null and length(v_clean) >= 3 then
+    select r.* into v_row
+    from public.supplier_registrations r
+    where coalesce(r.company_name, '') ilike '%' || v_clean || '%'
+       or coalesce(r.commercial_name, '') ilike '%' || v_clean || '%'
+       or (r.data->'section1'->>'legalName') ilike '%' || v_clean || '%'
+       or (r.data->'section1'->>'commercialName') ilike '%' || v_clean || '%'
+    order by r.created_at desc limit 1;
+  end if;
+
   -- If not in registrations, check invitations (brand new invited supplier who hasn't drafted yet)
   if v_row is null then
-    select * into v_inv from public.invitations i where upper(i.token) = v_clean limit 1;
+    select * into v_inv from public.invitations i
+    where upper(i.token) = v_clean
+       or upper(trim(coalesce(i.supplier_name, ''))) = v_clean
+       or (length(v_clean) >= 3 and i.supplier_name ilike '%' || v_clean || '%')
+    order by i.created_at desc limit 1;
     if v_inv is not null then
       return jsonb_build_object(
         'found', true,
@@ -952,7 +978,8 @@ begin
   return jsonb_build_object(
     'found', true,
     'reference_no', v_row.reference_no,
-    'company_name', coalesce(v_row.company_name, v_inv.supplier_name, 'Proveedor'),
+    'company_name', coalesce(nullif(v_row.commercial_name, ''), nullif(v_row.company_name, ''), v_inv.supplier_name, 'Proveedor'),
+    'commercial_name', v_row.commercial_name,
     'tax_id', v_row.tax_id,
     'provider_type', v_row.provider_type,
     'country', v_row.country,
