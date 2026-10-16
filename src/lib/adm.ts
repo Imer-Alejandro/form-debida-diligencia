@@ -1,4 +1,8 @@
-import type { SupplierData } from "./types";
+import {
+  APPROVED_REGISTRATION_STATUSES,
+  isRegistrationApproved,
+  type SupplierData,
+} from "./types";
 
 export const ADM_DEFAULT_BASE_URL = "https://api.admcloud.net/api";
 
@@ -211,8 +215,7 @@ export async function deactivateVendorByTaxId(
   return { ok: true, vendor: details };
 }
 
-export const ADM_APPROVE_DECISIONS = ["APROBADO", "APROBADO_CONDICIONES"];
-export const ADM_FINAL_DECISIONS = [...ADM_APPROVE_DECISIONS, "RECHAZADO"];
+export const ADM_FINAL_DECISIONS: string[] = [...APPROVED_REGISTRATION_STATUSES, "RECHAZADO"];
 
 export type AdmSyncAction =
   | "created"
@@ -500,6 +503,8 @@ export async function syncVendorAfterDecision(
       ? { ok: true, action: "deactivated" }
       : { ok: true, action: "rejected_not_in_adm" };
   }
+
+  if (!isRegistrationApproved(decision)) return { ok: true, action: "skipped_decision" };
 
   if (!trim(data.section1?.legalName)) return { ok: true, action: "skipped_no_name" };
 

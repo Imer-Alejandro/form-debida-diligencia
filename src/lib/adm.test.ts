@@ -19,7 +19,7 @@ import {
   upsertVendorByTaxId,
   type AdmConfig,
 } from "./adm";
-import { emptyData } from "./types";
+import { emptyData, isRegistrationApproved } from "./types";
 
 const baseConfig: AdmConfig = {
   baseUrl: ADM_DEFAULT_BASE_URL,
@@ -44,6 +44,16 @@ describe("readAdmConfig", () => {
     expect(
       readAdmConfig({ ADM_COMPANY: "demo", ADM_ROLE: "Administrators", ADM_APPID: "x" })
     ).toBeNull();
+  });
+
+  describe("isRegistrationApproved", () => {
+    it("allows only approved registration statuses", () => {
+      expect(isRegistrationApproved("APROBADO")).toBe(true);
+      expect(isRegistrationApproved("APROBADO_CONDICIONES")).toBe(true);
+      expect(isRegistrationApproved("PENDIENTE")).toBe(false);
+      expect(isRegistrationApproved("RECHAZADO")).toBe(false);
+      expect(isRegistrationApproved(undefined)).toBe(false);
+    });
   });
 
   it("uses the default base url and strips trailing slashes", () => {

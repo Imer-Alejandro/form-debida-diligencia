@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
 import { deactivateVendorByTaxId, readAdmConfig } from "@/lib/adm";
+import { isRegistrationApproved } from "@/lib/types";
 
 export async function POST(req: Request) {
   const { supabase, user } = await getAdminSession();
@@ -11,12 +12,15 @@ export async function POST(req: Request) {
 
   const { data: reg, error } = await supabase
     .from("supplier_registrations")
-    .select("id, tax_id")
+    .select("id, tax_id, status")
     .eq("id", body.id)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: "db" }, { status: 500 });
   if (!reg) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!isRegistrationApproved(reg.status)) {
+    return NextResponse.json({ error: "registration_not_approved" }, { status: 409 });
+  }
 
   const taxId = String(reg.tax_id ?? "").trim();
   if (!taxId) return NextResponse.json({ error: "no_tax_id" }, { status: 400 });

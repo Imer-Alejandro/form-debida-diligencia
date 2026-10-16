@@ -14,6 +14,7 @@ import {
   type RegistrationStatus,
   type SpecializedHistoryEntry,
   type SupplierData,
+  isRegistrationApproved,
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
@@ -381,21 +382,23 @@ export function SupplierDetail({
           </div>
         </div>
 
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-            {t("admin.detail.admTitle")}
-          </p>
-          <p className="mb-3 text-[12px] text-slate-500">{t("admin.detail.admDeactivateNote")}</p>
-          <Button
-            size="sm"
-            variant="secondary"
-            type="button"
-            onClick={() => void deactivateAdm()}
-            disabled={admLoading}
-          >
-            {admLoading ? t("common.loading") : t("admin.detail.admDeactivate")}
-          </Button>
-        </div>
+        {isRegistrationApproved(reg.status) && (
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {t("admin.detail.admTitle")}
+            </p>
+            <p className="mb-3 text-[12px] text-slate-500">{t("admin.detail.admDeactivateNote")}</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              type="button"
+              onClick={() => void deactivateAdm()}
+              disabled={admLoading}
+            >
+              {admLoading ? t("common.loading") : t("admin.detail.admDeactivate")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {flash && (

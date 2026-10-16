@@ -9,6 +9,15 @@ export type RegistrationStatus =
   | "APROBADO_CONDICIONES" // approved with conditions
   | "RECHAZADO"; // rejected
 
+export const APPROVED_REGISTRATION_STATUSES = [
+  "APROBADO",
+  "APROBADO_CONDICIONES",
+] as const satisfies readonly RegistrationStatus[];
+
+export function isRegistrationApproved(status: string | null | undefined): boolean {
+  return APPROVED_REGISTRATION_STATUSES.some((approvedStatus) => approvedStatus === status);
+}
+
 export type RiskLevel = "PENDIENTE" | "BAJO" | "MEDIO" | "ALTO" | "CRITICO";
 
 // ---------------------------------------------------------------------
