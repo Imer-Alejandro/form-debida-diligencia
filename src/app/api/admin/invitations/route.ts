@@ -1,29 +1,44 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { hasAnyRole, SUPPLIER_MANAGEMENT_ROLES } from "@/lib/access";
 import { makeToken } from "@/lib/ids";
 import { invitationEmail, sendMail } from "@/lib/mail";
+import { resolveInvitationExpiry } from "@/lib/invitation-expiry";
 
 export async function POST(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
-  const body = (await req.json()) as {
+  const body = (await req.json().catch(() => null)) as {
     company?: string;
     email?: string;
     note?: string;
     language?: "es" | "en";
     expiresAt?: string | null;
-  };
+  } | null;
+  if (!body) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
   const company = String(body.company ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
-  if (!company) return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  const note = typeof body.note === "string" ? body.note : "";
+  if (
+    !company ||
+    company.length > 200 ||
+    email.length > 320 ||
+    (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) ||
+    note.length > 2000
+  ) {
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
 
   const token = makeToken();
   const language: "es" | "en" = body.language === "en" ? "en" : "es";
-  const expiresAt = body.expiresAt
-    ? new Date(body.expiresAt).toISOString()
-    : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  const expiry = resolveInvitationExpiry(body.expiresAt);
+  if (!expiry.ok) return NextResponse.json({ error: "invalid_expiry" }, { status: 400 });
+  const expiresAt = expiry.expiresAt;
 
   const { data: inv, error } = await supabase
     .from("invitations")
@@ -31,7 +46,7 @@ export async function POST(req: Request) {
       token,
       supplier_name: company,
       supplier_email: email || null,
-      note: body.note ?? "",
+      note,
       status: "sent",
       language,
       created_by: user.id,
@@ -52,7 +67,7 @@ export async function POST(req: Request) {
       const msg = invitationEmail(language, {
         company,
         link,
-        note: body.note ?? "",
+        note,
         expiresAt,
         appName:
           language === "en" ? "Due Diligence Form" : "Formulario de Debida Diligencia",
@@ -83,8 +98,11 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const body = (await req.json()) as { id?: string };
   const id = String(body.id ?? "");

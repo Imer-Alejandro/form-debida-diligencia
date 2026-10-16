@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { hasAnyRole, SUPPLIER_MANAGEMENT_ROLES, SUPPLIER_READ_ROLES } from "@/lib/access";
 import { makeToken } from "@/lib/ids";
 import { internalLinkPath, normalizeInternalKind } from "@/lib/process";
 
 export async function GET(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_READ_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const registrationId = new URL(req.url).searchParams.get("registrationId");
   if (!registrationId) return NextResponse.json({ error: "bad_request" }, { status: 400 });
@@ -36,8 +40,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const body = (await req.json().catch(() => null)) as {
     registrationId?: string;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runAlertEngine } from "@/lib/alerts";
+import { runAlertEngine, runSlaMonitor } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,8 +17,11 @@ async function handle(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const summary = await runAlertEngine();
-    return NextResponse.json({ ok: true, ...summary });
+    const [alerts, sla] = await Promise.all([
+      runAlertEngine(),
+      runSlaMonitor(),
+    ]);
+    return NextResponse.json({ ok: true, alerts, sla });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : "unknown" },

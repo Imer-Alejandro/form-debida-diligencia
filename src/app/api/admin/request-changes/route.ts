@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { hasAnyRole, SUPPLIER_MANAGEMENT_ROLES } from "@/lib/access";
 import { makeToken } from "@/lib/ids";
 import { requestChangesEmail, sendMail } from "@/lib/mail";
 
 export async function POST(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const body = (await req.json()) as { id?: string; note?: string };
   if (!body.id) return NextResponse.json({ error: "bad_request" }, { status: 400 });

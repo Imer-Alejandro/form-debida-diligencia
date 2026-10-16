@@ -31,7 +31,9 @@ export function NewInvitation() {
         email,
         note,
         language,
-        expiresAt: expires ? new Date(expires).toISOString() : null,
+        expiresAt: expires
+          ? new Date(`${expires}T23:59:59`).toISOString()
+          : null,
       }),
     });
     const data = (await res.json()) as {

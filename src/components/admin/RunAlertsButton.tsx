@@ -12,6 +12,12 @@ interface RunSummary {
   failed: number;
   skipped: number;
   mailConfigured: boolean;
+  sla?: {
+    overdue: number;
+    escalated: number;
+    failed: number;
+    skipped: number;
+  };
 }
 
 export function RunAlertsButton() {
@@ -39,7 +45,16 @@ export function RunAlertsButton() {
         failed: data.failed,
         skipped: data.skipped,
       });
-      setResult(data.mailConfigured ? summary : `${summary} ${t("admin.alerts.mailOff")}`);
+      const slaSummary = data.sla
+        ? ` ${t("admin.alerts.slaRunResult", {
+            overdue: data.sla.overdue,
+            escalated: data.sla.escalated,
+            failed: data.sla.failed,
+          })}`
+        : "";
+      setResult(
+        `${data.mailConfigured ? summary : `${summary} ${t("admin.alerts.mailOff")}`}${slaSummary}`
+      );
       router.refresh();
     } catch {
       setError(t("admin.alerts.runFailed"));

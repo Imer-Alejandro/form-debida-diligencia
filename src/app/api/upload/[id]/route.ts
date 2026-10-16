@@ -23,44 +23,19 @@ export async function DELETE(
   }
 
   const supabase = createPublicClient();
-  const { data: row } = await supabase
-    .from("registration_documents")
-    .select("id, registration_id, ref, file_name")
-    .eq("id", id)
-    .eq("invitation_token", token)
-    .maybeSingle();
-
-  if (!row) {
-    return Response.json({ error: "not_found" }, { status: 404 });
-  }
-
-  const { data: allowed } = await supabase.rpc("supplier_can_edit_registration", {
-    p_token: token,
-    p_registration_id: row.registration_id,
-  });
-  if (!allowed) {
-    return Response.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  try {
-    const { data: removed } = await supabase
-      .from("registration_documents")
-      .delete()
-      .eq("id", id)
-      .eq("invitation_token", token)
-      .select("id, registration_id, ref, file_name");
-    if (!removed || removed.length !== 1) {
-      // RLS refused the delete (e.g. the registration token rotated since the
-      // document was attached). Abort BEFORE touching the SharePoint file so a
-      // record is never left pointing at an empty folder.
-      return Response.json({ error: "not_found" }, { status: 404 });
+  const { data: removed, error: removeError } = await supabase.rpc(
+    "delete_registration_document",
+    { p_token: token, p_document_id: id }
+  );
+  const row = Array.isArray(removed) ? removed[0] : removed;
+  if (removeError) {
+    if (removeError.code === "42501") {
+      return Response.json({ error: "forbidden" }, { status: 403 });
     }
-  } catch (err) {
-    return Response.json(
-      { error: "server_error", message: err instanceof Error ? err.message : "delete_failed" },
-      { status: 500 }
-    );
+    console.error("Could not remove supplier document:", removeError.message);
+    return Response.json({ error: "server_error" }, { status: 500 });
   }
+  if (!row) return Response.json({ error: "not_found" }, { status: 404 });
 
   try {
     const accessToken = await getAccessToken();

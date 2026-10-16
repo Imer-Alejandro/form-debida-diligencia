@@ -15,7 +15,7 @@ export default async function AdminSupplierDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase } = await getAdminSession();
+  const { supabase, role } = await getAdminSession();
 
   const { data: reg } = await supabase
     .from("supplier_registrations")
@@ -35,6 +35,23 @@ export default async function AdminSupplierDetailPage({
     .eq("registration_id", id)
     .order("created_at", { ascending: false })
     .limit(50);
+
+  const { data: pendingReviews } = await supabase
+    .from("department_reviews")
+    .select("department")
+    .eq("registration_id", id)
+    .eq("required", true)
+    .neq("status", "COMPLETED");
+  const { data: departments } = await supabase
+    .from("review_departments")
+    .select("id, name")
+    .eq("active", true)
+    .order("name");
+  const { data: exceptions } = await supabase
+    .from("approval_exceptions")
+    .select("id, actor_email, reason, pending_reviews, created_at")
+    .eq("registration_id", id)
+    .order("created_at", { ascending: false });
 
   if (!reg) {
     return (
@@ -58,6 +75,12 @@ export default async function AdminSupplierDetailPage({
       docs={(docs ?? []) as DocumentRow[]}
       specializedHistory={(history ?? []) as SpecializedHistoryEntry[]}
       specializedHistoryUnavailable={Boolean(historyError)}
+      role={role ?? "READ_ONLY"}
+      pendingReviewDepartments={[
+        ...new Set((pendingReviews ?? []).map((review) => review.department)),
+      ]}
+      departmentOptions={departments ?? []}
+      approvalExceptions={exceptions ?? []}
     />
   );
 }

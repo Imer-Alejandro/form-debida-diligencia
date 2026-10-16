@@ -34,6 +34,7 @@ describe("POST /api/admin/adm/vendor", () => {
     mocks.getAdminSession.mockResolvedValue({
       supabase: { from: vi.fn(() => query) },
       user: { email: "admin@example.com" },
+      role: "ADMIN",
     });
 
     const response = await POST(

@@ -3,6 +3,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { canApproveException, type AppRole } from "@/lib/access";
+import { evaluateTriggers } from "@/lib/risk";
 import { useDict, useI18n } from "@/lib/i18n";
 import {
   REQUESTING_AREAS,
@@ -125,11 +127,25 @@ export function SupplierDetail({
   docs,
   specializedHistory,
   specializedHistoryUnavailable,
+  role,
+  pendingReviewDepartments,
+  departmentOptions,
+  approvalExceptions,
 }: {
   reg: RegistrationRow;
   docs: DocumentRow[];
   specializedHistory: SpecializedHistoryEntry[];
   specializedHistoryUnavailable: boolean;
+  role: AppRole;
+  pendingReviewDepartments: string[];
+  departmentOptions: { id: string; name: string }[];
+  approvalExceptions: {
+    id: number;
+    actor_email: string | null;
+    reason: string;
+    pending_reviews: unknown;
+    created_at: string;
+  }[];
 }) {
   const { t } = useI18n();
   const dict = useDict();
@@ -152,6 +168,12 @@ export function SupplierDetail({
   const [showDelete, setShowDelete] = useState(false);
   const [deactivateAdmOnDelete, setDeactivateAdmOnDelete] = useState(false);
   const [delLoading, setDelLoading] = useState(false);
+  const [approvalExceptionReason, setApprovalExceptionReason] = useState("");
+  const activeTriggers = evaluateTriggers({
+    ratings: evaluation.section12.riskCategories ?? {},
+    redFlag: evaluation.section12.redFlag,
+    estimatedAmount: evaluation.section12.estimatedAnnualAmount,
+  });
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -169,21 +191,42 @@ export function SupplierDetail({
 
   const saveEvaluation = async () => {
     setSaving("eval");
-    const res = await fetch("/api/admin/evaluation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: reg.id, evaluation }),
-    });
-    const data = (await res.json().catch(() => ({}))) as {
-      adm?: { ok?: boolean; action?: string };
-      sharepoint?: { ok?: boolean; error?: string } | null;
-    };
-    setSaving(null);
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/admin/evaluation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: reg.id,
+          evaluation,
+          approvalExceptionReason: approvalExceptionReason.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        adm?: { ok?: boolean; action?: string };
+        sharepoint?: { ok?: boolean; error?: string } | null;
+      };
+      if (!res.ok) {
+        notify(
+          data.error === "department_reviews_pending"
+            ? t("admin.detail.departmentReviewsPending")
+            : data.error === "department_reason_required"
+              ? t("admin.detail.departmentReasonRequired")
+              : data.error === "invalid_department"
+                ? t("admin.detail.invalidDepartment")
+                : t("admin.detail.saveEvaluationFailed")
+        );
+        return;
+      }
+      setApprovalExceptionReason("");
       const message = data.sharepoint?.ok === false
         ? t("admin.detail.sharepointFolderLinkFailed")
         : admFlash(data.adm) ?? t("admin.detail.savedEvaluation");
       notify(message);
+    } catch {
+      notify(t("admin.detail.saveEvaluationFailed"));
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -736,6 +779,114 @@ export function SupplierDetail({
                   <RiskMatrix evaluation={evaluation} onChange={patchEval} />
                 </Accordion>
 
+                <Accordion title={t("admin.detail.departmentReviews")}>
+                  <div className="space-y-3">
+                    <p className="text-xs leading-relaxed text-ink-muted">
+                      {t("admin.detail.departmentReviewHelp")}
+                    </p>
+                    {departmentOptions.map((department) => {
+                      const triggerKey = {
+                        FINANCE: "finance",
+                        LEGAL: "legal",
+                        TECHNOLOGY: "technology",
+                      }[department.id] as "finance" | "legal" | "technology" | undefined;
+                      const automatic = triggerKey
+                        ? activeTriggers[triggerKey]
+                        : false;
+                      const selected =
+                        automatic ||
+                        (evaluation.section12.requiredDepartments ?? []).includes(
+                          department.id
+                        );
+                      return (
+                        <div
+                          key={department.id}
+                          className="rounded-xl border border-slate-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Checkbox
+                              label={department.name}
+                              checked={selected}
+                              disabled={automatic}
+                              onChange={(checked) =>
+                                patchEval((ev) => {
+                                  const current = new Set(
+                                    ev.section12.requiredDepartments ?? []
+                                  );
+                                  if (checked) current.add(department.id);
+                                  else current.delete(department.id);
+                                  return {
+                                    ...ev,
+                                    section12: {
+                                      ...ev.section12,
+                                      requiredDepartments: [...current],
+                                    },
+                                  };
+                                })
+                              }
+                            />
+                            {automatic && (
+                              <span className="text-xs font-normal text-teal-700">
+                                {t("admin.detail.departmentTriggered")}
+                              </span>
+                            )}
+                          </div>
+                          {selected && !automatic && (
+                            <Textarea
+                              className="mt-2"
+                              rows={2}
+                              required
+                              maxLength={1000}
+                              value={
+                                evaluation.section12.departmentReasons?.[
+                                  department.id
+                                ] ?? ""
+                              }
+                              placeholder={t("admin.detail.departmentReason")}
+                              onChange={(e) =>
+                                patchEval((ev) => ({
+                                  ...ev,
+                                  section12: {
+                                    ...ev.section12,
+                                    departmentReasons: {
+                                      ...ev.section12.departmentReasons,
+                                      [department.id]: e.target.value,
+                                    },
+                                  },
+                                }))
+                              }
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                    {pendingReviewDepartments.length > 0 && (
+                      <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                        {t("admin.detail.pendingReviewList")}:{" "}
+                        {pendingReviewDepartments.join(", ")}
+                      </p>
+                    )}
+                    {approvalExceptions.length > 0 && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs font-semibold text-amber-900">
+                          {t("admin.detail.approvalExceptionHistory")}
+                        </p>
+                        {approvalExceptions.map((exception) => (
+                          <div key={exception.id} className="mt-2 text-xs text-amber-900">
+                            <p>
+                              {exception.created_at
+                                ? formatDate(exception.created_at)
+                                : "—"}{" "}
+                              · {exception.actor_email ?? "—"}
+                            </p>
+                            <p className="mt-1">{exception.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Accordion>
+
                 <Accordion title={t("admin.detail.specializedValidation")}>
                   <SpecializedHistory
                     entries={specializedHistory}
@@ -909,6 +1060,37 @@ export function SupplierDetail({
                     );
                   })}
                 </div>
+
+                {pendingReviewDepartments.length > 0 &&
+                  ["APROBADO", "APROBADO_CONDICIONES"].includes(
+                    evaluation.section13.decision
+                  ) && (
+                    <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                      <p className="font-semibold">
+                        {t("admin.detail.departmentReviewsPending")}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        {pendingReviewDepartments.join(", ")}
+                      </p>
+                      {canApproveException(role) && (
+                        <Field
+                          className="mt-3"
+                          label={t("admin.detail.approvalExceptionReason")}
+                        >
+                          <Textarea
+                            rows={3}
+                            minLength={10}
+                            maxLength={1000}
+                            required
+                            value={approvalExceptionReason}
+                            onChange={(event) =>
+                              setApprovalExceptionReason(event.target.value)
+                            }
+                          />
+                        </Field>
+                      )}
+                    </div>
+                  )}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label={t("admin.detail.conditions")} className="sm:col-span-2">

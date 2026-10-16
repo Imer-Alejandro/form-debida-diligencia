@@ -20,9 +20,20 @@ export default function AdminLoginPage() {
     setError(null);
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(t("admin.login.error"));
+      setLoading(false);
+      return;
+    }
+    const { data: assignment, error: roleError } = await supabase
+      .from("app_user_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    if (roleError || !assignment?.role) {
+      await supabase.auth.signOut();
+      setError(t("admin.login.noRole"));
       setLoading(false);
       return;
     }

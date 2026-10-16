@@ -10,11 +10,17 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
   const { token } = await params;
 
   const supabase = createPublicClient();
-  const { data: inv } = await supabase
-    .from("invitations")
-    .select("token, supplier_name, supplier_email, status, expires_at, language")
-    .eq("token", token)
+  const { data: invitationData } = await supabase
+    .rpc("get_invitation_for_token", { p_token: token })
     .maybeSingle();
+  const inv = invitationData as {
+    token: string;
+    supplier_name: string | null;
+    supplier_email: string | null;
+    status: string;
+    expires_at: string | null;
+    language: string;
+  } | null;
 
   let prefill: SupplierData | null = null;
   let registration: RegistrationRow | null = null;

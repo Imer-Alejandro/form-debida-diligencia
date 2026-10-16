@@ -7,8 +7,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { LangToggle } from "@/components/LangToggle";
+import {
+  canManageSuppliers,
+  canManageUsers,
+  canReadSupplierRecords,
+  type AppRole,
+} from "@/lib/access";
 
-type NavKey = "dashboard" | "suppliers" | "invitations" | "alerts" | "users" | "settings";
+type NavKey = "dashboard" | "suppliers" | "invitations" | "alerts" | "users" | "settings" | "reviews";
 
 interface NavItem {
   href: string;
@@ -43,10 +49,13 @@ const NAV_GROUPS_RAW: NavGroup[] = [
       { href: "/admin/settings", key: "settings", icon: "gear" },
     ],
   },
+  {
+    label: "REVISIONES",
+    items: [{ href: "/admin/reviews", key: "reviews", icon: "users" }],
+  },
 ];
 
-/** Apartados ocultos del menú. Vaciar esta lista para volver a mostrarlos. */
-const HIDDEN_NAV_KEYS: NavKey[] = ["users", "settings"];
+const HIDDEN_NAV_KEYS: NavKey[] = ["settings"];
 
 const NAV_GROUPS: NavGroup[] = NAV_GROUPS_RAW.map((group) => ({
   ...group,
@@ -98,23 +107,36 @@ const ICONS: Record<string, ReactNode> = {
   ),
 };
 
-const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
-
 export function AdminShell({
   children,
   email,
+  role,
 }: {
   children: ReactNode;
   email: string;
+  role: AppRole;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
   const [signingOut, setSigningOut] = useState(false);
   const [searchVal, setSearchVal] = useState("");
+  const visibleNavGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      if (item.key === "users") return canManageUsers(role);
+      if (item.key === "invitations") return canManageSuppliers(role);
+      if (item.key === "suppliers" || item.key === "alerts") {
+        return canReadSupplierRecords(role);
+      }
+      if (item.key === "reviews") return true;
+      return true;
+    }),
+  })).filter((group) => group.items.length > 0);
+  const visibleNav = visibleNavGroups.flatMap((group) => group.items);
 
   const activeKey =
-    ALL_NAV.find(
+    visibleNav.find(
       (n) => (n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href))
     )?.key ?? "dashboard";
   const initial = (email || "?").trim().charAt(0).toUpperCase();
@@ -159,7 +181,7 @@ export function AdminShell({
         </div>
 
         {/* Quick CTA button */}
-        <div className="hidden px-3 pt-3.5 lg:block">
+        {canManageSuppliers(role) && <div className="hidden px-3 pt-3.5 lg:block">
           <Link
             href="/admin/invitations"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3.5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-navy-800 transition-colors"
@@ -170,11 +192,11 @@ export function AdminShell({
             </svg>
             <span>Nueva Invitación</span>
           </Link>
-        </div>
+        </div>}
 
         {/* Navigation Categories */}
         <nav className="flex-1 space-y-5 px-3 py-4 overflow-y-auto">
-          {NAV_GROUPS.map((group) => (
+          {visibleNavGroups.map((group) => (
             <div key={group.label} className="space-y-1">
               <p className="hidden px-3 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 lg:block mb-1.5">
                 {group.label}
@@ -279,6 +301,7 @@ export function AdminShell({
           {/* Quick Search and Session Info */}
           <div className="flex items-center gap-3">
             {/* Quick search input (inspired by image 1 and 3) */}
+            {canReadSupplierRecords(role) && (
             <form onSubmit={handleSearchSubmit} className="relative hidden md:block">
               <svg
                 viewBox="0 0 24 24"
@@ -303,12 +326,13 @@ export function AdminShell({
                 ⌘K
               </span>
             </form>
+            )}
 
             <LangToggle />
 
             {/* Mobile Navigation bar */}
             <nav className="flex gap-1 lg:hidden">
-              {ALL_NAV.map((item) => {
+              {visibleNav.map((item) => {
                 const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
                 return (
                   <Link

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { hasAnyRole, SUPPLIER_MANAGEMENT_ROLES } from "@/lib/access";
 import { normalizeIncidentStatus, validateIncidentFollowUp } from "@/lib/process";
 
 export async function POST(req: Request) {
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) return NextResponse.json({ error: "no_auth" }, { status: 401 });
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const body = (await req.json().catch(() => null)) as {
     id?: string;

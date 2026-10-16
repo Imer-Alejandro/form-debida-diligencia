@@ -25,6 +25,17 @@ export interface MailMessage {
   html: string;
 }
 
+export function parseMailRecipients(value: string | null | undefined): string[] {
+  return [
+    ...new Set(
+      (value ?? "")
+        .split(/[,;]/)
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+}
+
 export async function sendMail(msg: MailMessage): Promise<void> {
   if (!isMailConfigured()) throw new MailNotConfiguredError();
   const transport = nodemailer.createTransport({
@@ -174,6 +185,64 @@ export function requestChangesEmail(
     html,
     text: `${hello}\n\n${intro}\n\n${args.note ? `${noteLabel}\n${args.note}\n\n` : ""}${args.link}\n${expires ? `${expiresLabel} ${expires}\n` : ""}`,
   };
+}
+
+export function departmentReviewEmail(args: {
+  company: string;
+  reference: string | null;
+  department: string;
+  requestReason: string | null;
+  link: string;
+}): MailMessage {
+  const company = esc(args.company);
+  const department = esc(args.department);
+  const reference = args.reference ? esc(args.reference) : "";
+  const reason = args.requestReason ? esc(args.requestReason) : "";
+  const subject = `Nueva revisión asignada a ${args.department}: ${args.company}`;
+  const text = [
+    `Se envió al responsable de ${args.department} una solicitud para revisar el expediente del proveedor ${args.company}.`,
+    reference ? `Referencia: ${args.reference}` : "",
+    reason ? `Motivo de la solicitud: ${args.requestReason}` : "",
+    "El plazo SLA de tres días hábiles inicia cuando se confirme la recepción del expediente completo.",
+    `Abra el expediente del proveedor y registre la revisión en el portal: ${args.link}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const html = `
+<p>Se envió al responsable de <strong>${department}</strong> una solicitud para revisar el expediente del proveedor <strong>${company}</strong>.</p>
+${reference ? `<p>Referencia: ${reference}</p>` : ""}
+${reason ? `<p><strong>Motivo de la solicitud:</strong> ${reason}</p>` : ""}
+<p>El plazo SLA de tres días hábiles inicia cuando se confirme la recepción del expediente completo.</p>
+<p><a href="${esc(args.link)}">Abrir expediente y registrar la revisión</a></p>`;
+  return { to: "", subject, text, html };
+}
+
+export function departmentSlaEscalationEmail(args: {
+  company: string;
+  reference: string | null;
+  department: string;
+  dueAt: string;
+  link: string;
+}): MailMessage {
+  const company = esc(args.company);
+  const department = esc(args.department);
+  const reference = args.reference ? esc(args.reference) : "";
+  const dueAt = esc(args.dueAt);
+  const subject = `SLA vencido: revisión de ${args.department}`;
+  const text = [
+    `La revisión de ${args.department} para ${args.company} superó el SLA de tres días hábiles.`,
+    reference ? `Referencia: ${args.reference}` : "",
+    `Vencimiento: ${args.dueAt}`,
+    `Panel de seguimiento: ${args.link}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const html = `
+<p>La revisión de <strong>${department}</strong> para <strong>${company}</strong> superó el SLA de tres días hábiles.</p>
+${reference ? `<p>Referencia: ${reference}</p>` : ""}
+<p>Vencimiento: ${dueAt}</p>
+<p><a href="${esc(args.link)}">Abrir panel de seguimiento</a></p>`;
+  return { to: "", subject, text, html };
 }
 
 /** Shared HTML shell for the alert e-mails. */

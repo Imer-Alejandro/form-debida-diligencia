@@ -18,7 +18,7 @@ Plataforma de registro de proveedores con formulario de debida diligencia (bilin
 
 2. Configurar variables de entorno: copiar `.env.example` a `.env.local` y completar.
 
-3. Crear tablas y el usuario admin en Supabase (una sola vez):
+3. Crear tablas, controles de acceso y el usuario admin en Supabase:
 
    - **Opción A (recomendada):** añadir `DATABASE_URL`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` a `.env.local` y ejecutar:
 
@@ -26,7 +26,7 @@ Plataforma de registro de proveedores con formulario de debida diligencia (bilin
      npm run setup:db
      ```
 
-   - **Opción B (manual):** pegar `supabase/schema.sql` en el SQL Editor de Supabase → Run, y crear el usuario en **Authentication → Users → Add user**.
+   - **Opción B (manual):** ejecutar `supabase/schema.sql` y después `supabase/security-sla.sql` en el SQL Editor; crear el usuario en **Authentication → Users → Add user**, configurar `DATABASE_URL` y `ADMIN_EMAIL`, y ejecutar `npm run migrate:security-sla` para asignar el primer rol ADMIN. Este comando no cambia contraseñas ni elimina usuarios.
 
 4. Levantar en modo desarrollo:
 
@@ -49,6 +49,33 @@ Plataforma de registro de proveedores con formulario de debida diligencia (bilin
 - `src/lib/i18n/` — diccionarios ES/EN y proveedor de contexto (idioma por cookie `sb_lang`)
 - `src/lib/onedrive.ts`, `src/lib/supabase/` — integración con SharePoint y Supabase
 - `supabase/schema.sql` — DDL, RLS y funciones SQL
+- `supabase/security-sla.sql` — roles, políticas RLS, revisiones departamentales y SLA
+
+## Roles y seguimiento SLA
+
+El acceso se asigna desde `/admin/users`: Administrador, Gerencia, Compras,
+Revisor departamental (con departamento) o Lectura. Un usuario sin rol no puede
+entrar al panel. Los revisores solo pueden consultar registros con una revisión
+asignada a su departamento.
+
+En `/admin/reviews`, el Administrador configura departamentos, correos de
+notificación/escalamiento y feriados de Santo Domingo. La solicitud notifica al
+correo responsable configurado para el área y enlaza directamente al expediente
+departamental; el acceso requiere iniciar sesión y respeta el departamento y la
+asignación del revisor. La vista contiene los datos del formulario, la evaluación
+interna y los documentos con acceso autenticado. Finanzas, Legal y
+Tecnología se activan por los disparadores de riesgo existentes; Compras puede
+agregar otras áreas en la evaluación explicando el motivo. Las solicitudes se
+envían en paralelo. El reloj de tres días hábiles inicia cuando se confirma la
+recepción del expediente completo, se pausa al pedir información y se reanuda
+al confirmar su recepción. El cron diario `/api/cron/alerts` notifica a Compras
+y escala los SLA vencidos; defina `CRON_SECRET`, SMTP y las direcciones de
+Compras. La aprobación final queda bloqueada por revisiones requeridas sin
+respuesta; solo ADMIN o Gerencia pueden registrar una excepción con motivo.
+
+Para bases existentes, ejecute `npm run migrate:security-sla` con
+`DATABASE_URL` y `ADMIN_EMAIL` configurados en `.env.local`. El script preserva
+los usuarios y asigna ADMIN únicamente a la cuenta indicada.
 
 ## Variables de entorno
 

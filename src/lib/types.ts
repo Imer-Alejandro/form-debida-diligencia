@@ -298,6 +298,9 @@ export interface Evaluation {
      * evaluations were saved before this field existed.
      */
     specialized?: SpecializedMap;
+    /** Additional reviewing departments selected by Purchasing with a reason. */
+    requiredDepartments?: string[];
+    departmentReasons?: Record<string, string>;
     checks: ValidationCheck[];
   };
   section13: {
@@ -335,6 +338,8 @@ export function emptyEvaluation(): Evaluation {
       redFlagNotes: "",
       computedRisk: "PENDIENTE",
       specialized: emptySpecializedMap(),
+      requiredDepartments: [],
+      departmentReasons: {},
       checks: checkIds.map((id) => ({ id, result: "", date: "", notes: "" })),
     },
     section13: {

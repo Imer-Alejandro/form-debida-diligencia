@@ -16,8 +16,9 @@
  *                               newer Supabase versions due to GoTrue schema drift).
  *
  * What it does:
- *   1. Executes supabase/schema.sql against the database.
- *   2. Creates the admin user and verifies login works.
+ *   1. Executes the base schema and security/SLA migration.
+ *   2. Creates or updates the configured admin without deleting existing users.
+ *   3. Assigns the initial ADMIN role and verifies login works.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -63,31 +64,41 @@ async function main() {
   const sql = readFileSync(resolve(here, "../supabase/schema.sql"), "utf8");
   await client.query(sql);
   console.log("✓ supabase/schema.sql ejecutado");
+  const securitySql = readFileSync(
+    resolve(here, "../supabase/security-sla.sql"),
+    "utf8"
+  );
+  await client.query(securitySql);
+  console.log("✓ supabase/security-sla.sql ejecutado");
 
   if (SERVICE_ROLE) {
     // ------------------------------------------------------------------
-    // Preferred path: Admin API. Recreates the user cleanly if it exists.
+    // Preferred path: preserve the existing auth user ID and its role history.
     // ------------------------------------------------------------------
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, SERVICE_ROLE, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const found = await sb.auth.admin.getUserByEmail(ADMIN_EMAIL);
-    let existingId =
+    const existingId =
       found.data && found.data.user ? found.data.user.id : null;
     if (existingId) {
-      await client.query("delete from auth.identities where user_id = $1", [existingId]);
-      await client.query("delete from auth.users where id = $1", [existingId]);
-      console.log("✓ Usuario previo eliminado para recrearlo correctamente");
+      const { error } = await sb.auth.admin.updateUserById(existingId, {
+        password: ADMIN_PASSWORD,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Admin API: ${error.message}`);
+      console.log(`✓ Usuario admin existente actualizado: ${ADMIN_EMAIL}`);
+    } else {
+      const { data, error } = await sb.auth.admin.createUser({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Admin API: ${error.message}`);
+      if (!data.user) throw new Error("Admin API no devolvió el usuario creado.");
+      console.log(`✓ Usuario admin creado vía Admin API: ${ADMIN_EMAIL}`);
     }
-
-    const { error } = await sb.auth.admin.createUser({
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`Admin API: ${error.message}`);
-    console.log(`✓ Usuario admin creado vía Admin API: ${ADMIN_EMAIL}`);
   } else {
     // ------------------------------------------------------------------
     // Fallback: manual insert (may not work on newer Supabase versions)
@@ -98,39 +109,58 @@ async function main() {
     const passwordHash = `crypt(${client.escapeLiteral(ADMIN_PASSWORD)}, gen_salt('bf'))`;
     const existing = await client.query("select id from auth.users where email = $1 limit 1", [ADMIN_EMAIL]);
     let userId = existing.rowCount > 0 ? existing.rows[0].id : null;
-
     if (userId) {
-      await client.query("delete from auth.identities where user_id = $1", [userId]);
-      await client.query("delete from auth.users where id = $1", [userId]);
-      console.log("✓ Usuario previo eliminado para recrearlo correctamente");
+      await client.query(
+        `update auth.users
+            set encrypted_password = ${passwordHash},
+                email_confirmed_at = coalesce(email_confirmed_at, now()),
+                updated_at = now()
+          where id = $1`,
+        [userId]
+      );
+      console.log(`✓ Usuario admin existente actualizado: ${ADMIN_EMAIL}`);
+    } else {
+      const userIns = await client.query(
+        `insert into auth.users
+           (instance_id, id, aud, role, email, encrypted_password,
+            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+            created_at, updated_at, confirmation_token, recovery_token)
+         values
+           ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', $1,
+            ${passwordHash},
+            now(), '{"provider":"email","providers":["email"]}', '{}',
+            now(), now(), '', '')
+         returning id`,
+        [ADMIN_EMAIL]
+      );
+      userId = userIns.rows[0].id;
+      console.log(`✓ Usuario admin creado (manual): ${ADMIN_EMAIL}`);
     }
-
-    const userIns = await client.query(
-      `insert into auth.users
-         (instance_id, id, aud, role, email, encrypted_password,
-          email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-          created_at, updated_at, confirmation_token, recovery_token)
-       values
-         ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', $1,
-          ${passwordHash},
-          now(), '{"provider":"email","providers":["email"]}', '{}',
-          now(), now(), '', '')
-       returning id`,
-      [ADMIN_EMAIL]
-    );
-    userId = userIns.rows[0].id;
-    await client.query(
-      `insert into auth.identities
-         (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-       select gen_random_uuid(), u.id, u.id::text,
-              jsonb_build_object('sub', u.id::text, 'email', u.email), 'email',
-              now(), now(), now()
-       from auth.users u
-       where u.id = $1`,
+    const identityExists = await client.query(
+      "select 1 from auth.identities where user_id = $1 and provider = 'email' limit 1",
       [userId]
     );
-    console.log(`✓ Usuario admin creado (manual): ${ADMIN_EMAIL}`);
+    if (identityExists.rowCount === 0) {
+      await client.query(
+        `insert into auth.identities
+           (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+         select gen_random_uuid(), u.id, u.id::text,
+                jsonb_build_object('sub', u.id::text, 'email', u.email), 'email',
+                now(), now(), now()
+         from auth.users u
+         where u.id = $1`,
+        [userId]
+      );
+    }
   }
+
+  await client.query(
+    `insert into public.app_user_roles (user_id, role, department)
+     select id, 'ADMIN', null from auth.users where lower(email) = lower($1)
+     on conflict (user_id) do update
+       set role = 'ADMIN', department = null, updated_at = now()`,
+    [ADMIN_EMAIL]
+  );
 
   const check = await verifyLogin();
   console.log(

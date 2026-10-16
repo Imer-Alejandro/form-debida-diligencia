@@ -3,6 +3,7 @@ import { getAdminApi, isAdminApiConfigured } from "@/lib/supabase/admin";
 import { makeToken } from "@/lib/ids";
 import {
   MailNotConfiguredError,
+  departmentSlaEscalationEmail,
   expiryInternalEmail,
   expirySupplierEmail,
   formReminderEmail,
@@ -58,6 +59,13 @@ export interface AlertSummary {
   purchasingRecipients: string[];
 }
 
+export interface SlaMonitorSummary {
+  overdue: number;
+  escalated: number;
+  failed: number;
+  skipped: number;
+}
+
 function appName(language: "es" | "en"): string {
   return language === "en"
     ? "Due Diligence Form"
@@ -87,6 +95,120 @@ export function purchasingRecipients(): string[] {
     .split(/[,;]/)
     .map((v) => v.trim())
     .filter(Boolean);
+}
+
+export async function runSlaMonitor(): Promise<SlaMonitorSummary> {
+  if (!isAdminApiConfigured()) throw new Error("admin_api_not_configured");
+  const admin = getAdminApi();
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const { data, error } = await admin
+    .from("department_reviews")
+    .select(
+      "id, registration_id, department, due_at, last_escalated_at, escalation_count, review_departments!inner(name, recipient_email, escalation_email), supplier_registrations!inner(company_name, reference_no)"
+    )
+    .eq("status", "IN_REVIEW")
+    .lt("due_at", now.toISOString());
+  if (error) throw new Error(`sla_candidates_query_failed: ${error.message}`);
+
+  const overdue = data ?? [];
+  const ready = overdue.filter(
+    (row) =>
+      !row.last_escalated_at ||
+      new Date(row.last_escalated_at).getTime() <= dayAgo.getTime()
+  );
+  let escalated = 0;
+  let failed = 0;
+  let skipped = 0;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+
+  for (const row of ready) {
+    const { data: claimed, error: claimError } = await admin.rpc(
+      "claim_department_sla_escalation",
+      { p_review_id: row.id }
+    );
+    if (claimError) {
+      console.error(
+        `Could not claim overdue department review ${row.id}:`,
+        claimError.message
+      );
+      failed += 1;
+      continue;
+    }
+    if (!claimed) {
+      skipped += 1;
+      continue;
+    }
+    const releaseClaim = async () => {
+      const { error: releaseError } = await admin.rpc(
+        "release_department_sla_escalation",
+        { p_review_id: row.id }
+      );
+      if (releaseError) {
+        console.error(
+          `Could not release SLA escalation claim ${row.id}:`,
+          releaseError.message
+        );
+      }
+    };
+
+    const department = Array.isArray(row.review_departments)
+      ? row.review_departments[0]
+      : row.review_departments;
+    const registration = Array.isArray(row.supplier_registrations)
+      ? row.supplier_registrations[0]
+      : row.supplier_registrations;
+    const recipients = [
+      department?.recipient_email,
+      department?.escalation_email,
+      ...purchasingRecipients(),
+    ]
+      .filter((email): email is string => Boolean(email?.trim()))
+      .map((email) => email.trim().toLowerCase());
+    const distinctRecipients = [...new Set(recipients)];
+    if (!distinctRecipients.length) {
+      await releaseClaim();
+      skipped += 1;
+      continue;
+    }
+    if (!isMailConfigured()) {
+      await releaseClaim();
+      failed += 1;
+      continue;
+    }
+    try {
+      const message = departmentSlaEscalationEmail({
+        company: registration?.company_name ?? "Proveedor",
+        reference: registration?.reference_no ?? null,
+        department: department?.name ?? row.department,
+        dueAt: row.due_at ?? "",
+        link: `${baseUrl}/admin/reviews`,
+      });
+      await Promise.all(
+        distinctRecipients.map((recipient) =>
+          sendMail({ ...message, to: recipient })
+        )
+      );
+      const { data: recorded, error: recordError } = await admin.rpc(
+        "record_department_sla_escalation",
+        {
+          p_review_id: row.id,
+          p_recipients: distinctRecipients.join(", "),
+        }
+      );
+      if (recordError) throw new Error(recordError.message);
+      if (recorded) escalated += 1;
+      else skipped += 1;
+    } catch (error) {
+      await releaseClaim();
+      console.error(
+        `Could not escalate overdue department review ${row.id}:`,
+        error instanceof Error ? error.message : error
+      );
+      failed += 1;
+    }
+  }
+  return { overdue: overdue.length, escalated, failed, skipped };
 }
 
 function autoRenewEnabled(): boolean {

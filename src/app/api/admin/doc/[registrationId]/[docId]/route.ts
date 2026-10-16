@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { hasAnyRole, SUPPLIER_MANAGEMENT_ROLES, SUPPLIER_READ_ROLES } from "@/lib/access";
 import {
   deleteFile,
   filePath,
@@ -46,9 +47,15 @@ export async function GET(
   const { registrationId, docId } = params;
   const isDownload = new URL(req.url).searchParams.get("dl") === "1";
 
-  const { supabase, user } = await getAdminSession();
+  const { supabase, user, role } = await getAdminSession();
   if (!user) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (
+    !hasAnyRole(role, SUPPLIER_READ_ROLES) &&
+    role !== "DEPARTMENT_REVIEWER"
+  ) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { data: doc } = await supabase
@@ -154,9 +161,12 @@ export async function DELETE(
   const params = await ctx.params;
   const { registrationId, docId } = params;
 
-  const { supabase: adminSupabase, user } = await getAdminSession();
+  const { supabase: adminSupabase, user, role } = await getAdminSession();
   if (!user) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { data: doc } = await adminSupabase
