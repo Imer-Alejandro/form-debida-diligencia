@@ -24,7 +24,7 @@ export async function proxy(request: NextRequest) {
           response.headers.set(k, v)
         );
       },
-    },
+    },¿
   });
 
   const { data, error } = await supabase.auth.getUser();
