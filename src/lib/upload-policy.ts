@@ -9,6 +9,8 @@ export const PREVIEW_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 /** Special document ref used to persist the supplier's signature image. */
 export const SIGNATURE_REF = "FIRMA";
 
+export const WARRANTY_REF = "POL";
+
 /** Signature images are small by nature; keep them reasonable. */
 export const SIGNATURE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -21,6 +23,7 @@ export const DOC_REF_ALLOWLIST: ReadonlySet<string> = new Set([
   "A", "B", "C", "D", "E", "F", "G", "H",
   "I", "J", "K", "L", "M", "N", "O", "P",
   SIGNATURE_REF,
+  WARRANTY_REF,
 ]);
 
 export const ALLOWED_DOC_EXTENSIONS: ReadonlySet<string> = new Set([

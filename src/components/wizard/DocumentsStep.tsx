@@ -15,6 +15,7 @@ interface DocumentsStepProps {
   setAttached: (docs: DocumentRow[]) => void;
   uploadFile: (ref: string, file: File, onProgress: (pct: number) => void) => Promise<DocumentRow>;
   onedriveOn: boolean;
+  uploading: boolean;
 }
 
 type BusyState = { pct: number; error?: boolean };
@@ -27,6 +28,7 @@ export function DocumentsStep({
   setAttached,
   uploadFile,
   onedriveOn,
+  uploading,
 }: DocumentsStepProps) {
   const { t } = useI18n();
   const dict = useDict();
@@ -51,6 +53,10 @@ export function DocumentsStep({
     setDocuments(documents.map((d) => (d.ref === ref ? { ...d, note: e } : d)));
 
   const selectFile = async (ref: string, file: File) => {
+    if (uploading) {
+      window.alert(t("docs.uploadLocked"));
+      return;
+    }
     const err = validateFile(file);
     if (err === "too_large") {
       window.alert(t("validation.fileTooLarge"));
@@ -239,7 +245,8 @@ export function DocumentsStep({
                           <button
                             type="button"
                             onClick={() => inputRefs.current[el.ref]?.click()}
-                            className="text-xs font-semibold text-navy-700 underline underline-offset-2"
+                            disabled={uploading}
+                            className="text-xs font-semibold text-navy-700 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {t("docs.retry")}
                           </button>
@@ -276,6 +283,7 @@ export function DocumentsStep({
                     }}
                     type="file"
                     className="sr-only"
+                    disabled={uploading}
                     accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.odt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.txt,.rtf,.zip"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -285,7 +293,7 @@ export function DocumentsStep({
                   />
                   <button
                     type="button"
-                    disabled={!!state}
+                    disabled={!!state || uploading}
                     onClick={() => inputRefs.current[el.ref]?.click()}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-800/20 bg-white px-4 py-5 text-sm transition-colors hover:border-navy-800/50 hover:bg-bone-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >

@@ -3,6 +3,7 @@
 import { useDict, useI18n } from "@/lib/i18n";
 import type { DocumentIntent, DocumentRow, SupplierData } from "@/lib/types";
 import { countryName } from "@/lib/countries";
+import { WARRANTY_REF } from "@/lib/upload-policy";
 import { cn, formatDate } from "@/lib/utils";
 
 function KV({ k, v }: { k: string; v?: string }) {
@@ -13,6 +14,10 @@ function KV({ k, v }: { k: string; v?: string }) {
       <dd className="mt-0.5 text-[13px] leading-snug text-ink">{v}</dd>
     </div>
   );
+}
+
+function optionLabel(v: string, m?: Record<string, string>): string {
+  return (m && m[v]) || v;
 }
 
 function YesNo({ v }: { v: string }) {
@@ -39,6 +44,7 @@ export function ReviewStep({
   const { lang } = useI18n();
 
   const visibleDocs = documents.filter((d) => d.checked);
+  const warrantyDoc = attached.find((a) => a.ref === WARRANTY_REF);
 
   return (
     <div className="space-y-4">
@@ -164,7 +170,10 @@ export function ReviewStep({
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <KV k={dict.s6.yearsExperience} v={data.section6.yearsExperience} />
             <KV k={dict.s6.coverage} v={data.section6.coverage.join(", ")} />
-            <KV k={dict.s6.supplyCapacity} v={data.section6.supplyCapacity} />
+            <KV k={dict.s6.supplyCapacity} v={optionLabel(data.section6.supplyCapacity, dict.s6.supplyCapacityOptions)} />
+            <KV k={dict.s6.avgDeliveryTime} v={optionLabel(data.section6.avgDeliveryTime, dict.s6.avgDeliveryTimeOptions)} />
+            <KV k={dict.s6.warrantyPolicy} v={data.section6.warrantyPolicy} />
+            <KV k={dict.s6.warrantyDocLabel} v={warrantyDoc?.file_name} />
             <KV k={dict.s6.brands} v={data.section6.brands} />
           </dl>
         }

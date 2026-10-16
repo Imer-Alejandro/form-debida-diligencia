@@ -1,10 +1,9 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import type { Evaluation, RiskLevel, SpecializedKind, SpecializedStatus } from "@/lib/types";
-import { Badge, type BadgeTone, Input, Select, Textarea } from "@/components/ui";
+import type { Evaluation, RiskLevel } from "@/lib/types";
+import { Badge, type BadgeTone, Select, Textarea } from "@/components/ui";
 import { RISK_CATEGORIES, computeRisk, evaluateTriggers } from "@/lib/risk";
-import { SPECIALIZED_KINDS, specializedForTriggers } from "@/lib/process";
 
 const LEVEL_TONE: Record<string, BadgeTone> = {
   BAJO: "green",
@@ -41,19 +40,6 @@ export function RiskMatrix({
       section12: {
         ...ev.section12,
         riskCategories: { ...ev.section12.riskCategories, [id]: value },
-      },
-    }));
-
-  const spec = specializedForTriggers(triggers, s12.specialized);
-  const setSpec = (kind: SpecializedKind, patch: Partial<typeof spec[SpecializedKind]>) =>
-    onChange((ev) => ({
-      ...ev,
-      section12: {
-        ...ev.section12,
-        specialized: {
-          ...specializedForTriggers(triggers, ev.section12.specialized),
-          [kind]: { ...specializedForTriggers(triggers, ev.section12.specialized)[kind], ...patch },
-        },
       },
     }));
 
@@ -196,78 +182,6 @@ export function RiskMatrix({
             {triggers.legal && <TriggerRow label={t("admin.evaluation.triggerLegal")} />}
             {triggers.technology && <TriggerRow label={t("admin.evaluation.triggerTechnology")} />}
           </div>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-navy-800/10 bg-white p-3.5">
-        <p className="text-[12.5px] font-semibold text-ink">
-          {t("admin.evaluation.specializedTitle")}
-        </p>
-        <p className="mt-0.5 text-[11px] leading-snug text-ink-muted">
-          {t("admin.evaluation.specializedHelp")}
-        </p>
-        <div className="mt-3 space-y-2.5">
-          {SPECIALIZED_KINDS.map((kind) => {
-            const value = spec[kind];
-            const required = triggers[kind];
-            return (
-              <div
-                key={kind}
-                className={`rounded-lg border px-3 py-2.5 ${
-                  required && (value.status === "NO_APLICA" || value.status === "PENDIENTE")
-                    ? "border-amber-200/70 bg-amber-50/40"
-                    : "border-navy-800/10 bg-bone-50/40"
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-[13px] font-medium text-ink">
-                    {t(`admin.evaluation.specializedAreas.${kind}` as never)}
-                    {required && (
-                      <span className="rounded-full border border-amber-300/70 bg-amber-100/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                        {t("admin.evaluation.specializedRequired")}
-                      </span>
-                    )}
-                  </span>
-                  <Select
-                    className="h-8 w-44 text-[12px]"
-                    value={value.status}
-                    onChange={(ev) =>
-                      setSpec(kind, { status: ev.target.value as SpecializedStatus })
-                    }
-                  >
-                    {(
-                      ["NO_APLICA", "PENDIENTE", "APROBADA", "CON_OBSERVACIONES"] as SpecializedStatus[]
-                    ).map((st) => (
-                      <option key={st} value={st}>
-                        {t(`admin.evaluation.specializedStatuses.${st}` as never)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <Input
-                    className="h-8 text-[12px]"
-                    placeholder={t("admin.evaluation.specializedByLabel")}
-                    value={value.by}
-                    onChange={(ev) => setSpec(kind, { by: ev.target.value })}
-                  />
-                  <Input
-                    className="h-8 text-[12px]"
-                    type="date"
-                    value={value.date}
-                    onChange={(ev) => setSpec(kind, { date: ev.target.value })}
-                  />
-                </div>
-                <Textarea
-                  className="mt-2 text-[12px]"
-                  rows={2}
-                  placeholder={t("admin.evaluation.specializedNotesLabel")}
-                  value={value.notes}
-                  onChange={(ev) => setSpec(kind, { notes: ev.target.value })}
-                />
-              </div>
-            );
-          })}
         </div>
       </div>
 

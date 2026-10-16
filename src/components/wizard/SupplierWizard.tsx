@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui";
 import { LangToggle } from "@/components/LangToggle";
 import { useI18n } from "@/lib/i18n";
@@ -12,8 +12,8 @@ import {
   type RegistrationRow,
   type SupplierData,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { SIGNATURE_REF } from "@/lib/upload-policy";
+import { cn, todayISO } from "@/lib/utils";
+import { SIGNATURE_REF, WARRANTY_REF } from "@/lib/upload-policy";
 import {
   Section1,
   Section2,
@@ -79,8 +79,12 @@ function normalizeContacts(initial: SupplierData | null): SupplierData["section2
   };
 }
 
-function initData(initial: SupplierData | null): SupplierData {
+function initData(initial: SupplierData | null, editable: boolean): SupplierData {
   const base = emptyData();
+  const withDefaultDate = (
+    s11: SupplierData["section11"]
+  ): SupplierData["section11"] =>
+    editable && !s11.signedDate ? { ...s11, signedDate: todayISO() } : s11;
   if (initial) {
     const hasDocs = (initial.section9?.documents?.length ?? 0) > 0;
     return {
@@ -100,7 +104,7 @@ function initData(initial: SupplierData | null): SupplierData {
           : documentCatalog.map((d) => ({ ref: d.ref, checked: false, note: "" })),
       },
       section10: { ...base.section10, ...initial.section10 },
-      section11: { ...base.section11, ...initial.section11 },
+      section11: withDefaultDate({ ...base.section11, ...initial.section11 }),
     };
   }
   base.section9.documents = documentCatalog.map((d) => ({
@@ -108,6 +112,7 @@ function initData(initial: SupplierData | null): SupplierData {
     checked: false,
     note: "",
   }));
+  base.section11 = withDefaultDate(base.section11);
   return base;
 }
 
@@ -123,7 +128,9 @@ export function SupplierWizard({
   lang: "es" | "en";
 }) {
   const { t, lang: currentLang, setLang } = useI18n();
-  const [data, setDataState] = useState<SupplierData>(() => initData(initial));
+  const editable =
+    !registration || ["BORRADOR", "SOLICITUD_CAMBIOS"].includes(registration.status);
+  const [data, setDataState] = useState<SupplierData>(() => initData(initial, editable));
   const [step, setStep] = useState(() => {
     const last = initial?._ui?.lastStep;
     if (typeof last === "number" && last >= 0 && last <= TOTAL_STEPS) {
@@ -150,11 +157,8 @@ export function SupplierWizard({
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const mountedRef = useRef(false);
-
-  const editable = useMemo(
-    () => !registration || ["BORRADOR", "SOLICITUD_CAMBIOS"].includes(registration.status),
-    [registration]
-  );
+  const uploadLockRef = useRef(false);
+  const [uploading, setUploading] = useState(false);
 
   const setData = useCallback((update: SupplierData | ((d: SupplierData) => SupplierData)) => {
     setDataState((prev) => {
@@ -311,17 +315,35 @@ export function SupplierWizard({
     file: File,
     onProgress: (pct: number) => void
   ): Promise<DocumentRow> => {
-    const registrationId = await ensureDraft();
-    const doc = await uploadDocument({ token, registrationId, ref, file, onProgress });
-    const previous = attached.filter((a) => a.ref === ref);
-    for (const old of previous) {
-      await fetch(`/api/upload/${old.id}?token=${encodeURIComponent(token)}`, {
-        method: "DELETE",
-      }).catch(() => null);
+    if (uploadLockRef.current) throw new Error("upload_in_progress");
+    uploadLockRef.current = true;
+    setUploading(true);
+    try {
+      const registrationId = await ensureDraft();
+      const doc = await uploadDocument({ token, registrationId, ref, file, onProgress });
+      const previous = attached.filter((a) => a.ref === ref);
+      for (const old of previous) {
+        await fetch(`/api/upload/${old.id}?token=${encodeURIComponent(token)}`, {
+          method: "DELETE",
+        }).catch(() => null);
+      }
+      setAttached((current) => [...current.filter((a) => a.ref !== ref), doc]);
+      setSavedAt(Date.now());
+      return doc;
+    } finally {
+      uploadLockRef.current = false;
+      setUploading(false);
     }
-    setAttached((current) => [...current.filter((a) => a.ref !== ref), doc]);
+  };
+
+  const removeDocumentFile = async (doc: DocumentRow): Promise<boolean> => {
+    const res = await fetch(`/api/upload/${doc.id}?token=${encodeURIComponent(token)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) return false;
+    setAttached((current) => current.filter((d) => d.id !== doc.id));
     setSavedAt(Date.now());
-    return doc;
+    return true;
   };
 
   const saveDraftAndUpload = async (): Promise<DocumentRow[]> => {
@@ -597,7 +619,26 @@ export function SupplierWizard({
             {step === 2 && <Section3 data={data} set={setData} errors={errors} />}
             {step === 3 && <Section4 data={data} set={setData} errors={errors} />}
             {step === 4 && <Section5 data={data} set={setData} errors={errors} />}
-            {step === 5 && <Section6 data={data} set={setData} errors={errors} />}
+            {step === 5 && (
+              <Section6
+                data={data}
+                set={setData}
+                errors={errors}
+                warranty={{
+                  attached,
+                  uploading,
+                  onedriveOn,
+                  onPick: async (file, onProgress) => {
+                    await uploadDocumentFile(WARRANTY_REF, file, onProgress);
+                  },
+                  onRemove: async (doc) => {
+                    const removed = await removeDocumentFile(doc);
+                    if (!removed) window.alert(t("docs.removeFailed"));
+                    return removed;
+                  },
+                }}
+              />
+            )}
             {step === 6 && <Section7 data={data} set={setData} errors={errors} />}
             {step === 7 && <Section8 data={data} set={setData} errors={errors} />}
             {step === 8 && (
@@ -609,6 +650,7 @@ export function SupplierWizard({
                 setAttached={setAttached}
                 uploadFile={uploadDocumentFile}
                 onedriveOn={onedriveOn}
+                uploading={uploading}
               />
             )}
             {step === 9 && <Section10 data={data} set={setData} errors={errors} />}
@@ -665,7 +707,7 @@ export function SupplierWizard({
               <Button
                 variant="secondary"
                 onClick={() => void saveDraft()}
-                disabled={savingDraft || submitting}
+                disabled={savingDraft || submitting || uploading}
               >
                 {savingDraft ? t("submit.savingDraft") : t("submit.saveDraft")}
               </Button>
@@ -697,11 +739,11 @@ export function SupplierWizard({
               <Button
                 variant="secondary"
                 onClick={() => void saveDraft()}
-                disabled={savingDraft || submitting}
+                disabled={savingDraft || submitting || uploading}
               >
                 {savingDraft ? t("submit.savingDraft") : t("submit.saveDraft")}
               </Button>
-              <Button onClick={() => void submit()} size="lg" disabled={submitting || savingDraft}>
+              <Button onClick={() => void submit()} size="lg" disabled={submitting || savingDraft || uploading}>
                 {submitting ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

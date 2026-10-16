@@ -23,8 +23,8 @@ export async function proxy(request: NextRequest) {
         Object.entries(setHeaders).forEach(([k, v]) =>
           response.headers.set(k, v)
         );
-      },
-    },¿
+      }, 
+    },
   });
 
   const { data, error } = await supabase.auth.getUser();

@@ -173,6 +173,14 @@ export function folderPath(registrationId: string): string {
   return `${ONEDRIVE_ROOT}/${registrationId}`;
 }
 
+const REF_FOLDER_NAMES: Record<string, string> = {
+  POL: "Políticas de garantías y devoluciones",
+};
+
+export function refFolderName(ref: string): string {
+  return REF_FOLDER_NAMES[ref] ?? ref;
+}
+
 export async function getSupplierNameForRegistration(
   token: string,
   registrationId: string
@@ -200,7 +208,7 @@ export function supplierFilePath(
   const supplierFolder = sanitizeFileName(supplierName)
     .replace(/[. ]+$/g, "")
     .slice(0, 150) || "Proveedor";
-  return `${ONEDRIVE_ROOT}/${supplierFolder}/${ref} - ${registrationId}/${sanitizeFileName(fileName)}`;
+  return `${ONEDRIVE_ROOT}/${supplierFolder}/${refFolderName(ref)} - ${registrationId}/${sanitizeFileName(fileName)}`;
 }
 
 export function previousSupplierFilePath(

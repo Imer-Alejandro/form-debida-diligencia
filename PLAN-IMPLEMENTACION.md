@@ -270,7 +270,11 @@ CERRADA               → (terminal)
 - ✅ **Integración ADM:** `src/lib/adm.ts` (upsert/PUT/POST por RNC, desactivación), rutas
   `POST /api/admin/adm/vendor` y sincronización automática en `POST /api/admin/evaluation`
   según decisión (APROBADO/APROBADO_CONDICIONES crea/actualiza; RECHAZADO solo desactiva si existe).
-- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **71/71 tests** · `build` OK.
+- ✅ **Mejoras de UX del wizard:** selectores de capacidad de suministro y tiempo de entrega (sección 6),
+  documento de garantía (ref `POL`) con bloqueo global de subidas concurrentes, `signedDate` por defecto
+  hoy, dropdowns de empresa/área solicitante (sección 12) y correo de confirmación al proveedor al
+  completar (`submissionReceivedEmail`).
+- ✅ **Verificación:** `tsc` limpio · `lint` 0 errores · **75/75 tests** · `build` OK.
 
 ---
 

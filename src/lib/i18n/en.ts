@@ -456,8 +456,28 @@ export const en = {
     },
     coverageDetail: "Coverage details",
     supplyCapacity: "Supply / execution capacity",
+    supplyCapacityOptions: {
+      Baja: "Low",
+      Media: "Medium",
+      Alta: "High",
+      Personalizada: "Custom",
+    },
     avgDeliveryTime: "Average delivery time",
+    avgDeliveryTimeOptions: {
+      "24 horas": "24 hours",
+      "48 horas": "48 hours",
+      Semanal: "Weekly",
+      Quincenal: "Biweekly",
+      Mensual: "Monthly",
+      Trimestral: "Quarterly",
+      Anual: "Annual",
+      Otro: "Other",
+    },
     warrantyPolicy: "Warranty / returns policy",
+    warrantyDocLabel: "Attach warranty / returns policy",
+    warrantyDocHint:
+      "Optional. Stored in the corporate repository as “Warranty and returns policies”.",
+    warrantyDocReplace: "Replaces the currently attached file.",
     brands: "Main brands or representations",
   },
   s7: {
@@ -579,8 +599,9 @@ export const en = {
     willReplace: "Will replace the current file",
     missingCheckedDocuments:
       "{n} selected document(s) still need uploading. Your draft was saved so you can continue later.",
-    attachedCount: "{n} attached",
-    pendingCount: "{n} pending",
+      attachedCount: "{n} attached",
+      pendingCount: "{n} pending",
+      uploadLocked: "A file is already uploading. Wait for it to finish before attaching another.",
     typeHint:
       "Supported formats: PDF, images and Office documents. Up to 50 MB per file.",
     onedriveNote:

@@ -296,3 +296,29 @@ export function formReminderEmail(
     text: `${hello}\n\n${intro}\n\n${ask}\n\n${args.link}\n`,
   };
 }
+
+/** Confirms to the supplier that their due diligence form was received. */
+export function submissionReceivedEmail(
+  language: "es" | "en",
+  args: { company: string; reference?: string | null; appName: string }
+): MailMessage {
+  const isEs = language === "es";
+  const title = isEs ? "Hemos recibido su formulario - Debida Diligencia" : "We have received your form - Due Diligence";
+  const hello = isEs ? `Estimado(a) ${esc(args.company)},` : `Dear ${esc(args.company)},`;
+  const intro = isEs
+    ? `Gracias por completar el formulario de debida diligencia de proveedores de Sánchez Business & Corp. Confirmamos la recepción de la información de ${esc(args.company)}.`
+    : `Thank you for completing the Sánchez Business & Corp. supplier due diligence form. We confirm receipt of the information for ${esc(args.company)}.`;
+  const ask = isEs
+    ? `Su registro quedó en revisión por nuestro equipo de compras.${args.reference ? ` Número de referencia: ${esc(args.reference)}.` : ""} Si necesitamos información adicional, nos pondremos en contacto.`
+    : `Your registration is now under review by our procurement team.${args.reference ? ` Reference number: ${esc(args.reference)}.` : ""} If we need any additional information, we will contact you.`;
+  const footer = isEs
+    ? "Si tiene dudas, contacte a su equipo de compras de Sánchez Business & Corp."
+    : "If you have any questions, contact your Sánchez Business & Corp. procurement team.";
+  const body = `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${hello}</p><p style="margin:0;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${ask}</p>`;
+  return {
+    to: "",
+    subject: title,
+    html: alertShell({ appName: args.appName, intro, body, footer }),
+    text: `${hello}\n\n${intro}\n\n${ask}\n`,
+  };
+}

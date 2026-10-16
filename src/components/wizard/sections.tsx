@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -12,15 +12,19 @@ import {
 } from "@/components/ui";
 import { useDict, useI18n } from "@/lib/i18n";
 import {
+  DELIVERY_TIME_OPTIONS,
+  SUPPLY_CAPACITY_OPTIONS,
   sbcGroupCompanies,
   type ComplianceRow,
   type ContactRow,
+  type DocumentRow,
   type ReferenceRow,
   type SupplierData,
 } from "@/lib/types";
+import { validateFile, WARRANTY_REF } from "@/lib/upload-policy";
 import { countryOptions, type CountryLanguage } from "@/lib/countries";
 import type { Subdivision } from "@/lib/subdivisions";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 export type Setter = (fn: (d: SupplierData) => SupplierData) => void;
 
@@ -29,6 +33,17 @@ export interface SectionProps {
   set: Setter;
   errors: Record<string, string>;
 }
+
+export interface WarrantyAttachmentProps {
+  attached: DocumentRow[];
+  uploading: boolean;
+  onedriveOn: boolean;
+  onPick: (file: File, onProgress: (pct: number) => void) => Promise<void>;
+  onRemove: (doc: DocumentRow) => Promise<boolean>;
+}
+
+const WARRANTY_ACCEPT =
+  ".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.odt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.txt,.rtf,.zip";
 
 function Row({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn("grid gap-4 sm:grid-cols-2 sm:gap-5", className)}>{children}</div>;
@@ -709,8 +724,15 @@ export function Section5({ data, set }: SectionProps) {
 // ---------------------------------------------------------------------------
 // Section 6 — Experiencia y capacidad
 // ---------------------------------------------------------------------------
-export function Section6({ data, set }: SectionProps) {
+export function Section6({
+  data,
+  set,
+  warranty,
+}: SectionProps & { warranty?: WarrantyAttachmentProps }) {
   const s6 = useDict().s6;
+  const { t } = useI18n();
+  const warrantyFileRef = useRef<HTMLInputElement | null>(null);
+  const [warrantyPct, setWarrantyPct] = useState<number | null>(null);
   const put = (k: string, v: string) =>
     set((fn) => ({ ...fn, section6: { ...fn.section6, [k]: v } }));
   const toggleCoverage = (v: string) => {
@@ -719,6 +741,35 @@ export function Section6({ data, set }: SectionProps) {
       const next = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
       return { ...fn, section6: { ...fn.section6, coverage: next } };
     });
+  };
+
+  const capacity = data.section6.supplyCapacity;
+  const delivery = data.section6.avgDeliveryTime;
+  const warrantyDocs = (warranty?.attached ?? []).filter((d) => d.ref === WARRANTY_REF);
+
+  const pickWarranty = async (file: File) => {
+    if (!warranty) return;
+    if (warranty.uploading || warrantyPct !== null) {
+      window.alert(t("docs.uploadLocked"));
+      return;
+    }
+    const invalid = validateFile(file);
+    if (invalid === "too_large") {
+      window.alert(t("validation.fileTooLarge"));
+      return;
+    }
+    if (invalid === "unsupported_type") {
+      window.alert(t("validation.unsupportedType"));
+      return;
+    }
+    setWarrantyPct(0);
+    try {
+      await warranty.onPick(file, (pct) => setWarrantyPct(pct));
+    } catch {
+      window.alert(t("docs.error"));
+    } finally {
+      setWarrantyPct(null);
+    }
   };
 
   return (
@@ -744,15 +795,118 @@ export function Section6({ data, set }: SectionProps) {
       )}
       <Row>
         <Field label={s6.supplyCapacity}>
-          <Input value={data.section6.supplyCapacity} onChange={(e) => put("supplyCapacity", e.target.value)} />
+          <Select value={capacity} onChange={(e) => put("supplyCapacity", e.target.value)}>
+            <option value="">—</option>
+            {capacity && !(SUPPLY_CAPACITY_OPTIONS as readonly string[]).includes(capacity) && (
+              <option value={capacity}>{capacity}</option>
+            )}
+            {SUPPLY_CAPACITY_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {s6.supplyCapacityOptions[opt]}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label={s6.avgDeliveryTime}>
-          <Input value={data.section6.avgDeliveryTime} onChange={(e) => put("avgDeliveryTime", e.target.value)} />
+          <Select value={delivery} onChange={(e) => put("avgDeliveryTime", e.target.value)}>
+            <option value="">—</option>
+            {delivery && !(DELIVERY_TIME_OPTIONS as readonly string[]).includes(delivery) && (
+              <option value={delivery}>{delivery}</option>
+            )}
+            {DELIVERY_TIME_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {s6.avgDeliveryTimeOptions[opt]}
+              </option>
+            ))}
+          </Select>
         </Field>
       </Row>
       <Field label={s6.warrantyPolicy}>
         <Textarea rows={3} value={data.section6.warrantyPolicy} onChange={(e) => put("warrantyPolicy", e.target.value)} />
       </Field>
+      {warranty && (
+        <div>
+          <span className="mb-2 block text-[13px] font-medium text-ink">{s6.warrantyDocLabel}</span>
+          <div className="space-y-2.5 rounded-xl border border-navy-800/10 bg-bone-50/40 p-3.5">
+            {warrantyDocs.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-navy-800/10 bg-white px-3 py-2 text-[13px]"
+              >
+                <span className="min-w-0 flex-1">
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block truncate text-navy-700 underline decoration-navy-700/30 underline-offset-2 hover:decoration-navy-700"
+                  >
+                    {doc.file_name}
+                  </a>
+                  <span className="text-xs text-ink-muted">{formatBytes(doc.file_size)}</span>
+                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-[11px] font-medium text-success">✓ {t("docs.uploaded")}</span>
+                  <button
+                    type="button"
+                    onClick={() => void warranty.onRemove(doc)}
+                    className="text-xs text-ink-muted underline hover:text-danger"
+                  >
+                    {t("docs.remove")}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {warrantyPct !== null && (
+              <div className="rounded-lg border border-navy-800/15 bg-navy-50/60 px-3 py-3">
+                <div className="flex items-center justify-between gap-2 text-[11.5px] font-medium text-navy-700">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-navy-800/25 border-t-navy-800" />
+                    {t("docs.processing")}
+                  </span>
+                  <span className="tabular-nums">{t("docs.progressLabel", { pct: String(warrantyPct) })}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-navy-800/10">
+                  <div
+                    className="h-full rounded-full bg-navy-800 transition-all duration-300"
+                    style={{ width: `${warrantyPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {warrantyDocs.length > 0 && warrantyPct === null && (
+              <p className="text-[11.5px] text-ink-muted">{s6.warrantyDocReplace}</p>
+            )}
+
+            <input
+              ref={warrantyFileRef}
+              type="file"
+              className="sr-only"
+              accept={WARRANTY_ACCEPT}
+              disabled={warrantyPct !== null || warranty.uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void pickWarranty(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={warrantyPct !== null || warranty.uploading || !warranty.onedriveOn}
+              onClick={() => warrantyFileRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-800/20 bg-white px-4 py-4 text-sm transition-colors hover:border-navy-800/50 hover:bg-bone-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t("docs.dropHint")}
+            </button>
+
+            {!warranty.onedriveOn && (
+              <p className="text-[11.5px] leading-snug text-warning">{t("docs.notConfigured")}</p>
+            )}
+            <p className="text-[11.5px] leading-snug text-ink-muted">{s6.warrantyDocHint}</p>
+          </div>
+        </div>
+      )}
       <Field label={s6.brands}>
         <Input value={data.section6.brands} onChange={(e) => put("brands", e.target.value)} />
       </Field>

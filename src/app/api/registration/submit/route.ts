@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
+import { getAdminApi, isAdminApiConfigured } from "@/lib/supabase/admin";
+import { submissionReceivedEmail, isMailConfigured, sendMail } from "@/lib/mail";
 import { requiredDocumentRefs, type SupplierData } from "@/lib/types";
 
 export interface SubmitBody {
@@ -85,7 +87,48 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "server_error", message: error.message }, { status: 500 });
   }
 
-  return Response.json({ registration: row });
+  const reg = row as {
+    company_name?: string | null;
+    commercial_name?: string | null;
+    reference_no?: string | null;
+  } | null;
+
+  const emailStatus = await notifySubmission({
+    token,
+    language: language === "en" ? "en" : "es",
+    company: (reg?.company_name || reg?.commercial_name || data.section1.legalName || data.section1.commercialName || "").trim(),
+    reference: reg?.reference_no ?? null,
+  });
+
+  return Response.json({ registration: row, emailStatus });
+}
+
+async function notifySubmission(args: {
+  token: string;
+  language: "es" | "en";
+  company: string;
+  reference: string | null;
+}): Promise<"sent" | "failed" | "skipped"> {
+  if (!args.company || !isMailConfigured() || !isAdminApiConfigured()) return "skipped";
+  try {
+    const admin = getAdminApi();
+    const { data: inv } = await admin
+      .from("invitations")
+      .select("supplier_email")
+      .eq("token", args.token)
+      .maybeSingle();
+    const to = inv?.supplier_email?.trim() ?? "";
+    if (!to) return "skipped";
+    const msg = submissionReceivedEmail(args.language, {
+      company: args.company,
+      reference: args.reference,
+      appName: args.language === "en" ? "Due Diligence Form" : "Formulario de Debida Diligencia",
+    });
+    await sendMail({ ...msg, to });
+    return "sent";
+  } catch {
+    return "failed";
+  }
 }
 
 function validate(d: SupplierData): string | null {

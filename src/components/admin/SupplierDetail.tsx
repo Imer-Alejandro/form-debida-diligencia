@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDict, useI18n } from "@/lib/i18n";
 import {
+  REQUESTING_AREAS,
   documentCatalog,
+  sbcGroupCompanies,
   type DocumentRow,
   type Evaluation,
   type RegistrationRow,
@@ -570,16 +572,42 @@ export function SupplierDetail({
                 <Accordion title={t("admin.detail.requestData")}>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label={t("admin.detail.requestingCompany")}>
-                    <Input
+                    <Select
                       value={evaluation.section12.requestingCompany}
                       onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingCompany: e.target.value } }))}
-                    />
+                    >
+                      <option value="">—</option>
+                      {evaluation.section12.requestingCompany &&
+                        !sbcGroupCompanies.includes(evaluation.section12.requestingCompany) && (
+                          <option value={evaluation.section12.requestingCompany}>
+                            {evaluation.section12.requestingCompany}
+                          </option>
+                        )}
+                      {sbcGroupCompanies.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label={t("admin.detail.requestingArea")}>
-                    <Input
+                    <Select
                       value={evaluation.section12.requestingArea}
                       onChange={(e) => patchEval((ev) => ({ ...ev, section12: { ...ev.section12, requestingArea: e.target.value } }))}
-                    />
+                    >
+                      <option value="">—</option>
+                      {evaluation.section12.requestingArea &&
+                        !REQUESTING_AREAS.includes(evaluation.section12.requestingArea) && (
+                          <option value={evaluation.section12.requestingArea}>
+                            {evaluation.section12.requestingArea}
+                          </option>
+                        )}
+                      {REQUESTING_AREAS.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label={t("admin.detail.purchaseCategory")}>
                     <Input
@@ -1507,8 +1535,8 @@ function SectionBody({
         <FieldValue label={d.s6.yearsExperience} value={s6.yearsExperience} />
         <FieldValue label={d.s6.coverage} value={s6.coverage.map((k) => mapOr(k, d.s6.coverageOptions)).join(" · ")} />
         <FieldValue label={d.s6.coverageDetail} value={s6.coverageDetail} />
-        <FieldValue label={d.s6.supplyCapacity} value={s6.supplyCapacity} />
-        <FieldValue label={d.s6.avgDeliveryTime} value={s6.avgDeliveryTime} />
+        <FieldValue label={d.s6.supplyCapacity} value={mapOr(s6.supplyCapacity, d.s6.supplyCapacityOptions)} />
+        <FieldValue label={d.s6.avgDeliveryTime} value={mapOr(s6.avgDeliveryTime, d.s6.avgDeliveryTimeOptions)} />
         <FieldValue label={d.s6.warrantyPolicy} value={s6.warrantyPolicy} />
         <FieldValue label={d.s6.brands} value={s6.brands} />
       </div>

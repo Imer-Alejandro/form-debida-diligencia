@@ -419,6 +419,37 @@ export const sbcGroupCompanies: string[] = [
 
 export const DOCUMENT_REFS = "";
 
+export const SUPPLY_CAPACITY_OPTIONS = [
+  "Baja",
+  "Media",
+  "Alta",
+  "Personalizada",
+] as const;
+
+export const DELIVERY_TIME_OPTIONS = [
+  "24 horas",
+  "48 horas",
+  "Semanal",
+  "Quincenal",
+  "Mensual",
+  "Trimestral",
+  "Anual",
+  "Otro",
+] as const;
+
+export const REQUESTING_AREAS: string[] = [
+  "Consejo",
+  "Tecnología",
+  "Proyecto",
+  "Jose Sanchez Comercial",
+  "Talento y Cultura",
+  "Administración",
+  "Compras",
+  "Legales",
+  "Finanzas",
+  "Conserjería",
+];
+
 /** How strictly a document is required per the due-diligence policy. */
 export type DocumentRequirement = "required" | "optional" | "contractor";
 

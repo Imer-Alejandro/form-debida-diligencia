@@ -455,8 +455,27 @@ export const es = {
     },
     coverageDetail: "Detalle de la cobertura",
     supplyCapacity: "Capacidad de suministro / ejecución",
+    supplyCapacityOptions: {
+      Baja: "Baja",
+      Media: "Media",
+      Alta: "Alta",
+      Personalizada: "Personalizada",
+    },
     avgDeliveryTime: "Tiempo promedio de entrega",
+    avgDeliveryTimeOptions: {
+      "24 horas": "24 horas",
+      "48 horas": "48 horas",
+      Semanal: "Semanal",
+      Quincenal: "Quincenal",
+      Mensual: "Mensual",
+      Trimestral: "Trimestral",
+      Anual: "Anual",
+      Otro: "Otro",
+    },
     warrantyPolicy: "Política de garantía / devoluciones",
+    warrantyDocLabel: "Adjuntar política de garantías y devoluciones",
+    warrantyDocHint: "Opcional. Se registra en el repositorio corporativo como “Políticas de garantías y devoluciones”.",
+    warrantyDocReplace: "Reemplaza el archivo adjunto actual.",
     brands: "Principales marcas o representaciones",
   },
   s7: {
@@ -579,6 +598,8 @@ export const es = {
       "Falta cargar {n} documento(s) marcado(s). Se guardó el borrador; puede continuar más tarde.",
     attachedCount: "{n} adjuntados",
     pendingCount: "{n} pendientes",
+    uploadLocked:
+      "Ya hay un archivo en proceso. Espere a que termine para adjuntar otro.",
     typeHint:
       "Formatos admitidos: PDF, imágenes y documentos de Office. Máximo 50 MB por archivo.",
     onedriveNote:
