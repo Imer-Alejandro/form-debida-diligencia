@@ -1,32 +1,34 @@
 import { getServerDict } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/supabase/auth";
-import { getAdminApi, isAdminApiConfigured } from "@/lib/supabase/admin";
+import {
+  isUserAdminConfigured,
+  listAdminAccounts,
+} from "@/lib/admin-accounts";
 import { UsersManager } from "@/components/admin/UsersManager";
 import type { AdminUserRow } from "@/app/api/admin/users/route";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
-  const { role } = await getAdminSession();
+  const { supabase, role } = await getAdminSession();
   if (role !== "ADMIN") redirect("/admin");
   const dict = await getServerDict();
   const u = dict.admin.users;
 
-  let configured = isAdminApiConfigured();
+  let configured = isUserAdminConfigured();
   let rows: AdminUserRow[] = [];
   let departments: { id: string; name: string }[] = [];
 
   if (configured) {
     try {
-      const admin = getAdminApi();
-      const [{ data }, roleResult, departmentResult] = await Promise.all([
-        admin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-        }),
-        admin.from("app_user_roles").select("user_id, role, department"),
-        admin.from("review_departments").select("id, name").eq("active", true),
+      const [accounts, roleResult, departmentResult] = await Promise.all([
+        listAdminAccounts(),
+        supabase.from("app_user_roles").select("user_id, role, department"),
+        supabase
+          .from("review_departments")
+          .select("id, name")
+          .eq("active", true),
       ]);
       if (roleResult.error || departmentResult.error) {
         throw new Error("role_data_unavailable");
@@ -38,14 +40,10 @@ export default async function AdminUsersPage() {
         ])
       );
       departments = departmentResult.data ?? [];
-      rows = (data?.users ?? []).map((x) => ({
-        id: x.id,
-        email: x.email ?? "",
-        createdAt: x.created_at ?? null,
-        lastSignIn: x.last_sign_in_at ?? null,
-        confirmed: Boolean(x.email_confirmed_at),
-        role: roles.get(x.id)?.role ?? null,
-        department: roles.get(x.id)?.department ?? null,
+      rows = accounts.map((account) => ({
+        ...account,
+        role: roles.get(account.id)?.role ?? null,
+        department: roles.get(account.id)?.department ?? null,
       }));
     } catch {
       configured = false;

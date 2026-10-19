@@ -21,6 +21,10 @@ import {
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
+import {
+  criteriaForDepartment,
+  type ScoreBand,
+} from "@/lib/department-criteria";
 import { Badge, Button, Checkbox, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
@@ -129,6 +133,7 @@ export function SupplierDetail({
   specializedHistoryUnavailable,
   role,
   pendingReviewDepartments,
+  completedReviews,
   departmentOptions,
   approvalExceptions,
 }: {
@@ -138,6 +143,17 @@ export function SupplierDetail({
   specializedHistoryUnavailable: boolean;
   role: AppRole;
   pendingReviewDepartments: string[];
+  completedReviews: {
+    id: string;
+    department: string;
+    departmentName: string;
+    responseStatus: string | null;
+    responseNotes: string | null;
+    scores: Record<string, number> | null;
+    scoreAverage: number | null;
+    scoreBand: ScoreBand | null;
+    respondedAt: string | null;
+  }[];
   departmentOptions: { id: string; name: string }[];
   approvalExceptions: {
     id: number;
@@ -147,7 +163,7 @@ export function SupplierDetail({
     created_at: string;
   }[];
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const dict = useDict();
   const router = useRouter();
 
@@ -860,6 +876,83 @@ export function SupplierDetail({
                         </div>
                       );
                     })}
+                    {completedReviews.length > 0 && (
+                      <div className="space-y-2">
+                        {completedReviews.map((review) => (
+                          <div
+                            key={review.id}
+                            className="rounded-xl border border-slate-200 p-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-semibold text-ink">
+                                {review.departmentName}
+                              </span>
+                              {review.responseStatus && (
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                  {t(
+                                    `admin.departmentReviews.responses.${review.responseStatus}` as never
+                                  )}
+                                </span>
+                              )}
+                              {review.scoreBand && (
+                                <span
+                                  className={cn(
+                                    "rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold",
+                                    review.scoreBand === "POSITIVE"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : review.scoreBand === "NEUTRAL"
+                                        ? "bg-amber-100 text-amber-800"
+                                        : "bg-rose-100 text-rose-700"
+                                  )}
+                                >
+                                  {t(
+                                    `admin.departmentReviews.bands.${review.scoreBand}` as never
+                                  )}
+                                  {review.scoreAverage !== null
+                                    ? ` · ${review.scoreAverage}/5`
+                                    : ""}
+                                </span>
+                              )}
+                              {review.respondedAt && (
+                                <span className="text-[11px] text-ink-muted">
+                                  {formatDate(review.respondedAt)}
+                                </span>
+                              )}
+                            </div>
+                            {review.responseNotes && (
+                              <p className="mt-2 text-xs text-ink-muted">
+                                {review.responseNotes}
+                              </p>
+                            )}
+                            {review.scoreBand && (
+                              <ul className="mt-2 grid gap-1 text-xs text-ink-muted sm:grid-cols-2">
+                                {criteriaForDepartment(review.department).map(
+                                  (criterion) => {
+                                    const value = review.scores?.[criterion.id];
+                                    if (typeof value !== "number") return null;
+                                    return (
+                                      <li
+                                        key={criterion.id}
+                                        className="flex justify-between gap-2"
+                                      >
+                                        <span>
+                                          {lang === "en"
+                                            ? criterion.en
+                                            : criterion.es}
+                                        </span>
+                                        <span className="font-semibold tabular-nums">
+                                          {value}/5
+                                        </span>
+                                      </li>
+                                    );
+                                  }
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {pendingReviewDepartments.length > 0 && (
                       <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                         {t("admin.detail.pendingReviewList")}:{" "}

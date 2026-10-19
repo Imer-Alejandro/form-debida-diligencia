@@ -22,9 +22,29 @@ const client = new pg.Client({ connectionString: databaseUrl });
 try {
   await client.connect();
   await client.query("begin");
-  await client.query(
-    readFileSync(resolve(here, "../supabase/security-sla.sql"), "utf8")
+  const sqlText = readFileSync(
+    resolve(here, "../supabase/security-sla.sql"),
+    "utf8"
   );
+  try {
+    await client.query(sqlText);
+  } catch (sqlError) {
+    if (sqlError?.position) {
+      const offset = Number(sqlError.position) - 1;
+      const before = sqlText.slice(0, offset);
+      const line = before.split("\n").length;
+      const column = offset - before.lastIndexOf("\n");
+      console.error(`SQL falló cerca de la línea ${line}, columna ${column}:`);
+      console.error(
+        sqlText
+          .split("\n")
+          .slice(Math.max(0, line - 3), line + 2)
+          .map((text, index) => `${Math.max(1, line - 2) + index}: ${text}`)
+          .join("\n")
+      );
+    }
+    throw sqlError;
+  }
 
   const { rows } = await client.query(
     "select id from auth.users where lower(email) = $1 limit 1",
@@ -45,7 +65,15 @@ try {
   console.log("Migración de seguridad/SLA aplicada y administrador inicial asignado.");
 } catch (error) {
   await client.query("rollback").catch(() => {});
-  console.error("No se pudo aplicar la migración de seguridad/SLA:", error.message);
+  console.error(
+    "No se pudo aplicar la migración de seguridad/SLA:",
+    error?.message ?? error
+  );
+  if (error?.detail) console.error("Detalle:", error.detail);
+  if (error?.hint) console.error("Sugerencia:", error.hint);
+  if (error?.code) console.error("Código:", error.code);
+  if (error?.position) console.error("Posición:", error.position);
+  if (error?.where) console.error("Contexto:", error.where);
   process.exitCode = 1;
 } finally {
   await client.end();

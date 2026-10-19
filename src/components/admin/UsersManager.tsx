@@ -23,6 +23,7 @@ export function UsersManager({
   const [password, setPassword] = useState("");
   const [newRole, setNewRole] = useState("READ_ONLY");
   const [newDepartment, setNewDepartment] = useState("");
+  const [sendCredentials, setSendCredentials] = useState(true);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [departmentDrafts, setDepartmentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -30,6 +31,7 @@ export function UsersManager({
   const [flash, setFlash] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   if (!configured) {
     return (
@@ -52,6 +54,7 @@ export function UsersManager({
           password,
           role: newRole,
           department: newRole === "DEPARTMENT_REVIEWER" ? newDepartment : null,
+          sendCredentials,
         }),
       });
       if (!res.ok) {
@@ -63,11 +66,14 @@ export function UsersManager({
         );
         return;
       }
+      const result = (await res.json().catch(() => null)) as {
+        credentialsSent?: boolean;
+      } | null;
       setEmail("");
       setPassword("");
       setNewRole("READ_ONLY");
       setNewDepartment("");
-      setFlash(u.created);
+      setFlash(result?.credentialsSent ? u.credentialsSent : u.created);
       router.refresh();
     } catch {
       setError(u.errorCreate);
@@ -106,6 +112,42 @@ export function UsersManager({
       setError(u.errorRole);
     } finally {
       setSavingRoleId(null);
+    }
+  };
+
+  const resetCredentials = async (row: AdminUserRow) => {
+    if (!window.confirm(u.resetConfirm.replace("{email}", row.email))) return;
+    setError(null);
+    setResettingId(row.id);
+    try {
+      const bytes = crypto.getRandomValues(new Uint8Array(9));
+      const newPassword = Array.from(bytes, (b) =>
+        b.toString(16).padStart(2, "0")
+      ).join("");
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: row.id,
+          password: newPassword,
+          sendCredentials: true,
+        }),
+      });
+      const result = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        setError(
+          result?.error === "last_admin" ? u.errorLastAdmin : u.errorCredentials
+        );
+        return;
+      }
+      setFlash(u.credentialsSent);
+      router.refresh();
+    } catch {
+      setError(u.errorCredentials);
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -205,6 +247,15 @@ export function UsersManager({
               {busy ? dict.common.saving : u.create}
             </Button>
           </div>
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 sm:col-span-full">
+            <input
+              type="checkbox"
+              checked={sendCredentials}
+              onChange={(e) => setSendCredentials(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            {u.sendCredentialsOption}
+          </label>
         </form>
         {(error || flash) && (
           <p
@@ -300,6 +351,14 @@ export function UsersManager({
                 >
                   {row.confirmed ? u.confirmedYes : u.confirmedNo}
                 </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={resettingId === row.id}
+                  onClick={() => void resetCredentials(row)}
+                >
+                  {resettingId === row.id ? dict.common.saving : u.resendCredentials}
+                </Button>
                 <Button
                   variant="danger"
                   size="sm"

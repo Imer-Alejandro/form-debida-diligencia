@@ -10,6 +10,8 @@ import {
   parseMailRecipients,
   sendMail,
 } from "@/lib/mail";
+import { ensureDepartmentReviewerAccount } from "@/lib/department-reviewer-account";
+import { isValidScore } from "@/lib/department-criteria";
 
 const REVIEW_ACTIONS = [
   "SEND",
@@ -29,7 +31,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("department_reviews")
     .select(
-      "id, registration_id, department, request_reason, required, status, requested_at, sent_at, received_at, due_at, remaining_sla_seconds, paused_at, response_status, response_notes, responded_at, assigned_to, last_escalated_at, escalation_count, supplier_registrations!inner(company_name, reference_no), review_departments!inner(name)"
+      "id, registration_id, department, request_reason, required, status, requested_at, sent_at, received_at, due_at, remaining_sla_seconds, paused_at, response_status, response_notes, scores, score_average, score_band, responded_at, assigned_to, last_escalated_at, escalation_count, supplier_registrations!inner(company_name, reference_no), review_departments!inner(name)"
     )
     .order("requested_at", { ascending: false });
   if (error) {
@@ -49,12 +51,30 @@ export async function POST(req: Request) {
     action?: string;
     notes?: string;
     responseStatus?: string;
+    scores?: Record<string, unknown> | null;
   } | null;
   if (
     !body?.id ||
     !REVIEW_ACTIONS.includes(body.action as (typeof REVIEW_ACTIONS)[number])
   ) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
+
+  let scores: Record<string, number> | null = null;
+  if (body.scores && typeof body.scores === "object") {
+    scores = {};
+    for (const [key, value] of Object.entries(body.scores)) {
+      if (isValidScore(value)) scores[key] = value;
+    }
+    if (Object.keys(scores).length === 0) scores = null;
+  }
+  if (
+    body.action === "RESPOND" &&
+    body.scores &&
+    typeof body.scores === "object" &&
+    scores === null
+  ) {
+    return NextResponse.json({ error: "invalid_scores" }, { status: 400 });
   }
   if (body.action === "SEND") {
     if (!hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
@@ -98,6 +118,13 @@ export async function POST(req: Request) {
       await Promise.all(
         recipients.map((recipient) => sendMail({ ...email, to: recipient }))
       );
+      await ensureDepartmentReviewerAccount({
+        supabase,
+        recipients: department.recipient_email,
+        department: review.department,
+        departmentName: department.name,
+        caseId: review.id,
+      });
     } catch (error) {
       console.error(
         "Could not send department review request:",
@@ -114,6 +141,7 @@ export async function POST(req: Request) {
     p_action: body.action,
     p_notes: body.notes?.trim() || null,
     p_response_status: body.responseStatus ?? null,
+    p_scores: scores,
   });
   if (error) {
     if (error.code === "42501") {
@@ -124,6 +152,7 @@ export async function POST(req: Request) {
       "notes_required",
       "response_required",
       "review_not_found",
+      "invalid_scores",
     ];
     if (knownErrors.some((message) => error.message.includes(message))) {
       return NextResponse.json({ error: "invalid_transition" }, { status: 422 });

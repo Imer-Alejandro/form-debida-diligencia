@@ -42,6 +42,14 @@ export default async function AdminSupplierDetailPage({
     .eq("registration_id", id)
     .eq("required", true)
     .neq("status", "COMPLETED");
+  const { data: completedReviews } = await supabase
+    .from("department_reviews")
+    .select(
+      "id, department, response_status, response_notes, scores, score_average, score_band, responded_at, review_departments!inner(name)"
+    )
+    .eq("registration_id", id)
+    .eq("status", "COMPLETED")
+    .order("responded_at", { ascending: false });
   const { data: departments } = await supabase
     .from("review_departments")
     .select("id, name")
@@ -79,6 +87,26 @@ export default async function AdminSupplierDetailPage({
       pendingReviewDepartments={[
         ...new Set((pendingReviews ?? []).map((review) => review.department)),
       ]}
+      completedReviews={(completedReviews ?? []).map((review) => {
+        const department = Array.isArray(review.review_departments)
+          ? review.review_departments[0]
+          : review.review_departments;
+        return {
+          id: review.id,
+          department: review.department,
+          departmentName: department?.name ?? review.department,
+          responseStatus: review.response_status,
+          responseNotes: review.response_notes,
+          scores: (review.scores as Record<string, number> | null) ?? null,
+          scoreAverage: review.score_average,
+          scoreBand: review.score_band as
+            | "POSITIVE"
+            | "NEUTRAL"
+            | "NEGATIVE"
+            | null,
+          respondedAt: review.responded_at,
+        };
+      })}
       departmentOptions={departments ?? []}
       approvalExceptions={exceptions ?? []}
     />

@@ -56,6 +56,9 @@ create table if not exists public.department_reviews (
   paused_at timestamptz,
   response_status text check (response_status in ('APPROVED', 'OBSERVATIONS', 'REJECTED')),
   response_notes text,
+  scores jsonb,
+  score_average numeric(3,2) check (score_average is null or (score_average >= 1 and score_average <= 5)),
+  score_band text check (score_band is null or score_band in ('POSITIVE', 'NEUTRAL', 'NEGATIVE')),
   responded_by uuid references auth.users(id) on delete set null,
   responded_at timestamptz,
   last_escalated_at timestamptz,
@@ -69,6 +72,12 @@ alter table public.department_reviews
   add column if not exists request_reason text;
 alter table public.department_reviews
   add column if not exists escalation_claimed_at timestamptz;
+alter table public.department_reviews
+  add column if not exists scores jsonb;
+alter table public.department_reviews
+  add column if not exists score_average numeric(3,2);
+alter table public.department_reviews
+  add column if not exists score_band text;
 
 create index if not exists department_reviews_status_due_idx
   on public.department_reviews (status, due_at);
@@ -207,11 +216,49 @@ revoke all on function public.add_business_seconds(timestamptz, integer) from pu
 grant execute on function public.business_seconds_between(timestamptz, timestamptz) to authenticated, service_role;
 grant execute on function public.add_business_seconds(timestamptz, integer) to authenticated, service_role;
 
+create or replace function public.department_review_score_summary(
+  p_scores jsonb
+) returns table (score_average numeric, score_band text)
+language plpgsql stable
+set search_path = public, pg_temp
+as $$
+declare
+  v_count integer;
+  v_avg numeric;
+begin
+  if p_scores is null or jsonb_typeof(p_scores) <> 'object' then
+    return query select null::numeric, null::text;
+    return;
+  end if;
+
+  select count(*), avg((value)::numeric)
+    into v_count, v_avg
+    from jsonb_each_text(p_scores) as entry(key, value)
+   where value ~ '^[1-5]$';
+
+  if v_count = 0 or v_avg is null then
+    return query select null::numeric, null::text;
+    return;
+  end if;
+
+  v_avg := round(v_avg, 2);
+  return query select v_avg,
+    case
+      when v_avg >= 4 then 'POSITIVE'
+      when v_avg >= 3 then 'NEUTRAL'
+      else 'NEGATIVE'
+    end;
+end;
+$$;
+revoke all on function public.department_review_score_summary(jsonb) from public;
+grant execute on function public.department_review_score_summary(jsonb) to authenticated, service_role;
+
 create or replace function public.transition_department_review(
   p_review_id uuid,
   p_action text,
   p_notes text default null,
-  p_response_status text default null
+  p_response_status text default null,
+  p_scores jsonb default null
 ) returns public.department_reviews
 language plpgsql security definer
 set search_path = public, pg_temp
@@ -220,6 +267,8 @@ declare
   v_review public.department_reviews;
   v_role public.app_user_roles;
   v_notes text := nullif(trim(coalesce(p_notes, '')), '');
+  v_avg numeric;
+  v_band text;
 begin
   select * into v_role from public.app_user_roles where user_id = auth.uid();
   if not found then raise exception 'forbidden' using errcode = '42501'; end if;
@@ -273,9 +322,25 @@ begin
       or p_response_status not in ('APPROVED', 'OBSERVATIONS', 'REJECTED')
       or v_notes is null
     then raise exception 'response_required'; end if;
+
+    if p_scores is not null and jsonb_typeof(p_scores) <> 'object' then
+      raise exception 'invalid_scores';
+    end if;
+    if p_scores is not null and exists (
+      select 1 from jsonb_each_text(p_scores) as entry(key, value)
+       where value !~ '^[1-5]$'
+    ) then
+      raise exception 'invalid_scores';
+    end if;
+
+    select summary.score_average, summary.score_band
+      into v_avg, v_band
+      from public.department_review_score_summary(p_scores) as summary;
+
     update public.department_reviews
        set status = 'COMPLETED', response_status = p_response_status,
            response_notes = v_notes, responded_by = auth.uid(),
+           scores = p_scores, score_average = v_avg, score_band = v_band,
            responded_at = now(), updated_at = now()
      where id = p_review_id returning * into v_review;
   else
@@ -287,8 +352,8 @@ begin
   return v_review;
 end;
 $$;
-revoke all on function public.transition_department_review(uuid, text, text, text) from public;
-grant execute on function public.transition_department_review(uuid, text, text, text) to authenticated, service_role;
+revoke all on function public.transition_department_review(uuid, text, text, text, jsonb) from public;
+grant execute on function public.transition_department_review(uuid, text, text, text, jsonb) to authenticated, service_role;
 
 create or replace function public.claim_department_sla_escalation(
   p_review_id uuid

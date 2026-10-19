@@ -366,6 +366,95 @@ export function formReminderEmail(
   };
 }
 
+/** Credentials for a staff account on the /admin panel (created or reset). */
+export function adminCredentialsEmail(
+  language: "es" | "en",
+  args: {
+    email: string;
+    password: string | null;
+    loginLink: string;
+    caseLink?: string | null;
+    kind: "create" | "reset" | "role";
+    department?: string | null;
+    appName: string;
+  }
+): MailMessage {
+  const isEs = language === "es";
+  const hello = isEs
+    ? `Estimado(a) responsable de ${esc(args.department ?? "Revisión departamental")},`
+    : `Dear ${esc(args.department ?? "department review")} team,`;
+  const intro =
+    args.kind === "role"
+      ? isEs
+        ? "Se le asignó acceso al portal de debida diligencia de Sánchez Business & Corp. para dar seguimiento a las revisiones de su departamento."
+        : "You have been granted access to the Sánchez Business & Corp. due diligence portal to follow up on reviews for your department."
+      : args.kind === "reset"
+        ? isEs
+          ? "Se generó una nueva contraseña temporal para su cuenta del portal de debida diligencia."
+          : "A new temporary password has been generated for your due diligence portal account."
+        : isEs
+          ? "Se creó su cuenta para el portal de debida diligencia de Sánchez Business & Corp. Use los datos a continuación para iniciar sesión."
+          : "Your Sánchez Business & Corp. due diligence portal account has been created. Use the details below to sign in.";
+  const accountLabel = isEs ? "Correo:" : "Email:";
+  const passwordLabel = isEs ? "Contraseña temporal:" : "Temporary password:";
+  const loginLabel = isEs ? "Iniciar sesión" : "Sign in";
+  const caseLabel = isEs
+    ? "Abrir el expediente asignado"
+    : "Open the assigned review case";
+  const footer = isEs
+    ? "Si no solicitó este acceso, avise al equipo de compras de Sánchez Business & Corp."
+    : "If you did not request this access, notify the Sánchez Business & Corp. procurement team.";
+
+  const bodyParts = [
+    `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${hello}</p>`,
+    `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#444444">${esc(intro)}</p>`,
+    `<p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:14px;color:#444444"><strong>${accountLabel}</strong> ${esc(args.email)}</p>`,
+  ];
+  if (args.password) {
+    bodyParts.push(
+      `<p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:14px;color:#444444"><strong>${passwordLabel}</strong> <code style="font-size:14px">${esc(args.password)}</code></p>`
+    );
+  }
+  bodyParts.push(
+    `<p style="margin:24px 0 8px;text-align:center"><a href="${esc(args.loginLink)}" style="display:inline-block;background:#0a1c31;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:10px;font-family:Arial,sans-serif;font-size:14px;font-weight:700">${loginLabel}</a></p>`
+  );
+  if (args.caseLink) {
+    bodyParts.push(
+      `<p style="margin:16px 0 4px;text-align:center"><a href="${esc(args.caseLink)}" style="font-family:Arial,sans-serif;font-size:14px;font-weight:700;color:#0a1c31">${caseLabel}</a></p>`,
+      `<p style="margin:0;font-family:Arial,sans-serif;font-size:12px;color:#777777;word-break:break-all;text-align:center">${esc(args.caseLink)}</p>`
+    );
+  }
+  bodyParts.push(
+    `<p style="margin:20px 0 0;font-family:Arial,sans-serif;font-size:12px;color:#999999">${footer}</p>`
+  );
+
+  const text = [
+    hello,
+    intro,
+    `${accountLabel} ${args.email}`,
+    args.password ? `${passwordLabel} ${args.password}` : "",
+    args.loginLink,
+    args.caseLink ? `${caseLabel}: ${args.caseLink}` : "",
+    footer,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    to: "",
+    subject: isEs
+      ? `Acceso al portal de debida diligencia - ${args.department ?? "Revisión departamental"}`
+      : `Due diligence portal access - ${args.department ?? "Department review"}`,
+    html: alertShell({
+      appName: args.appName,
+      intro: "",
+      body: bodyParts.join("\n"),
+      footer: "",
+    }),
+    text,
+  };
+}
+
 /** Confirms to the supplier that their due diligence form was received. */
 export function submissionReceivedEmail(
   language: "es" | "en",

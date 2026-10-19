@@ -670,6 +670,14 @@ export const es = {
         "Mínimo 8 caracteres. El correo queda confirmado automáticamente y ya puede iniciar sesión.",
       create: "Crear usuario",
       created: "Usuario creado correctamente.",
+      sendCredentialsOption:
+        "Enviar las credenciales por correo al usuario (recomendado).",
+      credentialsSent:
+        "Usuario creado y credenciales enviadas al correo indicado.",
+      resendCredentials: "Reenviar credenciales",
+      resetConfirm:
+        "¿Generar una nueva contraseña temporal y enviarla a {email}?",
+      errorCredentials: "No se pudieron actualizar o enviar las credenciales.",
       deleted: "Usuario eliminado.",
       listTitle: "Cuentas existentes",
       empty: "Aún no hay cuentas en el panel.",
@@ -974,6 +982,16 @@ export const es = {
       paused: "En pausa · quedan {days} días hábiles",
       overdue: "VENCIDO · seguimiento y escalamiento requeridos",
       response: "Respuesta",
+      scoreTitle: "Calificación por criterios",
+      scoreHint:
+        "Califique de 1 a 5 cada criterio (1 = deficiente, 5 = excelente). Influye en la recomendación, no la bloquea.",
+      scoreStrong: "5 = excelente",
+      scoreWeak: "1 = deficiente",
+      bands: {
+        POSITIVE: "Buena",
+        NEUTRAL: "Neutra",
+        NEGATIVE: "Baja",
+      },
       send: "Enviar solicitud",
       confirmCompleteReceipt: "Confirmar recepción completa · iniciar SLA",
       requestInformation: "Solicitar información · pausar SLA",

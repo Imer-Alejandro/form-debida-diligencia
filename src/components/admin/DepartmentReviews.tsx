@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Select, Textarea } from "@/components/ui";
-import { useDict } from "@/lib/i18n";
+import { useDict, useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
+import {
+  criteriaForDepartment,
+  summarizeScores,
+  type ScoreBand,
+} from "@/lib/department-criteria";
 
 export interface DepartmentReviewView {
   id: string;
@@ -21,11 +26,96 @@ export interface DepartmentReviewView {
   paused_at: string | null;
   response_status: "APPROVED" | "OBSERVATIONS" | "REJECTED" | null;
   response_notes: string | null;
+  scores: Record<string, number> | null;
+  score_average: number | null;
+  score_band: ScoreBand | null;
   responded_at: string | null;
   last_escalated_at: string | null;
   escalation_count: number;
   supplier_registrations: { company_name: string | null; reference_no: string | null };
   review_departments: { name: string };
+}
+
+const BAND_STYLES: Record<ScoreBand, string> = {
+  POSITIVE: "bg-emerald-100 text-emerald-700",
+  NEUTRAL: "bg-amber-100 text-amber-800",
+  NEGATIVE: "bg-rose-100 text-rose-700",
+};
+
+type CriteriaLabels = {
+  scoreTitle: string;
+  scoreHint: string;
+  scoreStrong: string;
+  scoreWeak: string;
+  bands: Record<ScoreBand, string>;
+};
+
+function CriteriaScoring({
+  criteria,
+  lang,
+  labels,
+  values,
+  onChange,
+}: {
+  criteria: { id: string; es: string; en: string }[];
+  lang: "es" | "en";
+  labels: CriteriaLabels;
+  values: Record<string, number>;
+  onChange: (criterionId: string, value: number) => void;
+}) {
+  if (criteria.length === 0) return null;
+  const summary = summarizeScores(null, values);
+  return (
+    <div className="rounded-lg border border-slate-200 p-3">
+      <p className="text-xs font-semibold text-slate-700">{labels.scoreTitle}</p>
+      <p className="mt-0.5 text-[11px] text-slate-500">{labels.scoreHint}</p>
+      <div className="mt-2 space-y-2">
+        {criteria.map((criterion) => (
+          <div
+            key={criterion.id}
+            className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600"
+          >
+            <span className="min-w-0 flex-1">
+              {lang === "en" ? criterion.en : criterion.es}
+            </span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onChange(criterion.id, value)}
+                  aria-pressed={values[criterion.id] === value}
+                  className={`h-7 w-7 rounded-md border text-[11.5px] font-semibold transition-colors ${
+                    values[criterion.id] === value
+                      ? "border-navy-800 bg-navy-800 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-navy-300"
+                  }`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+        <span>{labels.scoreWeak}</span>
+        <span>{labels.scoreStrong}</span>
+      </div>
+      {summary && (
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">
+            {labels.scoreTitle}
+          </span>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${BAND_STYLES[summary.band]}`}
+          >
+            {labels.bands[summary.band]} · {summary.average}/5
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function DepartmentReviews({
@@ -40,10 +130,12 @@ export function DepartmentReviews({
   userDepartment: string | null;
 }) {
   const dict = useDict();
+  const { lang } = useI18n();
   const t = dict.admin.departmentReviews;
   const router = useRouter();
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [responseStatuses, setResponseStatuses] = useState<Record<string, string>>({});
+  const [scores, setScores] = useState<Record<string, Record<string, number>>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
@@ -65,6 +157,7 @@ export function DepartmentReviews({
           action,
           notes: notes[review.id] ?? "",
           responseStatus: responseStatuses[review.id] ?? "",
+          scores: scores[review.id] ?? null,
         }),
       });
       const result = (await response.json().catch(() => null)) as {
@@ -196,8 +289,39 @@ export function DepartmentReviews({
               </div>
             </dl>
             {review.status === "COMPLETED" ? (
-              <div className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                {t.response}: {review.response_status} — {review.response_notes}
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                  {t.response}: {review.response_status} — {review.response_notes}
+                </div>
+                {review.score_band && (
+                  <div className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-600">
+                        {t.scoreTitle}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${BAND_STYLES[review.score_band]}`}
+                      >
+                        {t.bands[review.score_band]}
+                        {review.score_average !== null
+                          ? ` · ${review.score_average}/5`
+                          : ""}
+                      </span>
+                    </div>
+                    <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                      {criteriaForDepartment(review.department).map((criterion) => {
+                        const value = review.scores?.[criterion.id];
+                        if (typeof value !== "number") return null;
+                        return (
+                          <li key={criterion.id} className="flex justify-between gap-3">
+                            <span>{lang === "en" ? criterion.en : criterion.es}</span>
+                            <span className="font-semibold tabular-nums">{value}/5</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : canActOnReview ? (
               <div className="mt-4 space-y-3">
@@ -240,6 +364,21 @@ export function DepartmentReviews({
                   )}
                   {review.status === "IN_REVIEW" && (
                     <>
+                      <CriteriaScoring
+                        criteria={criteriaForDepartment(review.department)}
+                        lang={lang}
+                        labels={t}
+                        values={scores[review.id] ?? {}}
+                        onChange={(criterionId, value) =>
+                          setScores((current) => ({
+                            ...current,
+                            [review.id]: {
+                              ...(current[review.id] ?? {}),
+                              [criterionId]: value,
+                            },
+                          }))
+                        }
+                      />
                       <Button
                         variant="secondary"
                         size="sm"

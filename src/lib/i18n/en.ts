@@ -672,6 +672,14 @@ export const en = {
         "Minimum 8 characters. The e-mail is confirmed automatically and can sign in right away.",
       create: "Create user",
       created: "User created successfully.",
+      sendCredentialsOption:
+        "E-mail the credentials to the user (recommended).",
+      credentialsSent:
+        "User created and credentials sent to the given e-mail.",
+      resendCredentials: "Resend credentials",
+      resetConfirm:
+        "Generate a new temporary password and e-mail it to {email}?",
+      errorCredentials: "Could not update or send the credentials.",
       deleted: "User deleted.",
       listTitle: "Existing accounts",
       empty: "There are no panel accounts yet.",
@@ -975,6 +983,16 @@ recent: "Recent registrations",
       paused: "Paused · {days} business days remain",
       overdue: "OVERDUE · follow-up and escalation required",
       response: "Response",
+      scoreTitle: "Score by criteria",
+      scoreHint:
+        "Rate each criterion from 1 to 5 (1 = poor, 5 = excellent). It informs the recommendation, it does not block it.",
+      scoreStrong: "5 = excellent",
+      scoreWeak: "1 = poor",
+      bands: {
+        POSITIVE: "Good",
+        NEUTRAL: "Neutral",
+        NEGATIVE: "Low",
+      },
       send: "Send request",
       confirmCompleteReceipt: "Confirm complete receipt · start SLA",
       requestInformation: "Request information · pause SLA",

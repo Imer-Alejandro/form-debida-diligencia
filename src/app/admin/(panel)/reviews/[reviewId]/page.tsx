@@ -43,7 +43,7 @@ export default async function DepartmentReviewCasePage({
   const { data: rawReview, error: reviewError } = await supabase
     .from("department_reviews")
     .select(
-      "id, registration_id, department, request_reason, required, status, requested_at, sent_at, received_at, due_at, remaining_sla_seconds, paused_at, response_status, response_notes, responded_at, assigned_to, last_escalated_at, escalation_count, supplier_registrations!inner(company_name, reference_no), review_departments!inner(name)"
+      "id, registration_id, department, request_reason, required, status, requested_at, sent_at, received_at, due_at, remaining_sla_seconds, paused_at, response_status, response_notes, scores, score_average, score_band, responded_at, assigned_to, last_escalated_at, escalation_count, supplier_registrations!inner(company_name, reference_no), review_departments!inner(name)"
     )
     .eq("id", reviewId)
     .maybeSingle();

@@ -13,6 +13,7 @@ import {
   parseMailRecipients,
   sendMail,
 } from "@/lib/mail";
+import { ensureDepartmentReviewerAccount } from "@/lib/department-reviewer-account";
 import {
   getAccessToken,
   getItemIdByPath,
@@ -227,6 +228,13 @@ export async function POST(req: Request) {
               console.error("Review request email sent but not logged:", sendLogError.message);
               return { department: review.department, status: "failed" as const };
             }
+            await ensureDepartmentReviewerAccount({
+              supabase,
+              recipients: department.recipient_email,
+              department: review.department,
+              departmentName: department.name,
+              caseId: review.id,
+            });
             return { department: review.department, status: "sent" as const };
           } catch (error) {
             console.error(
