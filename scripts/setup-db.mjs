@@ -46,6 +46,25 @@ if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) {
 
 const client = new pg.Client({ connectionString: DATABASE_URL });
 
+const NORMALIZE_AUTH_TEXT_SQL = `update auth.users
+      set confirmation_token         = coalesce(confirmation_token, ''),
+          recovery_token             = coalesce(recovery_token, ''),
+          email_change               = coalesce(email_change, ''),
+          email_change_token_current = coalesce(email_change_token_current, ''),
+          email_change_token_new     = coalesce(email_change_token_new, ''),
+          phone_change               = coalesce(phone_change, ''),
+          phone_change_token         = coalesce(phone_change_token, ''),
+          reauthentication_token     = coalesce(reauthentication_token, '')
+    where id = $1
+      and (confirmation_token is null
+        or recovery_token is null
+        or email_change is null
+        or email_change_token_current is null
+        or email_change_token_new is null
+        or phone_change is null
+        or phone_change_token is null
+        or reauthentication_token is null)`;
+
 async function verifyLogin() {
   const sb = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -89,6 +108,10 @@ async function main() {
       });
       if (error) throw new Error(`Admin API: ${error.message}`);
       console.log(`✓ Usuario admin existente actualizado: ${ADMIN_EMAIL}`);
+      const fixed = await client.query(NORMALIZE_AUTH_TEXT_SQL, [existingId]);
+      if (fixed.rowCount > 0) {
+        console.log("✓ Columnas de texto de auth.users normalizadas (sin NULL para GoTrue)");
+      }
     } else {
       const { data, error } = await sb.auth.admin.createUser({
         email: ADMIN_EMAIL,
@@ -124,17 +147,24 @@ async function main() {
         `insert into auth.users
            (instance_id, id, aud, role, email, encrypted_password,
             email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-            created_at, updated_at, confirmation_token, recovery_token)
+            created_at, updated_at, confirmation_token, recovery_token,
+            email_change, email_change_token_current, email_change_token_new,
+            phone_change, phone_change_token, reauthentication_token)
          values
            ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', $1,
             ${passwordHash},
             now(), '{"provider":"email","providers":["email"]}', '{}',
-            now(), now(), '', '')
+            now(), now(), '', '',
+            '', '', '', '', '', '')
          returning id`,
         [ADMIN_EMAIL]
       );
       userId = userIns.rows[0].id;
       console.log(`✓ Usuario admin creado (manual): ${ADMIN_EMAIL}`);
+    }
+    const fixed = await client.query(NORMALIZE_AUTH_TEXT_SQL, [userId]);
+    if (fixed.rowCount > 0) {
+      console.log("✓ Columnas de texto de auth.users normalizadas (sin NULL para GoTrue)");
     }
     const identityExists = await client.query(
       "select 1 from auth.identities where user_id = $1 and provider = 'email' limit 1",
