@@ -650,13 +650,13 @@ export const en = {
         "Access requires an account and a role assigned by a portal administrator.",
     },
     nav: {
-      dashboard: "Dashboard",
+      dashboard: "General panel",
       suppliers: "Suppliers",
       invitations: "Invitations",
       alerts: "Alerts",
       users: "Users",
       settings: "Settings",
-      reviews: "SLA reviews",
+      reviews: "Department reviews",
       signOut: "Sign out",
       viewSite: "View public site",
       backToAdmin: "Back to admin",
@@ -960,10 +960,10 @@ recent: "Recent registrations",
       decisionFollowUp: "Decision and follow-up",
     },
     departmentReviews: {
-      title: "Department SLA monitor",
+      title: "Department reviews",
       subtitle:
         "Follow-up for Purchasing and reviewing departments. The three-business-day SLA starts when receipt of the complete file is confirmed.",
-      reviewerTitle: "My review tasks",
+      reviewerTitle: "My reviews",
       reviewerSubtitle:
         "Suppliers assigned to your department pending evaluation. Open a case to see the full dossier and submit your score.",
       reviewerEmpty:

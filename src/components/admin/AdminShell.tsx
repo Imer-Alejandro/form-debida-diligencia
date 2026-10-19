@@ -51,7 +51,7 @@ const NAV_GROUPS_RAW: NavGroup[] = [
     ],
   },
   {
-    label: "REVISIONES",
+    label: "REVISIÓN DEPARTAMENTAL",
     items: [{ href: "/admin/reviews", key: "reviews", icon: "users" }],
   },
 ];

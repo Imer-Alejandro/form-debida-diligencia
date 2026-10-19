@@ -648,13 +648,13 @@ export const es = {
         "El acceso requiere una cuenta y un rol asignado por un administrador del portal.",
     },
     nav: {
-      dashboard: "Panel",
+      dashboard: "Panel general",
       suppliers: "Proveedores",
       invitations: "Invitaciones",
       alerts: "Alertas",
       users: "Usuarios",
       settings: "Configuración",
-      reviews: "Revisiones SLA",
+      reviews: "Revisiones departamentales",
       signOut: "Cerrar sesión",
       viewSite: "Ver sitio público",
       backToAdmin: "Volver al panel",
@@ -959,10 +959,10 @@ export const es = {
       decisionFollowUp: "Decisión y seguimiento",
     },
     departmentReviews: {
-      title: "Monitor SLA departamental",
+      title: "Revisiones departamentales",
       subtitle:
         "Seguimiento de Compras y las áreas revisoras. El plazo de tres días hábiles inicia al confirmar la recepción del expediente completo.",
-      reviewerTitle: "Mis tareas de revisión",
+      reviewerTitle: "Mis revisiones",
       reviewerSubtitle:
         "Proveedores asignados a su departamento pendientes de evaluación. Abra un caso para ver el expediente completo y emitir su calificación.",
       reviewerEmpty:
