@@ -72,7 +72,7 @@ export default async function DepartmentReviewCasePage({
       supabase
         .from("supplier_registrations")
         .select(
-          "id, company_name, commercial_name, reference_no, status, risk_level, data, evaluation"
+          "id, company_name, commercial_name, reference_no, status, risk_level, provider_type, country, submitted_at, data, evaluation"
         )
         .eq("id", review.registration_id)
         .maybeSingle(),
@@ -142,6 +142,56 @@ export default async function DepartmentReviewCasePage({
     supplierData?.section1.legalName ??
     dict.admin.departmentReviews.departmentCase.unknownSupplier;
 
+  const caseLabels = dict.admin.departmentReviews.departmentCase;
+  const formSectionKeys = [
+    "section1",
+    "section2",
+    "section3",
+    "section4",
+    "section5",
+    "section6",
+    "section7",
+    "section8",
+    "section9",
+    "section10",
+    "section11",
+  ] as const;
+  const completedSections = formSectionKeys.filter((key) =>
+    Boolean(supplierData?.[key as keyof SupplierData])
+  ).length;
+  const indicators = [
+    { label: caseLabels.metricStatus, value: registration.status ?? "—" },
+    { label: caseLabels.metricRisk, value: registration.risk_level ?? "—" },
+    {
+      label: caseLabels.metricType,
+      value: registration.provider_type ?? "—",
+    },
+    { label: caseLabels.metricCountry, value: registration.country ?? "—" },
+    {
+      label: caseLabels.metricSubmitted,
+      value: registration.submitted_at
+        ? new Date(registration.submitted_at).toLocaleDateString("es-ES")
+        : "—",
+    },
+  ];
+  const bars = [
+    {
+      label: caseLabels.sectionsLabel,
+      value: completedSections,
+      max: formSectionKeys.length,
+      tone:
+        completedSections === formSectionKeys.length
+          ? ("positive" as const)
+          : ("neutral" as const),
+    },
+    {
+      label: caseLabels.documentsLabel,
+      value: (docs ?? []).length,
+      max: Math.max((docs ?? []).length, 1),
+      tone: (docs ?? []).length > 0 ? ("positive" as const) : ("negative" as const),
+    },
+  ];
+
   return (
     <div>
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -152,6 +202,8 @@ export default async function DepartmentReviewCasePage({
         canSend={role === "ADMIN" || role === "PURCHASING"}
         canAct={role === "ADMIN" || role === "DEPARTMENT_REVIEWER"}
         userDepartment={department}
+        heading={caseLabels.caseTitle}
+        queueHref={role === "DEPARTMENT_REVIEWER" ? "/admin/reviews" : undefined}
       />
       <DepartmentCaseView
         company={company}
@@ -165,6 +217,11 @@ export default async function DepartmentReviewCasePage({
         openDocument={dict.admin.departmentReviews.departmentCase.openDocument}
         yesLabel={dict.common.yes}
         noLabel={dict.common.no}
+        indicators={indicators}
+        bars={bars}
+        indicatorsTitle={caseLabels.indicatorsTitle}
+        completenessTitle={caseLabels.completenessTitle}
+        completenessLabel={caseLabels.completenessTitle}
       />
     </div>
   );

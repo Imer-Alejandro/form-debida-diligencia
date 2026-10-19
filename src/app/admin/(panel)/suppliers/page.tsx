@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminSession } from "@/lib/supabase/auth";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import type { RegistrationRow } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui";
@@ -23,7 +23,7 @@ export default async function AdminSuppliersPage({
   const country = s(sp.country);
   const tag = s(sp.tag);
 
-  const { supabase } = await getAdminSession();
+  const { supabase } = await requireStaffAccess();
 
   let query = supabase
     .from("supplier_registrations")

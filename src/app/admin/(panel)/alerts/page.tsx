@@ -1,4 +1,4 @@
-import { getAdminSession } from "@/lib/supabase/auth";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import { getServerDict } from "@/lib/i18n/server";
 import { Badge, type BadgeTone } from "@/components/ui";
 import { RunAlertsButton } from "@/components/admin/RunAlertsButton";
@@ -43,7 +43,7 @@ export default async function AdminAlertsPage() {
   const dict = await getServerDict();
   const a = dict.admin.alerts;
 
-  const { supabase } = await getAdminSession();
+  const { supabase } = await requireStaffAccess();
 
   const { data } = await supabase
     .from("supplier_alerts")

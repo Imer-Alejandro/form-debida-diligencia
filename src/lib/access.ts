@@ -42,6 +42,16 @@ export function canApproveException(role: AppRole | null): boolean {
   return role === "ADMIN" || role === "MANAGEMENT";
 }
 
+/** Department reviewers get a locked-down workspace: only their assigned cases. */
+export function isDepartmentReviewer(role: AppRole | null): boolean {
+  return role === "DEPARTMENT_REVIEWER";
+}
+
+/** Landing route for each role inside the admin panel. */
+export function adminHomePath(role: AppRole | null): string {
+  return isDepartmentReviewer(role) ? "/admin/reviews" : "/admin";
+}
+
 export function hasAnyRole(
   role: AppRole | null,
   allowed: readonly AppRole[]

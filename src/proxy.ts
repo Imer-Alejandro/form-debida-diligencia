@@ -5,8 +5,14 @@ import type { NextRequest } from "next/server";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
+/** Admin routes a DEPARTMENT_REVIEWER is allowed to open (everything else is
+ *  hard-blocked). Kept in sync with src/lib/admin-guard.ts. */
+const REVIEWER_ALLOWED_ADMIN_PREFIXES = ["/admin/reviews"];
+/** Authenticated reviewers are also kept away from the public supplier site. */
+const PUBLIC_PREFIXES = ["/registro", "/i/", "/interno/"];
+
 /** Next.js 16 "Proxy" (ex-Middleware): refreshes the Supabase session cookies
- *  so the admin session survives across requests. */
+ *  and enforces the department-reviewer lock-down. */
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
   if (!url || !key) return response;
@@ -23,13 +29,51 @@ export async function proxy(request: NextRequest) {
         Object.entries(setHeaders).forEach(([k, v]) =>
           response.headers.set(k, v)
         );
-      }, 
+      },
     },
   });
 
-  const { data, error } = await supabase.auth.getUser();
-  void data;
-  void error;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  if (user && pathname.startsWith("/admin")) {
+    const { data: roleRow } = await supabase
+      .from("app_user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (roleRow?.role === "DEPARTMENT_REVIEWER") {
+      const allowed =
+        pathname === "/admin/login" ||
+        REVIEWER_ALLOWED_ADMIN_PREFIXES.some((prefix) =>
+          pathname.startsWith(prefix)
+        );
+      if (!allowed) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/admin/reviews";
+        redirectUrl.search = "";
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+  }
+
+  if (user && PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    const { data: roleRow } = await supabase
+      .from("app_user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (roleRow?.role === "DEPARTMENT_REVIEWER") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/admin/reviews";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   return response;
 }

@@ -1,4 +1,5 @@
 import { getServerDict } from "@/lib/i18n/server";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import { authUrl, readOneDriveState } from "@/lib/onedrive";
 import { Badge } from "@/components/ui";
 
@@ -10,6 +11,7 @@ export default async function AdminSettingsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
+  await requireStaffAccess();
   const connected = Array.isArray(params.connected)
     ? params.connected[0]
     : params.connected;

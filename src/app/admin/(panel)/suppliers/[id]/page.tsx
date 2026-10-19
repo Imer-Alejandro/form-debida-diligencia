@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminSession } from "@/lib/supabase/auth";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import type {
   DocumentRow,
   RegistrationRow,
@@ -15,7 +15,7 @@ export default async function AdminSupplierDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase, role } = await getAdminSession();
+  const { supabase, role } = await requireStaffAccess();
 
   const { data: reg } = await supabase
     .from("supplier_registrations")

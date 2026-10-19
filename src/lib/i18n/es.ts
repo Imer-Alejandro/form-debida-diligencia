@@ -962,6 +962,13 @@ export const es = {
       title: "Monitor SLA departamental",
       subtitle:
         "Seguimiento de Compras y las áreas revisoras. El plazo de tres días hábiles inicia al confirmar la recepción del expediente completo.",
+      reviewerTitle: "Mis tareas de revisión",
+      reviewerSubtitle:
+        "Proveedores asignados a su departamento pendientes de evaluación. Abra un caso para ver el expediente completo y emitir su calificación.",
+      reviewerEmpty:
+        "No tiene tareas pendientes. Le notificaremos cuando se le asigne una nueva revisión.",
+      reviewerGroupPending: "Pendientes de evaluación",
+      reviewerGroupDone: "Completadas",
       caseLoadFailed: "No se pudo cargar el expediente de esta revisión.",
       openCase: "Abrir expediente de revisión",
       departmentCase: {
@@ -970,6 +977,16 @@ export const es = {
         documents: "Documentos del proveedor",
         noDocuments: "No hay documentos adjuntos.",
         openDocument: "Ver documento",
+        indicatorsTitle: "Indicadores del proveedor",
+        completenessTitle: "Completitud del expediente",
+        sectionsLabel: "Secciones completadas",
+        documentsLabel: "Documentos",
+        metricStatus: "Estado",
+        metricRisk: "Riesgo",
+        metricType: "Tipo de proveedor",
+        metricCountry: "País",
+        metricSubmitted: "Enviado",
+        caseTitle: "Tarea de revisión asignada",
       },
       empty: "No hay solicitudes de revisión departamental.",
       loadFailed: "No se pudo cargar el monitor SLA.",

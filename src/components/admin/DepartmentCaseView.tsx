@@ -4,6 +4,24 @@ export interface DepartmentCaseSection {
   labels: Record<string, string>;
 }
 
+export interface DepartmentCaseIndicator {
+  label: string;
+  value: string;
+}
+
+export interface DepartmentCaseBar {
+  label: string;
+  value: number;
+  max: number;
+  tone: "positive" | "neutral" | "negative";
+}
+
+const BAR_TONES: Record<DepartmentCaseBar["tone"], string> = {
+  positive: "bg-emerald-500",
+  neutral: "bg-amber-500",
+  negative: "bg-rose-500",
+};
+
 export interface DepartmentCaseDocument {
   id: string;
   registration_id: string;
@@ -115,6 +133,11 @@ export function DepartmentCaseView({
   openDocument,
   yesLabel,
   noLabel,
+  indicators,
+  bars,
+  indicatorsTitle,
+  completenessTitle,
+  completenessLabel,
 }: {
   company: string;
   reference: string | null;
@@ -127,7 +150,13 @@ export function DepartmentCaseView({
   openDocument: string;
   yesLabel: string;
   noLabel: string;
+  indicators?: DepartmentCaseIndicator[];
+  bars?: DepartmentCaseBar[];
+  indicatorsTitle?: string;
+  completenessTitle?: string;
+  completenessLabel?: string;
 }) {
+  const barList = bars ?? [];
   return (
     <div className="mt-6 space-y-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
@@ -138,6 +167,60 @@ export function DepartmentCaseView({
           {reference ?? "—"} · {status} · {risk ?? "—"}
         </p>
       </section>
+
+      {indicators && indicators.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+          {indicatorsTitle && (
+            <h2 className="mb-4 border-b border-slate-100 pb-3 font-semibold text-navy-900">
+              {indicatorsTitle}
+            </h2>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {indicators.map((indicator) => (
+              <div
+                key={indicator.label}
+                className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  {indicator.label}
+                </p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-navy-900">
+                  {indicator.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {barList.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+          <h2 className="mb-4 border-b border-slate-100 pb-3 font-semibold text-navy-900">
+            {completenessTitle ?? completenessLabel}
+          </h2>
+          <div className="space-y-3">
+            {barList.map((bar) => {
+              const pct = bar.max > 0 ? Math.round((bar.value / bar.max) * 100) : 0;
+              return (
+                <div key={bar.label}>
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>{bar.label}</span>
+                    <span className="font-semibold tabular-nums">
+                      {bar.value}/{bar.max} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${BAR_TONES[bar.tone]}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {sections.map((section) => (
         <section

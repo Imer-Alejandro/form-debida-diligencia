@@ -123,11 +123,15 @@ export function DepartmentReviews({
   canSend,
   canAct,
   userDepartment,
+  heading,
+  queueHref,
 }: {
   reviews: DepartmentReviewView[];
   canSend: boolean;
   canAct: boolean;
   userDepartment: string | null;
+  heading?: string;
+  queueHref?: string;
 }) {
   const dict = useDict();
   const { lang } = useI18n();
@@ -191,6 +195,23 @@ export function DepartmentReviews({
 
   return (
     <div className="space-y-4">
+      {(heading || queueHref) && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {heading && (
+            <h1 className="font-display text-xl font-semibold tracking-tight text-navy-900">
+              {heading}
+            </h1>
+          )}
+          {queueHref && (
+            <Link
+              href={queueHref}
+              className="text-xs font-semibold text-navy-800 underline underline-offset-2"
+            >
+              ← {t.title}
+            </Link>
+          )}
+        </div>
+      )}
       {message && (
         <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
           {message}

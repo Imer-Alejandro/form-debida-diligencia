@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { getAdminSession } from "@/lib/supabase/auth";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import { getServerDict } from "@/lib/i18n/server";
 import type { InvitationRow } from "@/lib/types";
 import { NewInvitation } from "@/components/admin/NewInvitation";
@@ -11,7 +11,7 @@ export default async function AdminInvitationsPage() {
   const dict = await getServerDict();
   const inv = dict.admin.invitations;
 
-  const { supabase } = await getAdminSession();
+  const { supabase } = await requireStaffAccess();
 
   const { data } = await supabase
     .from("invitations")

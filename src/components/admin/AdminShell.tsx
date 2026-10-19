@@ -11,6 +11,7 @@ import {
   canManageSuppliers,
   canManageUsers,
   canReadSupplierRecords,
+  isDepartmentReviewer,
   type AppRole,
 } from "@/lib/access";
 
@@ -124,6 +125,7 @@ export function AdminShell({
   const visibleNavGroups = NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
+      if (isDepartmentReviewer(role)) return item.key === "reviews";
       if (item.key === "users") return canManageUsers(role);
       if (item.key === "invitations") return canManageSuppliers(role);
       if (item.key === "suppliers" || item.key === "alerts") {
@@ -138,7 +140,8 @@ export function AdminShell({
   const activeKey =
     visibleNav.find(
       (n) => (n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href))
-    )?.key ?? "dashboard";
+    )?.key ?? visibleNav[0]?.key ?? "dashboard";
+  const homeHref = isDepartmentReviewer(role) ? "/admin/reviews" : "/admin";
   const initial = (email || "?").trim().charAt(0).toUpperCase();
 
   const signOut = async () => {
@@ -164,7 +167,7 @@ export function AdminShell({
       <aside className="fixed inset-y-0 left-0 z-40 flex w-16 flex-col border-r border-slate-200/80 bg-white shadow-[0_0_24px_rgba(15,23,42,0.03)] lg:w-64">
         {/* Brand header */}
         <div className="flex h-16 items-center justify-center gap-3 border-b border-slate-100 px-3 lg:justify-start lg:px-5">
-          <Link href="/admin" aria-label="Panel" className="flex items-center gap-3 group">
+          <Link href={homeHref} aria-label="Panel" className="flex items-center gap-3 group">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-navy-900 text-white shadow-xs group-hover:scale-105 transition-transform">
               <span className="text-[15px] font-bold">S</span>
               <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-teal-600" />
@@ -231,19 +234,21 @@ export function AdminShell({
 
         {/* Bottom User Area */}
         <div className="border-t border-slate-100 p-3 space-y-2">
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
-            title={t("admin.nav.viewSite")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5 text-slate-400">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-            <span className="hidden lg:inline">{t("admin.nav.viewSite")}</span>
-          </a>
+          {!isDepartmentReviewer(role) && (
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              title={t("admin.nav.viewSite")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5 text-slate-400">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span className="hidden lg:inline">{t("admin.nav.viewSite")}</span>
+            </a>
+          )}
 
           <div className="hidden items-center gap-3 rounded-xl bg-slate-50 border border-slate-200/60 px-3 py-2.5 lg:flex">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy-900 text-[12px] font-bold text-white shadow-2xs">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminSession } from "@/lib/supabase/auth";
+import { requireStaffAccess } from "@/lib/admin-guard";
 import type { RegistrationRow, RiskLevel, RegistrationStatus } from "@/lib/types";
 import {
   Dashboard,
@@ -16,7 +16,7 @@ export default async function AdminDashboardPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { supabase } = await getAdminSession();
+  const { supabase } = await requireStaffAccess();
   const params = await searchParams;
   const periodParam = getParam(params.period);
   const period: DashboardPeriod = ["12m", "all", "custom"].includes(periodParam)
