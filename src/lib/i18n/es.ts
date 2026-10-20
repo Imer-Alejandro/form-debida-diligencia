@@ -127,6 +127,17 @@ export const es = {
       step3Sub: "Homologación y alta como proveedor",
       stepPhase: "Fase {current} de {total} · {progress}%",
       progressLabel: "Avance del Proceso de Evaluación",
+      nextActionLabel: "Próximo paso",
+      nextAction: {
+        SIN_INICIAR: "Abra el formulario de invitación y complete su registro.",
+        BORRADOR: "Continúe el formulario y envíelo cuando esté completo.",
+        PENDIENTE: "Su solicitud fue recibida. Espere la asignación del equipo revisor.",
+        EN_REVISION: "El equipo está revisando su expediente; no necesita hacer nada por ahora.",
+        SOLICITUD_CAMBIOS: "Revise las observaciones, actualice la información y vuelva a enviar el formulario.",
+        APROBADO: "Su proveedor fue aprobado. Contacte a Compras si necesita coordinar los siguientes pasos.",
+        APROBADO_CONDICIONES: "Revise las condiciones de aprobación y coordine su cumplimiento con Compras.",
+        RECHAZADO: "Contacte a Compras si necesita aclaraciones sobre la decisión.",
+      },
     },
     status: {
       SIN_INICIAR: {
@@ -310,6 +321,11 @@ export const es = {
       "Declaración y firma",
     ],
     finalReview: "Revisión",
+    requestChangesIntro:
+      "El equipo revisor solicita corregir o completar algunos datos. Revise las instrucciones específicas y vuelva a enviar el formulario al finalizar.",
+    requestChangesInstructions: "Correcciones solicitadas",
+    requestChangesUnavailable:
+      "No pudimos cargar las observaciones. Puede guardar el borrador, pero contacte a Compras antes de reenviar para confirmar qué debe corregir.",
     stepSub: {
       0: "Datos generales del proveedor.",
       1: "Personas autorizadas para tratar con la empresa.",
@@ -589,6 +605,9 @@ export const es = {
     dropHint: "Seleccionar archivo; se sube de inmediato y verá el progreso",
     noUploadsYet: "Ningún documento adjunto aún.",
     pending: "Pendiente",
+    required: "Requerido",
+    requiredProgress: "Documentos requeridos cargados: {uploaded} de {total}",
+    requiredComplete: "Todos los documentos requeridos están cargados.",
     processing: "Procesando archivo…",
     processingCount: "Procesando {n} archivo(s)…",
     progressLabel: "Subiendo {pct}%",
@@ -763,6 +782,13 @@ export const es = {
       },
       byRisk: "Por riesgo",
       open: "Abrir",
+      queueLabel: "Filas de trabajo",
+      queue: {
+        all: "Todos",
+        review: "Por revisar",
+        supplier: "Esperando al proveedor",
+        stale: "Sin actividad · 7+ días",
+      },
     },
     detail: {
       back: "Volver a la lista",
@@ -892,8 +918,9 @@ export const es = {
       requestChanges: "Solicitar cambios al proveedor",
       requestChangesNote:
         "Se marcará el registro como “Solicitud de cambios”. El nuevo enlace permitirá al proveedor editar y volver a enviar (los cambios bancarios requerirán validación).",
-      requestNoteLabel: "Nota o comentario para el proveedor (opcional)",
+      requestNoteLabel: "Instrucciones para el proveedor (obligatorias)",
       requestNoteHint: "La nota se incluirá en el correo de notificación.",
+      requestNoteRequiredHint: "Indique claramente qué debe corregir o completar el proveedor (mínimo 10 caracteres).",
       pendingDocsTitle: "Documentos marcados sin subir todavía:",
       requestSend: "Enviar solicitud",
       requestCancel: "Cancelar",
@@ -1070,6 +1097,16 @@ export const es = {
       mailSent: "Invitación enviada al correo del proveedor.",
       mailSkipped: "Sin correo: comparta el enlace o el QR.",
       mailFailed: "Invitación creada, pero el correo no se pudo enviar.",
+      linkReady: "Enlace listo para compartir",
+      copied: "Copiado",
+      copyFailed: "No se pudo copiar el enlace. Selecciónelo y cópielo manualmente.",
+      resend: "Reenviar correo",
+      resending: "Enviando…",
+      resendSent: "Correo reenviado al proveedor.",
+      resendFailed: "No se pudo reenviar el correo.",
+      resendExpired: "El enlace venció. Cree una nueva invitación antes de contactar al proveedor.",
+      resendNoEmail: "Esta invitación no tiene correo de destino; copie y comparta el enlace.",
+      resendMailNotConfigured: "El correo no está configurado. Copie y comparta el enlace manualmente.",
       listEmpty: "Aún no ha creado invitaciones.",
       tokenNote:
         "Comparta el enlace o el código QR. Cada enlace es único y permite registrar y adjuntar documentos.",

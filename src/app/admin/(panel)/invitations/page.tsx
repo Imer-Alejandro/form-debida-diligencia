@@ -16,7 +16,7 @@ export default async function AdminInvitationsPage() {
   const { data } = await supabase
     .from("invitations")
     .select(
-      "id, token, supplier_name, supplier_email, status, language, created_at, expires_at, last_opened_at"
+      "id, token, supplier_name, supplier_email, status, created_at, expires_at, last_opened_at"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -28,7 +28,6 @@ export default async function AdminInvitationsPage() {
     | "supplier_name"
     | "supplier_email"
     | "status"
-    | "language"
     | "created_at"
     | "expires_at"
     | "last_opened_at"

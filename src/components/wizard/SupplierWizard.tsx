@@ -120,11 +120,15 @@ export function SupplierWizard({
   token,
   initial,
   registration,
+  requestNote,
+  requestNoteUnavailable,
   lang,
 }: {
   token: string;
   initial: SupplierData | null;
   registration: RegistrationRow | null;
+  requestNote: string | null;
+  requestNoteUnavailable: boolean;
   lang: "es" | "en";
 }) {
   const { t, lang: currentLang, setLang } = useI18n();
@@ -466,6 +470,7 @@ export function SupplierWizard({
       provider_type: registration?.provider_type || data.section1.providerType,
       country: registration?.country || data.section1.nationality,
       status: (submission.status || registration?.status || "PENDIENTE") as SupplierStatus,
+      note: requestNote,
       submitted_at: registration?.submitted_at,
       updated_at: registration?.updated_at,
       created_at: registration?.created_at,
@@ -494,8 +499,18 @@ export function SupplierWizard({
                 Atención: Subsanación de Información Requerida
               </h3>
               <p className="mt-1 text-rose-900 leading-relaxed">
-                El Oficial de Cumplimiento ha revisado su expediente y solicita actualizar datos o anexar documentación complementaria. Modifique las secciones indicadas y presione <strong>&quot;Enviar registro&quot;</strong> en el paso final para reenviar su expediente.
+                {t("wizard.requestChangesIntro")}
               </p>
+              {requestNote ? (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-white/90 p-3 text-[12.5px] leading-relaxed text-rose-950">
+                  <p className="mb-1 font-semibold">{t("wizard.requestChangesInstructions")}</p>
+                  <p className="whitespace-pre-line">{requestNote}</p>
+                </div>
+              ) : requestNoteUnavailable ? (
+                <p role="alert" className="mt-3 text-rose-800">
+                  {t("wizard.requestChangesUnavailable")}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -644,6 +659,11 @@ export function SupplierWizard({
             {step === 8 && (
               <DocumentsStep
                 documents={data.section9.documents}
+                profile={{
+                  providerType: data.section1.providerType,
+                  nationality: data.section1.nationality,
+                  isContractor: data.section1.isContractor,
+                }}
                 setDocuments={setDocuments}
                 token={token}
                 attached={attached}

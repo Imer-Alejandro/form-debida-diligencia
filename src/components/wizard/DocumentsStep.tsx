@@ -2,13 +2,23 @@
 
 import { useRef, useState } from "react";
 import { useDict, useI18n } from "@/lib/i18n";
-import { documentCatalog, type DocumentIntent, type DocumentRow } from "@/lib/types";
+import {
+  documentCatalog,
+  requiredDocumentRefs,
+  type DocumentIntent,
+  type DocumentRow,
+} from "@/lib/types";
 import { validateFile } from "@/lib/upload-policy";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface DocumentsStepProps {
   documents: DocumentIntent[];
+  profile: {
+    providerType: string;
+    nationality: string;
+    isContractor: string;
+  };
   setDocuments: (docs: DocumentIntent[]) => void;
   token: string;
   attached: DocumentRow[];
@@ -22,6 +32,7 @@ type BusyState = { pct: number; error?: boolean };
 
 export function DocumentsStep({
   documents,
+  profile,
   setDocuments,
   token,
   attached,
@@ -100,6 +111,13 @@ export function DocumentsStep({
   const attachedCount = attached.length;
   const processing = Object.keys(busy).length;
   const showsDeps = attachedCount > 0 || processing > 0;
+  const requiredRefs = requiredDocumentRefs(profile);
+  const missingRequiredRefs = requiredRefs.filter(
+    (ref) =>
+      !documents.find((document) => document.ref === ref)?.checked ||
+      !attached.some((doc) => doc.ref === ref)
+  );
+  const uploadedRequiredCount = requiredRefs.length - missingRequiredRefs.length;
 
   return (
     <div className="space-y-5">
@@ -109,6 +127,33 @@ export function DocumentsStep({
         </p>
       )}
       <p className="text-[13px] text-ink-muted">{s9.usesOnlyWhenNeeded}</p>
+
+      <div
+        className={cn(
+          "rounded-xl border px-4 py-3",
+          missingRequiredRefs.length > 0
+            ? "border-amber-200 bg-amber-50/70"
+            : "border-emerald-200 bg-emerald-50/70"
+        )}
+      >
+        <p className="text-[12.5px] font-semibold text-slate-800">
+          {t("docs.requiredProgress", {
+            uploaded: String(uploadedRequiredCount),
+            total: String(requiredRefs.length),
+          })}
+        </p>
+        {missingRequiredRefs.length > 0 ? (
+          <ul className="mt-1 list-inside list-disc text-[11.5px] text-slate-600">
+            {missingRequiredRefs.map((ref) => (
+              <li key={ref}>
+                {s9.docDescriptions[ref as keyof typeof s9.docDescriptions] ?? ref}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-[11.5px] text-emerald-800">{t("docs.requiredComplete")}</p>
+        )}
+      </div>
 
       {processing > 0 && (
         <div className="flex items-center gap-2.5 rounded-xl border border-navy-800/15 bg-navy-50 px-4 py-3 text-[12.5px] font-medium text-navy-700">
@@ -137,6 +182,8 @@ export function DocumentsStep({
           const meta = documentCatalog.find((d) => d.ref === el.ref);
           const attachedForRef = attached.filter((d) => d.ref === el.ref);
           const state = busy[el.ref];
+          const isRequired = requiredRefs.includes(el.ref);
+          const isMissing = isRequired && (!el.checked || attachedForRef.length === 0);
           const isPending = el.checked && attachedForRef.length === 0 && !state;
           return (
             <div key={el.ref} className={cn("px-4 py-4 sm:px-5", el.checked && "bg-bone-50/60")}>
@@ -156,17 +203,17 @@ export function DocumentsStep({
                       <span className="text-sm font-medium leading-snug text-ink">
                         {s9.docDescriptions[el.ref as keyof typeof s9.docDescriptions]}
                       </span>
-                      {meta?.requirement === "required" && (
+                      {isRequired && (
                         <span className="rounded-full border border-rose-200/70 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600">
                           {t("s9.requirements.required")}
                         </span>
                       )}
-                      {meta?.requirement === "optional" && (
+                      {!isRequired && meta?.requirement === "optional" && (
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                           {t("s9.requirements.optional")}
                         </span>
                       )}
-                      {meta?.requirement === "contractor" && (
+                      {isRequired && meta?.requirement === "contractor" && (
                         <span className="rounded-full border border-navy-800/15 bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy-700">
                           {t("s9.requirements.contractor")}
                         </span>
@@ -186,12 +233,15 @@ export function DocumentsStep({
                         : t("docs.progressLabel", { pct: String(state.pct) })}
                     </span>
                   ) : (
-                    isPending &&
-                    onedriveOn && (
+                    isMissing && !state ? (
+                      <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 text-[11px] font-medium text-warning">
+                        {isPending ? t("docs.pending") : t("docs.required")}
+                      </span>
+                    ) : isPending && onedriveOn ? (
                       <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-2.5 py-1 text-[11px] font-medium text-warning">
                         {t("docs.pending")}
                       </span>
-                    )
+                    ) : null
                   )}
                 </label>
               </div>

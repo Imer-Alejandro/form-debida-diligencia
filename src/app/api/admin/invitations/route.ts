@@ -57,7 +57,8 @@ export async function POST(req: Request) {
 
   if (error || !inv) return NextResponse.json({ error: "db" }, { status: 500 });
 
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || new URL(req.url).origin;
   const link = `${base}/i/${inv.token}`;
 
   let emailStatus: "sent" | "failed" | "skipped" = "skipped";

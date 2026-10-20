@@ -8,6 +8,10 @@ import { SuppliersFilters } from "@/components/admin/SuppliersFilters";
 
 export const dynamic = "force-dynamic";
 
+function getStaleQueueThreshold(): string {
+  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export default async function AdminSuppliersPage({
   searchParams,
 }: {
@@ -22,19 +26,29 @@ export default async function AdminSuppliersPage({
   const providerType = s(sp.type);
   const country = s(sp.country);
   const tag = s(sp.tag);
+  const queue = s(sp.queue);
 
   const { supabase } = await requireStaffAccess();
 
   let query = supabase
     .from("supplier_registrations")
     .select(
-      "id, reference_no, company_name, commercial_name, provider_type, status, risk_level, tax_id, country, tags, submitted_at, created_at"
+      "id, reference_no, company_name, commercial_name, provider_type, status, risk_level, tax_id, country, tags, submitted_at, created_at, updated_at"
     )
-    .order("created_at", { ascending: false })
+    .order(queue === "stale" ? "updated_at" : "created_at", {
+      ascending: queue === "stale",
+    })
     .limit(200);
 
   if (q) query = query.or(`company_name.ilike.%${q}%,commercial_name.ilike.%${q}%,reference_no.ilike.%${q}%,tax_id.ilike.%${q}%`);
   if (status) query = query.eq("status", status);
+  else if (queue === "review") query = query.in("status", ["PENDIENTE", "EN_REVISION"]);
+  else if (queue === "supplier") query = query.eq("status", "SOLICITUD_CAMBIOS");
+  else if (queue === "stale") {
+    query = query
+      .in("status", ["PENDIENTE", "EN_REVISION", "SOLICITUD_CAMBIOS"])
+      .lt("updated_at", getStaleQueueThreshold());
+  }
   if (risk) query = query.eq("risk_level", risk);
   if (providerType) query = query.eq("provider_type", providerType);
   if (country) query = query.eq("country", country);
@@ -56,6 +70,7 @@ export default async function AdminSuppliersPage({
     | "tags"
     | "submitted_at"
     | "created_at"
+    | "updated_at"
   >[];
 
   return (
@@ -73,13 +88,14 @@ export default async function AdminSuppliersPage({
 
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
+          <table className="w-full min-w-[940px] border-separate border-spacing-0 text-left">
             <thead>
               <tr className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/80">
                 <th className="border-b border-slate-200/70 px-4 py-3">Referencia</th>
                 <th className="border-b border-slate-200/70 px-4 py-3">Proveedor</th>
                 <th className="border-b border-slate-200/70 px-4 py-3">País</th>
                 <th className="border-b border-slate-200/70 px-4 py-3">Enviado</th>
+                <th className="border-b border-slate-200/70 px-4 py-3">Última actividad</th>
                 <th className="border-b border-slate-200/70 px-4 py-3">Riesgo</th>
                 <th className="border-b border-slate-200/70 px-4 py-3">Estado</th>
                 <th className="border-b border-slate-200/70 px-4 py-3 text-right">Etiquetas</th>
@@ -114,6 +130,9 @@ export default async function AdminSuppliersPage({
                     </td>
                     <td className="px-4 py-3.5 text-[12.5px] text-slate-500">
                       {formatDate(r.submitted_at ?? r.created_at)}
+                    </td>
+                    <td className="px-4 py-3.5 text-[12.5px] text-slate-500">
+                      {formatDate(r.updated_at)}
                     </td>
                     <td className="px-4 py-3.5">
                       <Badge tone={riskTone(r.risk_level)} withDot>{riskLabel(r.risk_level)}</Badge>

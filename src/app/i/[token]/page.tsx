@@ -24,6 +24,8 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
 
   let prefill: SupplierData | null = null;
   let registration: RegistrationRow | null = null;
+  let requestNote: string | null = null;
+  let requestNoteUnavailable = false;
 
   if (inv) {
     const { data } = await supabase.rpc("get_registration_for_token", {
@@ -31,6 +33,18 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
     });
     const rows = Array.isArray(data) ? data : data ? [data] : [];
     registration = (rows[0] as RegistrationRow) ?? null;
+
+    if (registration?.status === "SOLICITUD_CAMBIOS") {
+      const { data: status, error } = await supabase.rpc("get_portal_status", {
+        p_query: token,
+      });
+      if (error) {
+        console.error("Could not load supplier change-request notes", error);
+        requestNoteUnavailable = true;
+      } else {
+        requestNote = typeof status?.note === "string" ? status.note : null;
+      }
+    }
   }
 
   // A brand-new supplier (no registration yet) can always start; otherwise only
@@ -65,6 +79,8 @@ async function InvitationPage({ params }: { params: Promise<{ token: string }> }
             token={token}
             initial={prefill}
             registration={registration}
+            requestNote={requestNote}
+            requestNoteUnavailable={requestNoteUnavailable}
             lang={(inv?.language ?? "es") as "es" | "en"}
           />
         </div>

@@ -1344,14 +1344,17 @@ export function SupplierDetail({
                     {t("admin.detail.requestNoteLabel")}
                   </span>
                   <Textarea
-                    rows={3}
+                    rows={4}
+                    minLength={10}
+                    maxLength={2000}
+                    required
                     value={reqNote}
                     onChange={(e) => setReqNote(e.target.value)}
                     placeholder={t("admin.detail.requestNoteHint")}
                     className="text-[13px]"
                   />
                   <p className="mt-1 text-[11px] text-ink-muted">
-                    {t("admin.detail.requestNoteHint")}
+                    {t("admin.detail.requestNoteRequiredHint")}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1359,7 +1362,7 @@ export function SupplierDetail({
                     type="button"
                     variant="danger"
                     onClick={() => void requestChanges()}
-                    disabled={reqLoading}
+                    disabled={reqLoading || reqNote.trim().length < 10}
                   >
                     {reqLoading ? t("common.loading") : t("admin.detail.requestSend")}
                   </Button>

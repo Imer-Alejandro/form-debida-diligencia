@@ -16,6 +16,9 @@ export function NewInvitation() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mailInfo, setMailInfo] = useState<string | null>(null);
+  const [createdUrl, setCreatedUrl] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -23,43 +26,64 @@ export function NewInvitation() {
     setSaving(true);
     setError(null);
     setMailInfo(null);
-    const res = await fetch("/api/admin/invitations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        company,
-        email,
-        note,
-        language,
-        expiresAt: expires
-          ? new Date(`${expires}T23:59:59`).toISOString()
-          : null,
-      }),
-    });
-    const data = (await res.json()) as {
-      ok?: boolean;
-      error?: string;
-      emailStatus?: "sent" | "failed" | "skipped";
-      mailError?: string;
-    };
-    if (!res.ok || !data.ok) {
+    setCreatedUrl(null);
+    setCopyError(false);
+    setCopied(false);
+    try {
+      const res = await fetch("/api/admin/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company,
+          email,
+          note,
+          language,
+          expiresAt: expires
+            ? new Date(`${expires}T23:59:59`).toISOString()
+            : null,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        emailStatus?: "sent" | "failed" | "skipped";
+        mailError?: string;
+        url?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setError(t("admin.invitations.errorCreate"));
+        return;
+      }
+      setMailInfo(
+        data.emailStatus === "sent"
+          ? t("admin.invitations.mailSent")
+          : data.emailStatus === "failed"
+            ? `${t("admin.invitations.mailFailed")}${data.mailError ? ` (${data.mailError})` : ""}`
+            : t("admin.invitations.mailSkipped")
+      );
+      if (data.url) setCreatedUrl(data.url);
+      setCompany("");
+      setEmail("");
+      setNote("");
+      setExpires("");
+      router.refresh();
+    } catch {
       setError(t("admin.invitations.errorCreate"));
+    } finally {
       setSaving(false);
-      return;
     }
-    setMailInfo(
-      data.emailStatus === "sent"
-        ? t("admin.invitations.mailSent")
-        : data.emailStatus === "failed"
-          ? `${t("admin.invitations.mailFailed")}${data.mailError ? ` (${data.mailError})` : ""}`
-          : t("admin.invitations.mailSkipped")
-    );
-    setCompany("");
-    setEmail("");
-    setNote("");
-    setExpires("");
-    setSaving(false);
-    router.refresh();
+  };
+
+  const copyCreatedUrl = async () => {
+    if (!createdUrl) return;
+    try {
+      const absoluteUrl = new URL(createdUrl, window.location.origin).toString();
+      await navigator.clipboard.writeText(absoluteUrl);
+      setCopied(true);
+      setCopyError(false);
+    } catch {
+      setCopyError(true);
+    }
   };
 
   return (
@@ -115,6 +139,18 @@ export function NewInvitation() {
         <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700 font-medium">
           {mailInfo}
         </p>
+      )}
+      {createdUrl && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+          <p className="text-xs font-semibold text-emerald-900">{t("admin.invitations.linkReady")}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 break-all text-[11px] text-slate-700">{createdUrl}</code>
+            <Button type="button" size="sm" variant="secondary" onClick={() => void copyCreatedUrl()}>
+              {copied ? t("admin.invitations.copied") : t("admin.invitations.copyLink")}
+            </Button>
+          </div>
+          {copyError && <p role="alert" className="mt-2 text-xs text-rose-700">{t("admin.invitations.copyFailed")}</p>}
+        </div>
       )}
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={saving || !company.trim()}>

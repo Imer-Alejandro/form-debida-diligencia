@@ -16,6 +16,9 @@ export async function POST(req: Request) {
   if (!body.id) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
   const note = String(body.note ?? "").trim();
+  if (note.length < 10 || note.length > 2000) {
+    return NextResponse.json({ error: "invalid_note" }, { status: 400 });
+  }
 
   const { data: reg } = await supabase
     .from("supplier_registrations")
@@ -38,7 +41,8 @@ export async function POST(req: Request) {
 
   const token = makeToken();
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || new URL(req.url).origin;
   const url = `${base}/i/${token}`;
 
   const { data: inv, error: invErr } = await supabase
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
       token,
       supplier_email: supplierEmail,
       supplier_name: oldInv?.supplier_name ?? reg.company_name ?? "",
-      note: note || "Solicitud de cambios: revise la información señalada y vuelva a enviar el formulario.",
+      note,
       status: "sent",
       language,
       created_by: user.id,
@@ -61,6 +65,7 @@ export async function POST(req: Request) {
   const { error } = await supabase
     .from("supplier_registrations")
     .update({
+      invitation_id: inv.id,
       status: "SOLICITUD_CAMBIOS",
       invitation_token: token,
       updated_at: new Date().toISOString(),

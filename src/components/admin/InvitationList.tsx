@@ -31,16 +31,20 @@ export function InvitationList({
   const { t } = useI18n();
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const [copied, setCopied] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
+  const [resendResult, setResendResult] = useState<Record<string, string>>({});
 
   const copy = async (token: string) => {
     try {
       await navigator.clipboard.writeText(`${base}/i/${token}`);
       setCopied(token);
+      setCopyError(false);
       setTimeout(() => setCopied(null), 1500);
     } catch {
-      /* noop */
+      setCopyError(true);
     }
   };
 
@@ -63,11 +67,44 @@ export function InvitationList({
     }
   };
 
+  const resend = async (id: string) => {
+    setResending(id);
+    setResendResult((current) => ({ ...current, [id]: "" }));
+    try {
+      const response = await fetch("/api/admin/invitations/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        const key =
+          result.error === "expired"
+            ? "resendExpired"
+            : result.error === "no_email"
+              ? "resendNoEmail"
+              : result.error === "mail_not_configured"
+                ? "resendMailNotConfigured"
+                : "resendFailed";
+        setResendResult((current) => ({ ...current, [id]: t(`admin.invitations.${key}` as never) }));
+        return;
+      }
+      setResendResult((current) => ({ ...current, [id]: t("admin.invitations.resendSent") }));
+    } catch {
+      setResendResult((current) => ({
+        ...current,
+        [id]: t("admin.invitations.resendFailed"),
+      }));
+    } finally {
+      setResending(null);
+    }
+  };
+
   return (
     <div>
-      {deleteError && (
+      {(deleteError || copyError) && (
         <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {t("admin.invitations.errorDelete")}
+          {deleteError ? t("admin.invitations.errorDelete") : t("admin.invitations.copyFailed")}
         </p>
       )}
       <ul className="space-y-3.5">
@@ -111,6 +148,19 @@ export function InvitationList({
                   >
                     {copied === inv.token ? "✓ Copiado" : t("admin.invitations.copyLink")}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => void resend(inv.id)}
+                    disabled={
+                      resending === inv.id ||
+                      inv.status === "completed"
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-navy-800 shadow-2xs hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resending === inv.id
+                      ? t("admin.invitations.resending")
+                      : t("admin.invitations.resend")}
+                  </button>
                   <a
                     href={url}
                     target="_blank"
@@ -145,6 +195,18 @@ export function InvitationList({
                       : t("admin.invitations.delete")}
                   </button>
                 </div>
+                {resendResult[inv.id] && (
+                  <p
+                    role="status"
+                    className={`mt-2 text-xs ${
+                      resendResult[inv.id] === t("admin.invitations.resendSent")
+                        ? "text-emerald-700"
+                        : "text-rose-700"
+                    }`}
+                  >
+                    {resendResult[inv.id]}
+                  </p>
+                )}
               </div>
             </div>
           </li>

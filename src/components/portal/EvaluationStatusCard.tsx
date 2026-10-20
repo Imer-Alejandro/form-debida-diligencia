@@ -133,6 +133,7 @@ export function EvaluationStatusCard({
   const formattedDate = data.submitted_at || data.updated_at || data.created_at;
   const pStats = dict.portal.cardStats;
   const pSteps = dict.portal.cardSteps;
+  const nextAction = pSteps.nextAction[data.status];
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-[0_4px_24px_rgba(10,25,47,0.06)] transition-all">
@@ -323,6 +324,13 @@ export function EvaluationStatusCard({
             ) : (
               <span className="text-xs font-bold text-navy-900">i</span>
             )}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50/70 px-4 py-3">
+            <p className="text-[10.5px] font-bold uppercase tracking-wider text-teal-800">
+              {pSteps.nextActionLabel}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-teal-950">{nextAction}</p>
           </div>
           <div className="flex-1">
             <h3 className="font-display text-sm font-bold tracking-tight">

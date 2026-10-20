@@ -114,10 +114,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## Flujo de trabajo
 
-1. El administrador crea una **invitación** (desde `/admin/invitations`) y comparte el enlace **o el QR**.
-2. El proveedor abre `/i/[token]`, completa el formulario en dos idiomas, adjunta los documentos (se suben directo a la biblioteca de SharePoint) y los firma.
+1. El administrador crea una **invitación** (desde `/admin/invitations`) y comparte el enlace **o el QR**; puede copiarlo o reenviar el correo desde el listado.
+2. El proveedor abre `/i/[token]`, completa el formulario en dos idiomas, consulta el checklist de documentos aplicables, adjunta los documentos (se suben directo a la biblioteca de SharePoint) y los firma.
 3. Puede guardar un borrador y retomarlo; al **enviar**, el registro queda en revisión.
-4. El administrador evalúa el registro (secciones 12–13 del detalle), añade tags, consulta el historial por área de las validaciones especializadas y toma una decisión. Si se solicitan cambios, el sistema regenera el enlace de invitación y el proveedor puede reenviar.
+4. El proveedor puede consultar el estado y el próximo paso esperado. El administrador gestiona los registros desde las filas de trabajo **Por revisar**, **Esperando al proveedor** y **Sin actividad · 7+ días**.
+5. El administrador evalúa el registro (secciones 12–13 del detalle), añade tags, consulta el historial por área de las validaciones especializadas y toma una decisión. Si se solicitan cambios, debe especificar las correcciones; estas aparecen al proveedor junto con el nuevo enlace de invitación para actualizar y reenviar el formulario.
 
 Al guardar una decisión final, la integración opcional con ADM busca el proveedor por
 RNC/`FiscalID`: crea o actualiza en decisiones aprobadas y lo marca inactivo si es
