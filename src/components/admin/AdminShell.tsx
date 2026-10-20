@@ -167,7 +167,7 @@ export function AdminShell({
       <aside className="fixed inset-y-0 left-0 z-40 flex w-16 flex-col border-r border-slate-200/80 bg-white shadow-[0_0_24px_rgba(15,23,42,0.03)] lg:w-64">
         {/* Brand header */}
         <div className="flex h-16 items-center justify-center gap-3 border-b border-slate-100 px-3 lg:justify-start lg:px-5">
-          <Link href={homeHref} aria-label="Panel" className="flex items-center gap-3 group">
+          <Link href={homeHref} aria-label="Dashboard" className="flex items-center gap-3 group">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-navy-900 text-white shadow-xs group-hover:scale-105 transition-transform">
               <span className="text-[15px] font-bold">S</span>
               <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-teal-600" />
@@ -290,7 +290,7 @@ export function AdminShell({
           {/* Breadcrumb */}
           <div className="flex min-w-0 items-center gap-2">
             <span className="hidden items-center gap-2 text-[13px] text-slate-400 lg:flex">
-              <span className="font-semibold text-slate-700">Panel</span>
+              <span className="font-semibold text-slate-700">Dashboard</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                 <polyline points="9 18 15 12 9 6" />
               </svg>

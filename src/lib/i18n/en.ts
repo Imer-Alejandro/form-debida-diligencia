@@ -650,7 +650,7 @@ export const en = {
         "Access requires an account and a role assigned by a portal administrator.",
     },
     nav: {
-      dashboard: "General panel",
+      dashboard: "Dashboard",
       suppliers: "Suppliers",
       invitations: "Invitations",
       alerts: "Alerts",

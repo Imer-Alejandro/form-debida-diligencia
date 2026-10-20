@@ -648,7 +648,7 @@ export const es = {
         "El acceso requiere una cuenta y un rol asignado por un administrador del portal.",
     },
     nav: {
-      dashboard: "Panel general",
+      dashboard: "Dashboard",
       suppliers: "Proveedores",
       invitations: "Invitaciones",
       alerts: "Alertas",
@@ -709,7 +709,7 @@ export const es = {
       errorLastAdmin: "Debe permanecer al menos un administrador activo.",
     },
     dashboard: {
-      title: "Panel general",
+      title: "Dashboard",
       subtitle: "Resumen de la cartera de proveedores",
       total: "Registros totales",
       pending: "Pendientes de revisión",
