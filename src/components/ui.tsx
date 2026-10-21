@@ -121,6 +121,7 @@ export function Field({
 export function Input({
   className,
   invalid,
+  "aria-invalid": ariaInvalid,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
   return (
@@ -132,6 +133,7 @@ export function Input({
           : "border-slate-200/90 hover:border-slate-300 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-700/15",
         className
       )}
+      aria-invalid={ariaInvalid ?? (invalid ? true : undefined)}
       {...props}
     />
   );

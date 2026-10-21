@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { getAdminApi, isAdminApiConfigured } from "@/lib/supabase/admin";
 import { submissionReceivedEmail, isMailConfigured, sendMail } from "@/lib/mail";
 import { requiredDocumentRefs, type SupplierData } from "@/lib/types";
+import { getSupplierDisplayName } from "@/lib/supplier-display-name";
 
 export interface SubmitBody {
   token: string;
@@ -96,7 +97,12 @@ export async function POST(req: NextRequest) {
   const emailStatus = await notifySubmission({
     token,
     language: language === "en" ? "en" : "es",
-    company: (reg?.company_name || reg?.commercial_name || data.section1.legalName || data.section1.commercialName || "").trim(),
+    company: getSupplierDisplayName(
+      reg?.commercial_name,
+      data.section1.commercialName,
+      reg?.company_name,
+      data.section1.legalName
+    ),
     reference: reg?.reference_no ?? null,
   });
 

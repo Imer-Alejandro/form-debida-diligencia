@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { EvaluationStatusCard } from "./EvaluationStatusCard";
 import type { PortalStatusResult } from "./types";
 import { useI18n } from "@/lib/i18n";
+import { getPortalLookupOutcome } from "@/lib/portal-lookup";
 
 interface PortalLookupHeroProps {
   onOpenStartModal?: () => void;
@@ -43,11 +44,18 @@ export function PortalLookupHero({
 
     try {
       const res = await fetch(`/api/portal/status?q=${encodeURIComponent(q)}`);
-      const data = await res.json().catch(() => null);
+      const data = await res.json();
+      const outcome = getPortalLookupOutcome(
+        res.status,
+        data?.found === true
+      );
 
-      if (res.ok && data?.found) {
+      if (outcome === "found") {
         setResult(data as PortalStatusResult);
         setError(null);
+      } else if (outcome === "service-error") {
+        setResult(null);
+        setError(t("portal.networkError"));
       } else {
         const tokenCandidate = isDirectToken(q);
         if (tokenCandidate) {
@@ -106,9 +114,13 @@ export function PortalLookupHero({
         <div className="mx-auto mt-8 max-w-2xl">
           <form
             onSubmit={handleSearch}
+            aria-busy={loading}
             className="group relative flex flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_8px_30px_rgba(10,25,47,0.08)] backdrop-blur-md transition-all focus-within:border-navy-800 focus-within:ring-4 focus-within:ring-navy-900/10 sm:flex-row sm:items-center sm:rounded-full sm:p-2 sm:pl-5"
           >
             <div className="flex flex-1 items-center gap-3 px-2 py-1">
+              <label htmlFor="portal-status-search" className="sr-only">
+                {t("portal.searchLabel")}
+              </label>
               <svg
                 className="h-5 w-5 shrink-0 text-slate-400 group-focus-within:text-navy-900 transition-colors"
                 viewBox="0 0 24 24"
@@ -117,13 +129,17 @@ export function PortalLookupHero({
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
               >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
               <input
+                id="portal-status-search"
                 type="text"
                 value={query}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? "portal-search-error" : undefined}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   if (error) setError(null);
@@ -157,7 +173,7 @@ export function PortalLookupHero({
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                      <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
@@ -168,6 +184,9 @@ export function PortalLookupHero({
                 )}
               </button>
             </div>
+            <span className="sr-only" role="status" aria-live="polite">
+              {loading ? t("portal.searching") : ""}
+            </span>
           </form>
 
           {/* Quick example tags & shortcuts */}
@@ -210,7 +229,7 @@ export function PortalLookupHero({
 
           {/* Error / Not found alert */}
           {error && (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-4 text-left text-xs leading-relaxed text-rose-900 shadow-2xs">
+            <div id="portal-search-error" role="alert" className="mt-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-4 text-left text-xs leading-relaxed text-rose-900 shadow-2xs">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-rose-200 text-rose-700 font-bold text-[11px]">
                   !

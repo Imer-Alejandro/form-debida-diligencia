@@ -4,7 +4,7 @@ import { useI18n, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export function LangToggle({ light = false }: { light?: boolean }) {
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, t } = useI18n();
 
   return (
     <div
@@ -15,13 +15,14 @@ export function LangToggle({ light = false }: { light?: boolean }) {
           : "border-navy-800/15 bg-white text-ink"
       )}
       role="group"
-      aria-label="Idioma"
+      aria-label={t("lang.label")}
     >
       {(["es", "en"] as Lang[]).map((l) => (
         <button
           key={l}
           type="button"
           onClick={() => setLang(l)}
+          aria-pressed={lang === l}
           className={cn(
             "rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
             lang === l

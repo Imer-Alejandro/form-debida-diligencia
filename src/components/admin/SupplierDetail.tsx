@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { canApproveException, type AppRole } from "@/lib/access";
-import { evaluateTriggers } from "@/lib/risk";
+import {
+  canApproveException,
+  hasAnyRole,
+  SUPPLIER_MANAGEMENT_ROLES,
+  type AppRole,
+} from "@/lib/access";
+import { computeRisk, evaluateTriggers } from "@/lib/risk";
 import { useDict, useI18n } from "@/lib/i18n";
 import {
   REQUESTING_AREAS,
@@ -173,6 +178,8 @@ export function SupplierDetail({
   const [tags, setTags] = useState<string[]>(reg.tags ?? []);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState<"eval" | "tags" | null>(null);
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [draftDirty, setDraftDirty] = useState(false);
   const [admLoading, setAdmLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [reqLoading, setReqLoading] = useState(false);
@@ -185,11 +192,34 @@ export function SupplierDetail({
   const [deactivateAdmOnDelete, setDeactivateAdmOnDelete] = useState(false);
   const [delLoading, setDelLoading] = useState(false);
   const [approvalExceptionReason, setApprovalExceptionReason] = useState("");
+  const draftVersionRef = useRef(0);
+  const draftQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestEvaluationRef = useRef(evaluation);
   const activeTriggers = evaluateTriggers({
     ratings: evaluation.section12.riskCategories ?? {},
     redFlag: evaluation.section12.redFlag,
     estimatedAmount: evaluation.section12.estimatedAnnualAmount,
   });
+  const currentRisk = computeRisk(
+    evaluation.section12.riskCategories ?? {},
+    evaluation.section12.redFlag
+  ).level;
+  const selectedDepartmentCount = departmentOptions.filter((department) => {
+    const triggerKey = {
+      FINANCE: "finance",
+      LEGAL: "legal",
+      TECHNOLOGY: "technology",
+    }[department.id] as "finance" | "legal" | "technology" | undefined;
+    return Boolean(
+      (triggerKey && activeTriggers[triggerKey]) ||
+        evaluation.section12.requiredDepartments?.includes(department.id)
+    );
+  }).length;
+  const canSendDepartmentRequests = hasAnyRole(
+    role,
+    SUPPLIER_MANAGEMENT_ROLES
+  );
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -202,12 +232,90 @@ export function SupplierDetail({
     }, 2200);
   };
 
-  const patchEval = (fn: (e: Evaluation) => Evaluation) =>
-    setEvaluation((prev) => fn(prev));
+  const persistEvaluationDraft = useCallback((
+    snapshot: Evaluation,
+    version: number
+  ): Promise<boolean> => {
+    const task = draftQueueRef.current.then(async () => {
+      if (version === draftVersionRef.current) setDraftStatus("saving");
+      const response = await fetch("/api/admin/evaluation/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: reg.id, evaluation: snapshot }),
+      });
+      if (!response.ok) throw new Error("draft_save_failed");
+      if (version === draftVersionRef.current) {
+        setDraftStatus("saved");
+        setDraftDirty(false);
+      }
+    });
+    draftQueueRef.current = task.catch(() => {});
 
-  const saveEvaluation = async () => {
+    return task.then(
+      () => true,
+      () => {
+        if (version === draftVersionRef.current) setDraftStatus("error");
+        return false;
+      }
+    );
+  }, [reg.id]);
+
+  useEffect(() => {
+    latestEvaluationRef.current = evaluation;
+  }, [evaluation]);
+
+  useEffect(() => {
+    if (!draftDirty) return;
+
+    const version = draftVersionRef.current;
+    const snapshot = evaluation;
+    const timer = setTimeout(() => {
+      if (draftTimerRef.current === timer) draftTimerRef.current = null;
+      void persistEvaluationDraft(snapshot, version);
+    }, 700);
+    draftTimerRef.current = timer;
+
+    return () => {
+      clearTimeout(timer);
+      if (draftTimerRef.current === timer) draftTimerRef.current = null;
+    };
+  }, [evaluation, draftDirty, persistEvaluationDraft]);
+
+  const flushEvaluationDraft = async () => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    await draftQueueRef.current;
+    if (!draftDirty && draftStatus !== "error") return true;
+    return persistEvaluationDraft(
+      latestEvaluationRef.current,
+      draftVersionRef.current
+    );
+  };
+
+  const patchEval = (fn: (e: Evaluation) => Evaluation) => {
+    draftVersionRef.current += 1;
+    setDraftDirty(true);
+    setDraftStatus("idle");
+    setEvaluation((prev) => fn(prev));
+  };
+
+  const saveEvaluation = async (dispatchDepartmentRequests = false) => {
+    if (
+      dispatchDepartmentRequests &&
+      !window.confirm(t("admin.detail.confirmSendDepartmentRequests"))
+    ) {
+      return;
+    }
+
     setSaving("eval");
     try {
+      const draftSaved = await flushEvaluationDraft();
+      if (dispatchDepartmentRequests && !draftSaved) {
+        notify(t("admin.detail.saveEvaluationFailed"));
+        return;
+      }
       const res = await fetch("/api/admin/evaluation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,12 +323,17 @@ export function SupplierDetail({
           id: reg.id,
           evaluation,
           approvalExceptionReason: approvalExceptionReason.trim() || undefined,
+          dispatchDepartmentRequests,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         adm?: { ok?: boolean; action?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
+        departmentRequests?: {
+          department: string;
+          status: "sent" | "failed" | "not_configured";
+        }[];
       };
       if (!res.ok) {
         notify(
@@ -230,7 +343,30 @@ export function SupplierDetail({
               ? t("admin.detail.departmentReasonRequired")
               : data.error === "invalid_department"
                 ? t("admin.detail.invalidDepartment")
+                : data.error === "supplier_already_approved"
+                  ? t("admin.detail.supplierAlreadyApproved")
                 : t("admin.detail.saveEvaluationFailed")
+        );
+        return;
+      }
+      if (dispatchDepartmentRequests) {
+        const requests = data.departmentRequests ?? [];
+        if (requests.length === 0) {
+          notify(t("admin.detail.noDepartmentRequestsToSend"));
+          return;
+        }
+        const counts = {
+          sent: requests.filter((request) => request.status === "sent").length,
+          failed: requests.filter((request) => request.status === "failed").length,
+          notConfigured: requests.filter(
+            (request) => request.status === "not_configured"
+          ).length,
+        };
+        notify(
+          t("admin.detail.departmentRequestsResult")
+            .replace("{sent}", String(counts.sent))
+            .replace("{failed}", String(counts.failed))
+            .replace("{notConfigured}", String(counts.notConfigured))
         );
         return;
       }
@@ -703,12 +839,25 @@ export function SupplierDetail({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={riskTone(evaluation.section12.risk || "PENDIENTE")} withDot>
-                  {t(`risk.${evaluation.section12.risk || "PENDIENTE"}` as never)}
+                <Badge tone={riskTone(currentRisk)} withDot>
+                  {t(`risk.${currentRisk}` as never)}
                 </Badge>
                 <Badge tone={statusTone(evaluation.section13.decision || "PENDIENTE")} withDot>
                   {t(`admin.detail.decisions.${evaluation.section13.decision || "PENDIENTE"}` as never)}
                 </Badge>
+                <span
+                  className="text-xs text-ink-muted"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {draftStatus === "saving"
+                    ? t("admin.detail.autosavingEvaluation")
+                    : draftStatus === "saved"
+                      ? t("admin.detail.autosavedEvaluation")
+                      : draftStatus === "error"
+                        ? t("admin.detail.autosaveEvaluationFailed")
+                        : ""}
+                </span>
               </div>
             </div>
 
@@ -876,6 +1025,28 @@ export function SupplierDetail({
                         </div>
                       );
                     })}
+                    {canSendDepartmentRequests &&
+                      selectedDepartmentCount > 0 && (
+                        <div className="rounded-xl border border-teal-200 bg-teal-50/70 p-4">
+                          <p className="text-xs leading-relaxed text-teal-900">
+                            {t("admin.detail.departmentDispatchHelp")}
+                          </p>
+                          <Button
+                            className="mt-3"
+                            size="sm"
+                            variant="secondary"
+                            disabled={saving === "eval"}
+                            onClick={() => void saveEvaluation(true)}
+                          >
+                            {saving === "eval"
+                              ? t("common.saving")
+                              : t("admin.detail.sendDepartmentRequests").replace(
+                                  "{count}",
+                                  String(selectedDepartmentCount)
+                                )}
+                          </Button>
+                        </div>
+                      )}
                     {completedReviews.length > 0 && (
                       <div className="space-y-2">
                         {completedReviews.map((review) => (
@@ -1302,9 +1473,15 @@ export function SupplierDetail({
 
                 <div className="mt-6 flex items-center justify-between gap-3 border-t border-navy-800/10 pt-4">
                   <p className="text-[11.5px] text-ink-muted">
-                    {saving === "eval" ? t("common.saving") : t("admin.detail.savedEvaluation")}
+                    {t("admin.detail.saveDecisionHint")}
                   </p>
-                  <Button type="button" onClick={() => void saveEvaluation()} disabled={saving === "eval"}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void saveEvaluation()}
+                    disabled={saving === "eval"}
+                  >
                     {saving === "eval" ? t("common.saving") : t("admin.detail.saveEvaluation")}
                   </Button>
                 </div>

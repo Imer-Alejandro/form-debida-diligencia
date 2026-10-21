@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     id?: string;
     evaluation?: Evaluation;
     approvalExceptionReason?: string;
+    dispatchDepartmentRequests?: boolean;
   };
   try {
     body = await req.json();
@@ -55,7 +56,11 @@ export async function POST(req: Request) {
   }
 
   const decision = body.evaluation.section13?.decision;
+  if (body.dispatchDepartmentRequests && !hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   if (
+    !body.dispatchDepartmentRequests &&
     !hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES) &&
     !(
       canApproveException(role) &&
@@ -67,7 +72,10 @@ export async function POST(req: Request) {
   }
 
   const s12 = body.evaluation.section12;
-  const status = ALLOWED_STATUS.includes(decision ?? "") ? decision : undefined;
+  const status =
+    !body.dispatchDepartmentRequests && ALLOWED_STATUS.includes(decision ?? "")
+      ? decision
+      : undefined;
 
   // The server is authoritative: recompute risk from the 12-category ratings
   // (red flag → ALTO) and stamp it onto the snapshot before persisting.
@@ -132,6 +140,27 @@ export async function POST(req: Request) {
     }
   }
 
+  if (body.dispatchDepartmentRequests) {
+    const { data: registration, error: registrationError } = await supabase
+      .from("supplier_registrations")
+      .select("status")
+      .eq("id", body.id)
+      .maybeSingle();
+    if (registrationError || !registration) {
+      console.error(
+        "Could not check supplier status before dispatching department reviews:",
+        registrationError?.message
+      );
+      return NextResponse.json({ error: "db" }, { status: 500 });
+    }
+    if (isRegistrationApproved(registration.status)) {
+      return NextResponse.json(
+        { error: "supplier_already_approved" },
+        { status: 409 }
+      );
+    }
+  }
+
   const payload = {
     outcome: status ?? "NO_DECISION",
     risk_level: result.level,
@@ -172,27 +201,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "db" }, { status: 500 });
   }
 
-  const { data: reviewRows, error: reviewError } = await supabase
-    .from("department_reviews")
-    .select("id, department, request_reason")
-    .eq("registration_id", body.id)
-    .eq("status", "REQUESTED")
-    .is("sent_at", null);
   const departmentRequests: {
     department: string;
     status: "sent" | "failed" | "not_configured";
   }[] = [];
-  if (reviewError) {
-    console.error("Could not load newly required department reviews:", reviewError.message);
-  } else if (reviewRows?.length) {
-    const departmentIds = [...new Set(reviewRows.map((row) => row.department))];
-    const { data: departmentRows, error: departmentError } = await supabase
-      .from("review_departments")
-      .select("id, name, recipient_email")
-      .in("id", departmentIds);
-    if (departmentError) {
-      console.error("Could not load department notification addresses:", departmentError.message);
-    } else {
+  if (body.dispatchDepartmentRequests) {
+    const { data: reviewRows, error: reviewError } = await supabase
+      .from("department_reviews")
+      .select("id, department, request_reason")
+      .eq("registration_id", body.id)
+      .eq("status", "REQUESTED")
+      .is("sent_at", null)
+      .in("department", requiredDepartments);
+    if (reviewError) {
+      console.error("Could not load department reviews to send:", reviewError.message);
+      return NextResponse.json({ error: "db" }, { status: 500 });
+    }
+    if (reviewRows?.length) {
+      const departmentIds = [...new Set(reviewRows.map((row) => row.department))];
+      const { data: departmentRows, error: departmentError } = await supabase
+        .from("review_departments")
+        .select("id, name, recipient_email")
+        .in("id", departmentIds);
+      if (departmentError) {
+        console.error("Could not load department notification addresses:", departmentError.message);
+        return NextResponse.json({ error: "db" }, { status: 500 });
+      }
       const departments = new Map((departmentRows ?? []).map((row) => [row.id, row]));
       const { data: supplier } = await supabase
         .from("supplier_registrations")
@@ -247,6 +281,14 @@ export async function POST(req: Request) {
       );
       departmentRequests.push(...requests);
     }
+  }
+
+  if (body.dispatchDepartmentRequests) {
+    return NextResponse.json({
+      ok: true,
+      risk: result.level,
+      departmentRequests,
+    });
   }
 
   const { data: savedRegistration, error: savedStatusError } = await supabase

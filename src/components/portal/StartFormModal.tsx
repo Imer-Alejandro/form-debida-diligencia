@@ -64,13 +64,14 @@ export function StartFormModal({ open, onClose }: StartFormModalProps) {
               }}
               placeholder={m.startPlaceholder}
               invalid={error}
+              aria-describedby={error ? "start-form-error" : undefined}
               autoComplete="off"
               autoFocus
             />
           </label>
 
           {error && (
-            <p className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 leading-relaxed">
+            <p id="start-form-error" role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 leading-relaxed">
               {m.startError}
             </p>
           )}
