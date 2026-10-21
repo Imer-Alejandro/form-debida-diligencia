@@ -2,10 +2,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createAdminAccount,
+  deleteAdminAccount,
   findAdminAccountIdByEmail,
   generateAdminPassword,
   isUserAdminConfigured,
 } from "@/lib/admin-accounts";
+import { getAdminApi, isAdminApiConfigured } from "@/lib/supabase/admin";
 import {
   adminCredentialsEmail,
   isMailConfigured,
@@ -19,6 +21,7 @@ export type DepartmentReviewerAccountStatus =
   | "unchanged"
   | "no_email"
   | "not_configured"
+  | "role_conflict"
   | "failed";
 
 export interface DepartmentReviewerAccountResult {
@@ -69,7 +72,11 @@ export async function ensureDepartmentReviewerAccount(args: {
         appName,
       });
       results.push(result);
-    } catch {
+    } catch (error) {
+      console.error(
+        `Could not provision department reviewer access for ${email}:`,
+        error instanceof Error ? error.message : error
+      );
       results.push({ email, status: "failed" });
     }
   }
@@ -87,26 +94,37 @@ async function ensureOne(args: {
   appName: string;
 }): Promise<DepartmentReviewerAccountResult> {
   const { supabase, email, department, departmentName, caseId } = args;
+  const roleClient = isAdminApiConfigured() ? getAdminApi() : supabase;
   const existingId = await findAdminAccountIdByEmail(email);
   const caseLink = `${BASE_URL()}/admin/reviews/${caseId}`;
 
   if (existingId) {
-    const { data: roleRow } = await supabase
+    const { data: roleRow, error: roleError } = await roleClient
       .from("app_user_roles")
       .select("role, department")
       .eq("user_id", existingId)
       .maybeSingle();
-    if (roleRow) {
+    if (roleError) throw new Error(roleError.message);
+    if (
+      roleRow?.role === "DEPARTMENT_REVIEWER" &&
+      roleRow.department === department
+    ) {
       return { email, status: "unchanged" };
     }
-    const { error: insertError } = await supabase
-      .from("app_user_roles")
-      .insert({
-        user_id: existingId,
-        role: "DEPARTMENT_REVIEWER",
-        department,
-      });
-    if (insertError) return { email, status: "failed" };
+    if (roleRow?.role && roleRow.role !== "READ_ONLY") {
+      return { email, status: "role_conflict" };
+    }
+    const { error: assignmentError } = roleRow
+      ? await roleClient
+          .from("app_user_roles")
+          .update({ role: "DEPARTMENT_REVIEWER", department })
+          .eq("user_id", existingId)
+      : await roleClient.from("app_user_roles").insert({
+          user_id: existingId,
+          role: "DEPARTMENT_REVIEWER",
+          department,
+        });
+    if (assignmentError) throw new Error(assignmentError.message);
     await sendCredentialsMail({
       email,
       password: null,
@@ -121,12 +139,20 @@ async function ensureOne(args: {
 
   const password = generateAdminPassword();
   const created = await createAdminAccount({ email, password });
-  const { error: insertError } = await supabase.from("app_user_roles").insert({
+  const { error: insertError } = await roleClient.from("app_user_roles").insert({
     user_id: created.id,
     role: "DEPARTMENT_REVIEWER",
     department,
   });
   if (insertError) {
+    try {
+      await deleteAdminAccount(created.id);
+    } catch (cleanupError) {
+      console.error(
+        `Could not remove unassigned department reviewer account ${created.id}:`,
+        cleanupError instanceof Error ? cleanupError.message : cleanupError
+      );
+    }
     return { email, status: "failed" };
   }
   await sendCredentialsMail({

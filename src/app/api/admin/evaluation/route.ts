@@ -7,6 +7,7 @@ import {
 } from "@/lib/access";
 import { computeRisk, evaluateTriggers } from "@/lib/risk";
 import { specializedForTriggers } from "@/lib/process";
+import { getDepartmentReviewIdsToDispatch } from "@/lib/department-dispatch";
 import { ADM_FINAL_DECISIONS, readAdmConfig, syncVendorAfterDecision } from "@/lib/adm";
 import {
   departmentReviewEmail,
@@ -94,6 +95,10 @@ export async function POST(req: Request) {
   const requiredDepartments = Array.isArray(s12.requiredDepartments)
     ? [...new Set(s12.requiredDepartments)]
     : [];
+  const departmentIdsToDispatch = getDepartmentReviewIdsToDispatch(
+    requiredDepartments,
+    triggers
+  );
   if (
     requiredDepartments.length > 20 ||
     requiredDepartments.some((department) => typeof department !== "string")
@@ -204,6 +209,7 @@ export async function POST(req: Request) {
   const departmentRequests: {
     department: string;
     status: "sent" | "failed" | "not_configured";
+    accountStatus?: "ready" | "failed" | "role_conflict" | "not_configured";
   }[] = [];
   if (body.dispatchDepartmentRequests) {
     const { data: reviewRows, error: reviewError } = await supabase
@@ -212,7 +218,7 @@ export async function POST(req: Request) {
       .eq("registration_id", body.id)
       .eq("status", "REQUESTED")
       .is("sent_at", null)
-      .in("department", requiredDepartments);
+      .in("department", departmentIdsToDispatch);
     if (reviewError) {
       console.error("Could not load department reviews to send:", reviewError.message);
       return NextResponse.json({ error: "db" }, { status: 500 });
@@ -262,14 +268,32 @@ export async function POST(req: Request) {
               console.error("Review request email sent but not logged:", sendLogError.message);
               return { department: review.department, status: "failed" as const };
             }
-            await ensureDepartmentReviewerAccount({
+            const accountResults = await ensureDepartmentReviewerAccount({
               supabase,
               recipients: department.recipient_email,
               department: review.department,
               departmentName: department.name,
               caseId: review.id,
             });
-            return { department: review.department, status: "sent" as const };
+            const accountStatus: "ready" | "failed" | "role_conflict" | "not_configured" =
+              accountResults.some(
+              (result) => result.status === "failed"
+            )
+              ? "failed"
+              : accountResults.some(
+                    (result) => result.status === "role_conflict"
+                  )
+                ? "role_conflict"
+                : accountResults.some(
+                      (result) => result.status === "not_configured"
+                    )
+                  ? "not_configured"
+                  : "ready";
+            return {
+              department: review.department,
+              status: "sent" as const,
+              accountStatus,
+            };
           } catch (error) {
             console.error(
               `Could not send department review request (${review.department}):`,

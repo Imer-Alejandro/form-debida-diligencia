@@ -907,7 +907,7 @@ export const es = {
       sendDepartmentRequests: "Confirmar y enviar enlaces ({count})",
       confirmSendDepartmentRequests: "¿Guardar las calificaciones y enviar ahora los enlaces de evaluación a los responsables de los departamentos seleccionados?",
       noDepartmentRequestsToSend: "No hay solicitudes departamentales pendientes de envío.",
-      departmentRequestsResult: "Enlaces enviados: {sent} · sin correo configurado: {notConfigured} · fallidos: {failed}.",
+      departmentRequestsResult: "Enlaces enviados: {sent} · sin correo configurado: {notConfigured} · fallidos: {failed} · acceso del responsable pendiente: {accessIssues}.",
       supplierAlreadyApproved: "El proveedor ya está aprobado; no se pueden abrir nuevas revisiones departamentales desde esta acción.",
       departmentReason: "Explique por qué debe participar esta área (mínimo 10 caracteres)",
       departmentReviewsPending:

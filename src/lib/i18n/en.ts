@@ -909,7 +909,7 @@ recent: "Recent registrations",
       sendDepartmentRequests: "Confirm and send links ({count})",
       confirmSendDepartmentRequests: "Save the ratings and send evaluation links to the selected department owners now?",
       noDepartmentRequestsToSend: "There are no pending department requests to send.",
-      departmentRequestsResult: "Links sent: {sent} · email not configured: {notConfigured} · failed: {failed}.",
+      departmentRequestsResult: "Links sent: {sent} · email not configured: {notConfigured} · failed: {failed} · reviewer access needs attention: {accessIssues}.",
       supplierAlreadyApproved: "This supplier is already approved; new department reviews cannot be opened from this action.",
       departmentReason: "Explain why this department must participate (at least 10 characters)",
       departmentReviewsPending:

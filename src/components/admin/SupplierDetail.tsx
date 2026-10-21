@@ -333,6 +333,7 @@ export function SupplierDetail({
         departmentRequests?: {
           department: string;
           status: "sent" | "failed" | "not_configured";
+          accountStatus?: "ready" | "failed" | "role_conflict" | "not_configured";
         }[];
       };
       if (!res.ok) {
@@ -361,12 +362,18 @@ export function SupplierDetail({
           notConfigured: requests.filter(
             (request) => request.status === "not_configured"
           ).length,
+          accessIssues: requests.filter(
+            (request) =>
+              request.status === "sent" &&
+              request.accountStatus !== "ready"
+          ).length,
         };
         notify(
           t("admin.detail.departmentRequestsResult")
             .replace("{sent}", String(counts.sent))
             .replace("{failed}", String(counts.failed))
             .replace("{notConfigured}", String(counts.notConfigured))
+            .replace("{accessIssues}", String(counts.accessIssues))
         );
         return;
       }
