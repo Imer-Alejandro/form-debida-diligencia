@@ -112,19 +112,6 @@ export async function POST(req: Request) {
       triggers.technology ? "TECHNOLOGY" : null,
     ].filter((department): department is string => department !== null)
   );
-  const departmentReasons: Record<string, string> = {};
-  for (const department of requiredDepartments) {
-    if (autoTriggeredDepartments.has(department)) continue;
-    const rawReason = s12.departmentReasons?.[department];
-    const reason = typeof rawReason === "string" ? rawReason.trim() : "";
-    if (reason.length < 10) {
-      return NextResponse.json(
-        { error: "department_reason_required", department },
-        { status: 422 }
-      );
-    }
-    departmentReasons[department] = reason.slice(0, 1000);
-  }
   if (requiredDepartments.length > 0) {
     const { data: activeDepartments, error: activeDepartmentsError } =
       await supabase
@@ -149,6 +136,19 @@ export async function POST(req: Request) {
         { status: 422 }
       );
     }
+  }
+  const departmentReasons: Record<string, string> = {};
+  for (const department of requiredDepartments) {
+    if (autoTriggeredDepartments.has(department)) continue;
+    const rawReason = s12.departmentReasons?.[department];
+    const reason = typeof rawReason === "string" ? rawReason.trim() : "";
+    if (reason.length < 10) {
+      return NextResponse.json(
+        { error: "department_reason_required", department },
+        { status: 422 }
+      );
+    }
+    departmentReasons[department] = reason.slice(0, 1000);
   }
 
   if (body.dispatchDepartmentRequests) {

@@ -309,6 +309,34 @@ export function SupplierDetail({
       return;
     }
 
+    const missingDepartmentReason = (
+      evaluation.section12.requiredDepartments ?? []
+    ).find((departmentId) => {
+      const triggerKey = {
+        FINANCE: "finance",
+        LEGAL: "legal",
+        TECHNOLOGY: "technology",
+      }[departmentId] as "finance" | "legal" | "technology" | undefined;
+      if (triggerKey && activeTriggers[triggerKey]) return false;
+      return (
+        (evaluation.section12.departmentReasons?.[departmentId]?.trim().length ??
+          0) < 10
+      );
+    });
+    if (missingDepartmentReason) {
+      const departmentName =
+        departmentOptions.find(
+          (department) => department.id === missingDepartmentReason
+        )?.name ?? missingDepartmentReason;
+      notify(
+        t("admin.detail.departmentReasonRequired").replace(
+          "{department}",
+          departmentName
+        )
+      );
+      return;
+    }
+
     setSaving("eval");
     try {
       const draftSaved = await flushEvaluationDraft();
