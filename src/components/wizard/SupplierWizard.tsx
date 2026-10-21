@@ -145,6 +145,9 @@ export function SupplierWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<
+    "idle" | "pending" | "saving" | "saved" | "error"
+  >("idle");
   const [attached, setAttached] = useState<DocumentRow[]>([]);
   const [onedriveOn, setOnedriveOn] = useState(true);
   const [submission, setSubmission] = useState<
@@ -160,6 +163,8 @@ export function SupplierWizard({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const dirtyRef = useRef(false);
+  const autosaveVersionRef = useRef(0);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(false);
   const uploadLockRef = useRef(false);
   const [uploading, setUploading] = useState(false);
@@ -209,9 +214,13 @@ export function SupplierWizard({
       return;
     }
     if (!dirtyRef.current) return;
+    const version = ++autosaveVersionRef.current;
+    setAutosaveStatus("pending");
     const id = setTimeout(async () => {
+      autosaveTimerRef.current = null;
       dirtyRef.current = false;
       setSaving(true);
+      setAutosaveStatus("saving");
       try {
         const res = await fetch("/api/registration/draft", {
           method: "POST",
@@ -219,14 +228,27 @@ export function SupplierWizard({
           body: JSON.stringify({ token, data, language: currentLang }),
         });
         const json = await res.json().catch(() => null);
-        if (res.ok && json?.registration?.id) setSavedAt(Date.now());
+        if (!res.ok || !json?.registration?.id) {
+          throw new Error(json?.message || json?.error || "draft_save_failed");
+        }
+        if (version === autosaveVersionRef.current) {
+          setSavedAt(Date.now());
+          setAutosaveStatus("saved");
+        }
       } catch {
-        dirtyRef.current = true;
+        if (version === autosaveVersionRef.current) {
+          dirtyRef.current = true;
+          setAutosaveStatus("error");
+        }
       } finally {
         setSaving(false);
       }
     }, 1200);
-    return () => clearTimeout(id);
+    autosaveTimerRef.current = id;
+    return () => {
+      clearTimeout(id);
+      if (autosaveTimerRef.current === id) autosaveTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, editable]);
 
@@ -380,13 +402,27 @@ export function SupplierWizard({
   };
 
   const saveDraft = async () => {
+    const version = autosaveVersionRef.current;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
     setSavingDraft(true);
+    setAutosaveStatus("saving");
     setSubmitError(null);
     setDraftMessage(null);
     try {
       await saveDraftAndUpload();
+      if (version === autosaveVersionRef.current) {
+        dirtyRef.current = false;
+        setAutosaveStatus("saved");
+      }
       setDraftMessage(t("submit.draftSaved"));
     } catch (error) {
+      if (version === autosaveVersionRef.current) {
+        dirtyRef.current = true;
+        setAutosaveStatus("error");
+      }
       setSubmitError(error instanceof Error ? `${t("docs.error")}: ${error.message}` : t("docs.error"));
     } finally {
       setSavingDraft(false);
@@ -521,13 +557,36 @@ export function SupplierWizard({
             Sánchez Business & Corp.
           </span>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="hidden text-[12px] text-ink-muted sm:block">
-              {saving
-                ? t("common.saving")
-                : savedAt
-                  ? `${t("common.saved")} · ${new Date(savedAt).toLocaleTimeString(currentLang, { hour: "2-digit", minute: "2-digit" })}`
-                  : ""}
-            </span>
+            {editable && autosaveStatus !== "idle" && (
+              <div
+                aria-live="polite"
+                className={`flex items-center gap-2 text-[11px] sm:text-[12px] ${
+                  autosaveStatus === "error" ? "text-danger" : "text-ink-muted"
+                }`}
+              >
+                <span role={autosaveStatus === "error" ? "alert" : "status"}>
+                  {autosaveStatus === "pending"
+                    ? t("wizard.autosave.pending")
+                    : saving || autosaveStatus === "saving"
+                      ? t("wizard.autosave.saving")
+                      : autosaveStatus === "error"
+                        ? t("wizard.autosave.error")
+                        : savedAt
+                          ? `${t("wizard.autosave.saved")} · ${new Date(savedAt).toLocaleTimeString(currentLang, { hour: "2-digit", minute: "2-digit" })}`
+                          : t("wizard.autosave.saved")}
+                </span>
+                {autosaveStatus === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => void saveDraft()}
+                    disabled={savingDraft || submitting || uploading}
+                    className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {t("wizard.autosave.retry")}
+                  </button>
+                )}
+              </div>
+            )}
             <LangToggle />
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useDict, useI18n } from "@/lib/i18n";
 import type { DocumentIntent, DocumentRow, SupplierData } from "@/lib/types";
 import { countryName } from "@/lib/countries";
 import { WARRANTY_REF } from "@/lib/upload-policy";
+import { requiredDocumentRefs } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
 function KV({ k, v }: { k: string; v?: string }) {
@@ -45,9 +46,158 @@ export function ReviewStep({
 
   const visibleDocs = documents.filter((d) => d.checked);
   const warrantyDoc = attached.find((a) => a.ref === WARRANTY_REF);
+  const hasAnswer = (values: (string | string[] | boolean)[]) =>
+    values.some((value) =>
+      Array.isArray(value)
+        ? value.length > 0
+        : typeof value === "string"
+          ? value.trim().length > 0
+          : value
+    );
+  const requiredRefs = requiredDocumentRefs({
+    providerType: data.section1.providerType,
+    nationality: data.section1.nationality,
+    isContractor: data.section1.isContractor,
+  });
+  const incompleteSections = [
+    {
+      step: 0,
+      title: dict.s1.title,
+      incomplete: !hasAnswer([
+        data.section1.providerType,
+        data.section1.legalName,
+        data.section1.taxId,
+        data.section1.nationality,
+        data.section1.legalAddress,
+        data.section1.mainEconomicActivity,
+      ]),
+    },
+    {
+      step: 1,
+      title: dict.s2.title,
+      incomplete: !data.section2.contacts.some((contact) =>
+        hasAnswer([contact.name, contact.email, contact.phone, contact.position])
+      ),
+    },
+    {
+      step: 2,
+      title: dict.s3.title,
+      incomplete: !hasAnswer([
+        data.section3.legalRepName,
+        data.section3.legalRepId,
+        data.section3.shareholders,
+        data.section3.pep,
+        data.section3.relatedToSbc,
+        data.section3.relatedCompanies,
+      ]),
+    },
+    {
+      step: 3,
+      title: dict.s4.title,
+      incomplete: !hasAnswer([
+        data.section4.taxReceipts,
+        data.section4.taxCondition,
+        data.section4.tss,
+        data.section4.withholdings,
+        data.section4.specialRegime,
+      ]),
+    },
+    {
+      step: 4,
+      title: dict.s5.title,
+      incomplete: !hasAnswer([
+        data.section5.bank,
+        data.section5.accountHolder,
+        data.section5.accountType,
+        data.section5.currency,
+        data.section5.accountNumber,
+        data.section5.paymentTerms,
+      ]),
+    },
+    {
+      step: 5,
+      title: dict.s6.title,
+      incomplete: !hasAnswer([
+        data.section6.yearsExperience,
+        data.section6.coverage,
+        data.section6.supplyCapacity,
+        data.section6.avgDeliveryTime,
+        data.section6.warrantyPolicy,
+        data.section6.brands,
+      ]),
+    },
+    {
+      step: 6,
+      title: dict.s7.title,
+      incomplete: !data.section7.references.some((reference) =>
+        hasAnswer([reference.client, reference.contact, reference.phoneEmail, reference.product])
+      ),
+    },
+    {
+      step: 7,
+      title: dict.s8.title,
+      incomplete: data.section8.compliance.some((question) => !question.answer),
+    },
+    {
+      step: 8,
+      title: dict.s9.title,
+      incomplete: requiredRefs.some(
+        (ref) =>
+          !documents.find((document) => document.ref === ref)?.checked ||
+          !attached.some((document) => document.ref === ref)
+      ),
+    },
+    {
+      step: 9,
+      title: dict.s10.title,
+      incomplete: data.section10.authorizations.length < 4,
+    },
+    {
+      step: 10,
+      title: dict.s11.title,
+      incomplete:
+        !data.section11.signerName.trim() ||
+        !data.section11.signatureDataUrl ||
+        !data.section11.signatureConsent,
+    },
+  ].filter((section) => section.incomplete);
 
   return (
     <div className="space-y-4">
+      <section
+        aria-labelledby="review-summary-title"
+        className={`rounded-2xl border p-4 sm:p-5 ${
+          incompleteSections.length > 0
+            ? "border-amber-200 bg-amber-50/70"
+            : "border-emerald-200 bg-emerald-50/70"
+        }`}
+      >
+        <h3 id="review-summary-title" className="font-display text-sm font-semibold text-slate-900">
+          {dict.wizard.reviewSummaryTitle}
+        </h3>
+        <p className="mt-1 text-[12px] leading-relaxed text-slate-700">
+          {dict.wizard.reviewSummaryIntro}
+        </p>
+        {incompleteSections.length > 0 ? (
+          <ul className="mt-3 space-y-1.5">
+            {incompleteSections.map((section) => (
+              <li key={section.step}>
+                <button
+                  type="button"
+                  onClick={() => onEdit(section.step)}
+                  className="text-left text-[12.5px] font-medium text-navy-800 underline decoration-navy-800/30 underline-offset-2 hover:decoration-navy-800"
+                >
+                  {dict.wizard.reviewSummaryAction}: {section.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p role="status" className="mt-2 text-[12.5px] font-medium text-emerald-800">
+            {dict.wizard.reviewSummaryComplete}
+          </p>
+        )}
+      </section>
       <SectionCard
         title={dict.s1.title}
         step={0}

@@ -322,6 +322,18 @@ export const en = {
       "Declaration & signature",
     ],
     finalReview: "Review",
+    autosave: {
+      pending: "Changes waiting to be saved",
+      saving: "Saving changes…",
+      saved: "Saved",
+      error: "Changes could not be saved.",
+      retry: "Retry",
+    },
+    reviewSummaryTitle: "Before you submit",
+    reviewSummaryIntro:
+      "These sections may need a review. This is a guide only; it adds no requirements and will not block submission.",
+    reviewSummaryComplete: "No obvious gaps were detected in this quick review.",
+    reviewSummaryAction: "Review",
     requestChangesIntro:
       "The review team needs some information corrected or completed. Review the specific instructions and resubmit the form when finished.",
     requestChangesInstructions: "Requested corrections",

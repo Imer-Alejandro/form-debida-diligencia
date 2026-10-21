@@ -321,6 +321,18 @@ export const es = {
       "Declaración y firma",
     ],
     finalReview: "Revisión",
+    autosave: {
+      pending: "Cambios pendientes de guardar",
+      saving: "Guardando cambios…",
+      saved: "Guardado",
+      error: "No se pudieron guardar los cambios.",
+      retry: "Reintentar",
+    },
+    reviewSummaryTitle: "Antes de enviar",
+    reviewSummaryIntro:
+      "Estas secciones podrían necesitar una revisión. Es una guía orientativa y no añade requisitos ni bloquea el envío.",
+    reviewSummaryComplete: "No detectamos vacíos evidentes en esta revisión rápida.",
+    reviewSummaryAction: "Revisar",
     requestChangesIntro:
       "El equipo revisor solicita corregir o completar algunos datos. Revise las instrucciones específicas y vuelva a enviar el formulario al finalizar.",
     requestChangesInstructions: "Correcciones solicitadas",
