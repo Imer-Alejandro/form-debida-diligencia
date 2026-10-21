@@ -918,12 +918,12 @@ recent: "Recent registrations",
       approvalExceptionReason:
         "Management/Administrator exception: reason required (at least 10 characters)",
       approvalExceptionHistory: "Recorded approval exceptions",
-      departmentReasonRequired: "Explain why each manually selected department is involved (at least 10 characters).",
+      departmentReasonRequired: "Enter a reason of at least 10 characters for {department}.",
       departmentReviewsNotCreated:
         "The evaluation was saved, but no department review was created. Verify that the department is active and was triggered by risk or selected.",
       departmentReviewsAlreadyDispatched:
         "There are no new requests to send: the department review already exists and was sent or is in progress. Check Department reviews.",
-      invalidDepartment: "The selected department is no longer active.",
+      invalidDepartment: "{department} is inactive. Activate it in Department reviews settings to continue.",
       saveEvaluationFailed: "Could not save the evaluation. Check the data and try again.",
       signatureStored: "Signature stored in the corporate repository · view files",
       noDocuments: "No documents attached through this channel.",

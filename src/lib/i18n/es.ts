@@ -916,12 +916,12 @@ export const es = {
       approvalExceptionReason:
         "Excepción de Gerencia/Administrador: motivo obligatorio (mínimo 10 caracteres)",
       approvalExceptionHistory: "Excepciones de aprobación registradas",
-      departmentReasonRequired: "Justifique la intervención manual de cada departamento (mínimo 10 caracteres).",
+      departmentReasonRequired: "Indique un motivo de al menos 10 caracteres para el área {department}.",
       departmentReviewsNotCreated:
         "La evaluación se guardó, pero no se creó ninguna revisión departamental. Verifique que el área esté activa y que el riesgo la haya activado o esté seleccionada.",
       departmentReviewsAlreadyDispatched:
         "No hay solicitudes nuevas para enviar: la revisión departamental ya existe y fue enviada o está en curso. Consulte Revisiones departamentales.",
-      invalidDepartment: "El departamento seleccionado ya no está activo.",
+      invalidDepartment: "El área {department} está inactiva. Actívela en la configuración de Revisiones departamentales para continuar.",
       saveEvaluationFailed: "No se pudo guardar la evaluación. Revise los datos e intente nuevamente.",
       signatureStored: "Firma guardada en el repositorio corporativo · ver archivos",
       noDocuments: "Sin documentos adjuntos por este medio.",

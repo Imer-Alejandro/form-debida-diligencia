@@ -328,6 +328,7 @@ export function SupplierDetail({
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        department?: string;
         adm?: { ok?: boolean; action?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
         departmentRequests?: {
@@ -337,6 +338,9 @@ export function SupplierDetail({
         }[];
       };
       if (!res.ok) {
+        const departmentName = departmentOptions.find(
+          (department) => department.id === data.department
+        )?.name ?? data.department ?? "";
         notify(
           data.error === "department_reviews_pending"
             ? t("admin.detail.departmentReviewsPending")
@@ -345,9 +349,15 @@ export function SupplierDetail({
               : data.error === "department_reviews_already_dispatched"
                 ? t("admin.detail.departmentReviewsAlreadyDispatched")
             : data.error === "department_reason_required"
-              ? t("admin.detail.departmentReasonRequired")
+              ? t("admin.detail.departmentReasonRequired").replace(
+                  "{department}",
+                  departmentName
+                )
               : data.error === "invalid_department"
-                ? t("admin.detail.invalidDepartment")
+                ? t("admin.detail.invalidDepartment").replace(
+                    "{department}",
+                    departmentName
+                  )
                 : data.error === "supplier_already_approved"
                   ? t("admin.detail.supplierAlreadyApproved")
                 : t("admin.detail.saveEvaluationFailed")

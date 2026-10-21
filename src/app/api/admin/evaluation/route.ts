@@ -140,8 +140,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "db" }, { status: 500 });
     }
     const activeIds = new Set((activeDepartments ?? []).map((department) => department.id));
-    if (requiredDepartments.some((department) => !activeIds.has(department))) {
-      return NextResponse.json({ error: "invalid_department" }, { status: 422 });
+    const inactiveDepartment = requiredDepartments.find(
+      (department) => !activeIds.has(department)
+    );
+    if (inactiveDepartment) {
+      return NextResponse.json(
+        { error: "invalid_department", department: inactiveDepartment },
+        { status: 422 }
+      );
     }
   }
 
