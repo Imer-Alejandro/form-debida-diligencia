@@ -907,7 +907,7 @@ export const es = {
       sendDepartmentRequests: "Confirmar y enviar enlaces ({count})",
       confirmSendDepartmentRequests: "¿Guardar las calificaciones y enviar ahora los enlaces de evaluación a los responsables de los departamentos seleccionados?",
       noDepartmentRequestsToSend: "No hay solicitudes departamentales pendientes de envío.",
-      departmentRequestsResult: "Enlaces enviados: {sent} · sin correo configurado: {notConfigured} · fallidos: {failed} · acceso del responsable pendiente: {accessIssues}.",
+      departmentRequestsResult: "Enlaces enviados: {sent} · sin correo configurado: {notConfigured} ({notConfiguredDepartments}) · fallidos: {failed} ({failedDepartments}) · acceso del responsable pendiente: {accessIssues} ({accessIssueDepartments}).",
       supplierAlreadyApproved: "El proveedor ya está aprobado; no se pueden abrir nuevas revisiones departamentales desde esta acción.",
       departmentReason: "Explique por qué debe participar esta área (mínimo 10 caracteres)",
       departmentReviewsPending:
@@ -917,6 +917,10 @@ export const es = {
         "Excepción de Gerencia/Administrador: motivo obligatorio (mínimo 10 caracteres)",
       approvalExceptionHistory: "Excepciones de aprobación registradas",
       departmentReasonRequired: "Justifique la intervención manual de cada departamento (mínimo 10 caracteres).",
+      departmentReviewsNotCreated:
+        "La evaluación se guardó, pero no se creó ninguna revisión departamental. Verifique que el área esté activa y que el riesgo la haya activado o esté seleccionada.",
+      departmentReviewsAlreadyDispatched:
+        "No hay solicitudes nuevas para enviar: la revisión departamental ya existe y fue enviada o está en curso. Consulte Revisiones departamentales.",
       invalidDepartment: "El departamento seleccionado ya no está activo.",
       saveEvaluationFailed: "No se pudo guardar la evaluación. Revise los datos e intente nuevamente.",
       signatureStored: "Firma guardada en el repositorio corporativo · ver archivos",

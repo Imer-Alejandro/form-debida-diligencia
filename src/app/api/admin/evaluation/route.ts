@@ -214,17 +214,35 @@ export async function POST(req: Request) {
   if (body.dispatchDepartmentRequests) {
     const { data: reviewRows, error: reviewError } = await supabase
       .from("department_reviews")
-      .select("id, department, request_reason")
+      .select("id, department, request_reason, status, sent_at")
       .eq("registration_id", body.id)
-      .eq("status", "REQUESTED")
-      .is("sent_at", null)
       .in("department", departmentIdsToDispatch);
     if (reviewError) {
       console.error("Could not load department reviews to send:", reviewError.message);
       return NextResponse.json({ error: "db" }, { status: 500 });
     }
-    if (reviewRows?.length) {
-      const departmentIds = [...new Set(reviewRows.map((row) => row.department))];
+    const pendingReviewRows = (reviewRows ?? []).filter(
+      (review) => review.status === "REQUESTED" && !review.sent_at
+    );
+    if (pendingReviewRows.length === 0) {
+      return NextResponse.json(
+        {
+          error: reviewRows?.length
+            ? "department_reviews_already_dispatched"
+            : "department_reviews_not_created",
+          saved: true,
+          departments: departmentIdsToDispatch,
+          reviewStatuses: (reviewRows ?? []).map((review) => ({
+            department: review.department,
+            status: review.status,
+            sent: Boolean(review.sent_at),
+          })),
+        },
+        { status: 409 }
+      );
+    }
+    if (pendingReviewRows.length) {
+      const departmentIds = [...new Set(pendingReviewRows.map((row) => row.department))];
       const { data: departmentRows, error: departmentError } = await supabase
         .from("review_departments")
         .select("id, name, recipient_email")
@@ -241,7 +259,7 @@ export async function POST(req: Request) {
         .maybeSingle();
       const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
       const requests = await Promise.all(
-        reviewRows.map(async (review) => {
+        pendingReviewRows.map(async (review) => {
           const department = departments.get(review.department);
           const recipients = parseMailRecipients(department?.recipient_email);
           if (!department || recipients.length === 0) {

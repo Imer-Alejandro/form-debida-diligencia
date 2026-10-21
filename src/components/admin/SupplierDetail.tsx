@@ -33,7 +33,6 @@ import {
 import { Badge, Button, Checkbox, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
-import { InternalReportsPanel } from "./InternalReportsPanel";
 import { SpecializedHistory } from "./SpecializedHistory";
 
 type SectionKey =
@@ -220,6 +219,7 @@ export function SupplierDetail({
     role,
     SUPPLIER_MANAGEMENT_ROLES
   );
+  const canDeleteSupplier = hasAnyRole(role, ["ADMIN", "MANAGEMENT"]);
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -340,6 +340,10 @@ export function SupplierDetail({
         notify(
           data.error === "department_reviews_pending"
             ? t("admin.detail.departmentReviewsPending")
+            : data.error === "department_reviews_not_created"
+              ? t("admin.detail.departmentReviewsNotCreated")
+              : data.error === "department_reviews_already_dispatched"
+                ? t("admin.detail.departmentReviewsAlreadyDispatched")
             : data.error === "department_reason_required"
               ? t("admin.detail.departmentReasonRequired")
               : data.error === "invalid_department"
@@ -362,18 +366,37 @@ export function SupplierDetail({
           notConfigured: requests.filter(
             (request) => request.status === "not_configured"
           ).length,
+          failedDepartments: requests
+            .filter((request) => request.status === "failed")
+            .map((request) => request.department)
+            .join(", ") || "—",
+          notConfiguredDepartments: requests
+            .filter((request) => request.status === "not_configured")
+            .map((request) => request.department)
+            .join(", ") || "—",
           accessIssues: requests.filter(
             (request) =>
               request.status === "sent" &&
               request.accountStatus !== "ready"
           ).length,
+          accessIssueDepartments: requests
+            .filter(
+              (request) =>
+                request.status === "sent" &&
+                request.accountStatus !== "ready"
+            )
+            .map((request) => request.department)
+            .join(", ") || "—",
         };
         notify(
           t("admin.detail.departmentRequestsResult")
             .replace("{sent}", String(counts.sent))
             .replace("{failed}", String(counts.failed))
             .replace("{notConfigured}", String(counts.notConfigured))
+            .replace("{notConfiguredDepartments}", counts.notConfiguredDepartments)
+            .replace("{failedDepartments}", counts.failedDepartments)
             .replace("{accessIssues}", String(counts.accessIssues))
+            .replace("{accessIssueDepartments}", counts.accessIssueDepartments)
         );
         return;
       }
@@ -562,6 +585,18 @@ export function SupplierDetail({
               </svg>
               {t("admin.detail.viewerTitle")} ({docs.length})
             </Link>
+            {canDeleteSupplier && (
+              <Button
+                size="sm"
+                variant="danger"
+                type="button"
+                title={`${t("admin.detail.deleteZoneTitle")}: ${t("admin.detail.deleteZoneNote")}`}
+                aria-label={`${t("admin.detail.deleteZoneTitle")}: ${t("admin.detail.deleteSupplier")}`}
+                onClick={() => setShowDelete(true)}
+              >
+                {t("admin.detail.deleteSupplier")}
+              </Button>
+            )}
             <Badge tone={riskTone(reg.risk_level)} withDot>{t(`risk.${reg.risk_level}` as never)}</Badge>
             <Badge tone={statusTone(reg.status)} withDot>{t(`statuses.${reg.status}` as never)}</Badge>
           </div>
@@ -643,16 +678,6 @@ export function SupplierDetail({
           {flash}
         </div>
       )}
-
-      <div className="mt-5 rounded-2xl border border-rose-200/70 bg-rose-50/40 p-5">
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600">
-          {t("admin.detail.deleteZoneTitle")}
-        </p>
-        <p className="mb-3 text-[12px] text-slate-600">{t("admin.detail.deleteZoneNote")}</p>
-        <Button size="sm" variant="danger" type="button" onClick={() => setShowDelete(true)}>
-          {t("admin.detail.deleteSupplier")}
-        </Button>
-      </div>
 
       <Modal
         open={showDelete}
@@ -1495,8 +1520,6 @@ export function SupplierDetail({
               </div>
             </div>
           </section>
-
-          <InternalReportsPanel registrationId={reg.id} />
 
           <section className="rounded-2xl border border-navy-800/10 bg-white p-5">
             <h2 className="font-display text-[15px] font-semibold text-navy-900">
