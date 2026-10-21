@@ -11,6 +11,7 @@ import {
   summarizeScores,
   type ScoreBand,
 } from "@/lib/department-criteria";
+import { getDepartmentSlaCompliance } from "@/lib/department-sla";
 
 export interface DepartmentReviewView {
   id: string;
@@ -227,6 +228,11 @@ export function DepartmentReviews({
           now !== null &&
           Date.parse(review.due_at ?? "") < now;
         const remainingDays = Math.ceil(review.remaining_sla_seconds / 86400);
+        const slaCompliance =
+          review.status === "COMPLETED"
+            ? getDepartmentSlaCompliance(review.due_at, review.responded_at)
+            : null;
+        const slaMissed = isOverdue || slaCompliance === "LATE";
         const company =
           review.supplier_registrations?.company_name ?? review.registration_id;
         return (
@@ -267,7 +273,7 @@ export function DepartmentReviews({
               </div>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  isOverdue
+                  slaMissed
                     ? "bg-rose-100 text-rose-700"
                     : review.status === "COMPLETED"
                       ? "bg-emerald-100 text-emerald-700"
@@ -277,7 +283,7 @@ export function DepartmentReviews({
                 {isOverdue ? t.overdue : t.statuses[review.status]}
               </span>
             </div>
-            <dl className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-5">
+            <dl className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-6">
               <div>
                 <dt className="font-semibold">{t.sent}</dt>
                 <dd>{review.sent_at ? formatDate(review.sent_at) : "—"}</dd>
@@ -291,21 +297,41 @@ export function DepartmentReviews({
                 <dd>{review.due_at ? formatDate(review.due_at) : "—"}</dd>
               </div>
               <div>
-                <dt className="font-semibold">{t.remaining}</dt>
+                <dt className="font-semibold">
+                  {review.status === "COMPLETED" ? t.slaCompliance : t.remaining}
+                </dt>
                 <dd>
-                  {review.status === "INFO_REQUESTED"
-                    ? t.paused.replace("{days}", String(remainingDays))
-                    : review.status === "IN_REVIEW"
-                      ? `${remainingDays} ${t.businessDays}`
-                      : "—"}
+                  {slaCompliance === "ON_TIME" ? (
+                    <span className="font-semibold text-emerald-700">
+                      {t.completedOnTime}
+                    </span>
+                  ) : slaCompliance === "LATE" ? (
+                    <span className="font-semibold text-rose-700">
+                      {t.completedLate}
+                    </span>
+                  ) : slaCompliance === "UNKNOWN" ? (
+                    <span>{t.slaUnknown}</span>
+                  ) : review.status === "INFO_REQUESTED" ? (
+                    t.paused.replace("{days}", String(remainingDays))
+                  ) : review.status === "IN_REVIEW" ? (
+                    `${remainingDays} ${t.businessDays}`
+                  ) : (
+                    "—"
+                  )}
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold">{t.escalations}</dt>
+                <dt className="font-semibold">
+                  {review.status === "COMPLETED" ? t.completedAt : t.escalations}
+                </dt>
                 <dd>
-                  {review.escalation_count > 0
-                    ? `${review.escalation_count} · ${review.last_escalated_at ? formatDate(review.last_escalated_at) : "—"}`
-                    : "—"}
+                  {review.status === "COMPLETED"
+                    ? review.responded_at
+                      ? formatDate(review.responded_at)
+                      : "—"
+                    : review.escalation_count > 0
+                      ? `${review.escalation_count} · ${review.last_escalated_at ? formatDate(review.last_escalated_at) : "—"}`
+                      : "—"}
                 </dd>
               </div>
             </dl>
