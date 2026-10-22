@@ -24,6 +24,7 @@ import {
   supplierFolderPath,
 } from "@/lib/onedrive";
 import {
+  isFinalRegistrationDecision,
   isRegistrationApproved,
   type Evaluation,
   type SupplierData,
@@ -57,6 +58,9 @@ export async function POST(req: Request) {
   }
 
   const decision = body.evaluation.section13?.decision;
+  if (!body.dispatchDepartmentRequests && !isFinalRegistrationDecision(decision)) {
+    return NextResponse.json({ error: "final_decision_required" }, { status: 422 });
+  }
   if (body.dispatchDepartmentRequests && !hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -354,14 +358,14 @@ export async function POST(req: Request) {
     action: "EVALUATION_SAVED",
     subject_type: "registration",
     subject_id: body.id,
-    detail: { decision: status ?? null, risk: result.level, escalated: triggers.requiresEscalation },
+    detail: {
+      decision: savedRegistration.status,
+      risk: result.level,
+      escalated: triggers.requiresEscalation,
+    },
   });
 
-  if (
-    status &&
-    ["APROBADO", "APROBADO_CONDICIONES"].includes(status) &&
-    savedRegistration.status !== status
-  ) {
+  if (status && isRegistrationApproved(status) && savedRegistration.status !== status) {
     const { data: pendingReviews, error: pendingError } = await supabase
       .from("department_reviews")
       .select("department")
@@ -372,10 +376,13 @@ export async function POST(req: Request) {
       console.error("Could not verify outstanding department reviews:", pendingError.message);
       return NextResponse.json({ error: "db" }, { status: 500 });
     }
+    const departments = [
+      ...new Set((pendingReviews ?? []).map((review) => review.department)),
+    ];
     return NextResponse.json(
       {
-        error: "department_reviews_pending",
-        departments: [...new Set((pendingReviews ?? []).map((review) => review.department))],
+        error: departments.length ? "department_reviews_pending" : "approval_not_confirmed",
+        departments,
         departmentRequests,
       },
       { status: 409 }

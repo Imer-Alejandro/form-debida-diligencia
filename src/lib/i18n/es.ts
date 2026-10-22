@@ -894,11 +894,24 @@ export const es = {
         CUMPLIMIENTO: "Cumplimiento / Legal",
       },
       saveEvaluation: "Guardar evaluación",
+      confirmDecision: "Confirmar decisión",
+      confirmAndSyncAdm: "Confirmar aprobación y sincronizar ADM",
+      confirmRejection: "Confirmar rechazo",
       savedEvaluation: "Evaluación guardada",
       autosavingEvaluation: "Guardando cambios…",
       autosavedEvaluation: "Cambios guardados automáticamente",
       autosaveEvaluationFailed: "No se pudieron guardar los cambios automáticamente",
       saveDecisionHint: "Los cambios se guardan automáticamente. Use este botón para registrar la decisión formal.",
+      finalDecisionRequired:
+        "Seleccione una decisión final para confirmar y continuar con ADM.",
+      waitForDepartmentReviews:
+        "Complete las evaluaciones departamentales pendientes antes de aprobar y sincronizar ADM. Solo un aprobador autorizado puede hacer una excepción indicando el motivo.",
+      approvalReasonRequired:
+        "Indique el motivo requerido para autorizar esta aprobación.",
+      approvalPermissionRequired:
+        "Solo Compras o Administración pueden confirmar esta decisión.",
+      approvalNotConfirmed:
+        "La aprobación no quedó confirmada. Revise el flujo de aprobación e intente nuevamente.",
       departmentReviews: "Revisiones departamentales",
       departmentReviewHelp:
         "Finanzas, Legal y Tecnología se solicitan según los disparadores de riesgo. Compras puede sumar otras áreas, indicando el motivo. Los cambios se guardan automáticamente; el envío de enlaces requiere confirmación.",

@@ -896,11 +896,24 @@ recent: "Recent registrations",
         CUMPLIMIENTO: "Compliance / Legal",
       },
       saveEvaluation: "Save evaluation",
+      confirmDecision: "Confirm decision",
+      confirmAndSyncAdm: "Confirm approval and sync ADM",
+      confirmRejection: "Confirm rejection",
       savedEvaluation: "Evaluation saved",
       autosavingEvaluation: "Saving changes…",
       autosavedEvaluation: "Changes saved automatically",
       autosaveEvaluationFailed: "Could not save changes automatically",
       saveDecisionHint: "Changes are saved automatically. Use this button to record the formal decision.",
+      finalDecisionRequired:
+        "Select a final decision to confirm and continue with ADM.",
+      waitForDepartmentReviews:
+        "Complete pending department reviews before approving and syncing ADM. Only an authorized approver may override this with a documented reason.",
+      approvalReasonRequired:
+        "Enter the required reason to authorize this approval.",
+      approvalPermissionRequired:
+        "Only Purchasing or Administrators can confirm this decision.",
+      approvalNotConfirmed:
+        "The approval was not confirmed. Review the approval workflow and try again.",
       departmentReviews: "Department reviews",
       departmentReviewHelp:
         "Finance, Legal, and Technology are requested by risk triggers. Purchasing may add other areas with a reason. Changes are saved automatically; sending links requires confirmation.",

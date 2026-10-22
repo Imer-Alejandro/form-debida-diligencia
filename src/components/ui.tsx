@@ -97,17 +97,11 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
-  const { t } = useI18n();
   return (
     <label className={cn("block", className)}>
       <span className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px] font-medium text-slate-700">
         {label}
         {required && <span className="text-rose-500">*</span>}
-        {!required && (
-          <span className="text-[11px] font-normal text-slate-400">
-            {t("common.optional")}
-          </span>
-        )}
       </span>
       {children}
       {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}

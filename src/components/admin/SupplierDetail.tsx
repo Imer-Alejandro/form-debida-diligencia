@@ -21,6 +21,7 @@ import {
   type RegistrationStatus,
   type SpecializedHistoryEntry,
   type SupplierData,
+  isFinalRegistrationDecision,
   isRegistrationApproved,
 } from "@/lib/types";
 import { emptyEvaluation } from "@/lib/types";
@@ -220,6 +221,39 @@ export function SupplierDetail({
     SUPPLIER_MANAGEMENT_ROLES
   );
   const canDeleteSupplier = hasAnyRole(role, ["ADMIN", "MANAGEMENT"]);
+  const approvalDecision = isRegistrationApproved(
+    evaluation.section13.decision
+  );
+  const finalDecisionSelected = isFinalRegistrationDecision(
+    evaluation.section13.decision
+  );
+  const hasPendingApprovalReviews =
+    approvalDecision && pendingReviewDepartments.length > 0;
+  const approvalExceptionReady =
+    canApproveException(role) && approvalExceptionReason.trim().length >= 10;
+  const approvalPermissionMissing =
+    approvalDecision &&
+    !hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES) &&
+    !(canApproveException(role) && hasPendingApprovalReviews);
+  const canConfirmRejection =
+    evaluation.section13.decision !== "RECHAZADO" ||
+    hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES);
+  const decisionBlocked =
+    !finalDecisionSelected ||
+    (hasPendingApprovalReviews && !approvalExceptionReady) ||
+    approvalPermissionMissing ||
+    !canConfirmRejection;
+  const decisionBlockHint = !finalDecisionSelected
+    ? t("admin.detail.finalDecisionRequired")
+    : approvalPermissionMissing || !canConfirmRejection
+      ? t("admin.detail.approvalPermissionRequired")
+      : hasPendingApprovalReviews &&
+          canApproveException(role) &&
+          !approvalExceptionReady
+        ? t("admin.detail.approvalReasonRequired")
+        : hasPendingApprovalReviews
+          ? t("admin.detail.waitForDepartmentReviews")
+          : t("admin.detail.finalDecisionRequired");
 
   const flashRef = useRef<number | null>(null);
   const notify = (msg: string, reset?: () => void) => {
@@ -302,6 +336,8 @@ export function SupplierDetail({
   };
 
   const saveEvaluation = async (dispatchDepartmentRequests = false) => {
+    if (!dispatchDepartmentRequests && decisionBlocked) return;
+
     if (
       dispatchDepartmentRequests &&
       !window.confirm(t("admin.detail.confirmSendDepartmentRequests"))
@@ -359,6 +395,7 @@ export function SupplierDetail({
         department?: string;
         adm?: { ok?: boolean; action?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
+        departments?: string[];
         departmentRequests?: {
           department: string;
           status: "sent" | "failed" | "not_configured";
@@ -388,7 +425,11 @@ export function SupplierDetail({
                   )
                 : data.error === "supplier_already_approved"
                   ? t("admin.detail.supplierAlreadyApproved")
-                : t("admin.detail.saveEvaluationFailed")
+                  : data.error === "final_decision_required"
+                    ? t("admin.detail.finalDecisionRequired")
+                    : data.error === "approval_not_confirmed"
+                      ? t("admin.detail.approvalNotConfirmed")
+                      : t("admin.detail.saveEvaluationFailed")
         );
         return;
       }
@@ -1395,36 +1436,33 @@ export function SupplierDetail({
                   })}
                 </div>
 
-                {pendingReviewDepartments.length > 0 &&
-                  ["APROBADO", "APROBADO_CONDICIONES"].includes(
-                    evaluation.section13.decision
-                  ) && (
-                    <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                      <p className="font-semibold">
-                        {t("admin.detail.departmentReviewsPending")}
-                      </p>
-                      <p className="mt-1 text-xs">
-                        {pendingReviewDepartments.join(", ")}
-                      </p>
-                      {canApproveException(role) && (
-                        <Field
-                          className="mt-3"
-                          label={t("admin.detail.approvalExceptionReason")}
-                        >
-                          <Textarea
-                            rows={3}
-                            minLength={10}
-                            maxLength={1000}
-                            required
-                            value={approvalExceptionReason}
-                            onChange={(event) =>
-                              setApprovalExceptionReason(event.target.value)
-                            }
-                          />
-                        </Field>
-                      )}
-                    </div>
-                  )}
+                {hasPendingApprovalReviews && (
+                  <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-semibold">
+                      {t("admin.detail.departmentReviewsPending")}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {pendingReviewDepartments.join(", ")}
+                    </p>
+                    {canApproveException(role) && (
+                      <Field
+                        className="mt-3"
+                        label={t("admin.detail.approvalExceptionReason")}
+                      >
+                        <Textarea
+                          rows={3}
+                          minLength={10}
+                          maxLength={1000}
+                          required
+                          value={approvalExceptionReason}
+                          onChange={(event) =>
+                            setApprovalExceptionReason(event.target.value)
+                          }
+                        />
+                      </Field>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label={t("admin.detail.conditions")} className="sm:col-span-2">
@@ -1543,16 +1581,26 @@ export function SupplierDetail({
 
                 <div className="mt-6 flex items-center justify-between gap-3 border-t border-navy-800/10 pt-4">
                   <p className="text-[11.5px] text-ink-muted">
-                    {t("admin.detail.saveDecisionHint")}
+                    {decisionBlocked
+                      ? decisionBlockHint
+                      : approvalDecision
+                        ? t("admin.detail.confirmAndSyncAdm")
+                        : t("admin.detail.confirmRejection")}
                   </p>
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
                     onClick={() => void saveEvaluation()}
-                    disabled={saving === "eval"}
+                    disabled={saving === "eval" || decisionBlocked}
                   >
-                    {saving === "eval" ? t("common.saving") : t("admin.detail.saveEvaluation")}
+                    {saving === "eval"
+                      ? t("common.saving")
+                      : approvalDecision
+                        ? t("admin.detail.confirmAndSyncAdm")
+                        : evaluation.section13.decision === "RECHAZADO"
+                          ? t("admin.detail.confirmRejection")
+                          : t("admin.detail.confirmDecision")}
                   </Button>
                 </div>
               </div>

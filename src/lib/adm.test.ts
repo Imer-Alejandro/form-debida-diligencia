@@ -19,7 +19,11 @@ import {
   upsertVendorByTaxId,
   type AdmConfig,
 } from "./adm";
-import { emptyData, isRegistrationApproved } from "./types";
+import {
+  emptyData,
+  isFinalRegistrationDecision,
+  isRegistrationApproved,
+} from "./types";
 
 const baseConfig: AdmConfig = {
   baseUrl: ADM_DEFAULT_BASE_URL,
@@ -53,6 +57,17 @@ describe("readAdmConfig", () => {
       expect(isRegistrationApproved("PENDIENTE")).toBe(false);
       expect(isRegistrationApproved("RECHAZADO")).toBe(false);
       expect(isRegistrationApproved(undefined)).toBe(false);
+    });
+  });
+
+  describe("isFinalRegistrationDecision", () => {
+    it("allows only approval and rejection decisions to be confirmed", () => {
+      expect(isFinalRegistrationDecision("APROBADO")).toBe(true);
+      expect(isFinalRegistrationDecision("APROBADO_CONDICIONES")).toBe(true);
+      expect(isFinalRegistrationDecision("RECHAZADO")).toBe(true);
+      expect(isFinalRegistrationDecision("PENDIENTE")).toBe(false);
+      expect(isFinalRegistrationDecision("EN_REVISION")).toBe(false);
+      expect(isFinalRegistrationDecision(undefined)).toBe(false);
     });
   });
 

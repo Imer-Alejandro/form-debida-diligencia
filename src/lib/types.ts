@@ -14,8 +14,19 @@ export const APPROVED_REGISTRATION_STATUSES = [
   "APROBADO_CONDICIONES",
 ] as const satisfies readonly RegistrationStatus[];
 
+export const FINAL_REGISTRATION_STATUSES = [
+  ...APPROVED_REGISTRATION_STATUSES,
+  "RECHAZADO",
+] as const satisfies readonly RegistrationStatus[];
+
 export function isRegistrationApproved(status: string | null | undefined): boolean {
   return APPROVED_REGISTRATION_STATUSES.some((approvedStatus) => approvedStatus === status);
+}
+
+export function isFinalRegistrationDecision(
+  status: string | null | undefined
+): boolean {
+  return FINAL_REGISTRATION_STATUSES.some((finalStatus) => finalStatus === status);
 }
 
 export type RiskLevel = "PENDIENTE" | "BAJO" | "MEDIO" | "ALTO" | "CRITICO";
