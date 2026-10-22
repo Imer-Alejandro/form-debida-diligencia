@@ -912,6 +912,8 @@ export const es = {
         "Solo Compras o Administración pueden confirmar esta decisión.",
       approvalNotConfirmed:
         "La aprobación no quedó confirmada. Revise el flujo de aprobación e intente nuevamente.",
+      evaluationSaveFailed:
+        "No se pudo confirmar la evaluación en el servidor. No se confirmó la decisión ni se sincronizó con ADM. Intente otra vez; si persiste, contacte soporte.",
       departmentReviews: "Revisiones departamentales",
       departmentReviewHelp:
         "Finanzas, Legal y Tecnología se solicitan según los disparadores de riesgo. Compras puede sumar otras áreas, indicando el motivo. Los cambios se guardan automáticamente; el envío de enlaces requiere confirmación.",
@@ -925,6 +927,8 @@ export const es = {
       departmentReason: "Explique por qué debe participar esta área (mínimo 10 caracteres)",
       departmentReviewsPending:
         "No se puede aprobar definitivamente mientras haya revisiones obligatorias pendientes.",
+      departmentReviewRequestsDispatched:
+        "La aprobación sigue pendiente por revisiones departamentales abiertas. En este intento: correos enviados {sent} · fallidos {failed} · sin destinatario {notConfigured}.",
       pendingReviewList: "Revisiones pendientes",
       approvalExceptionReason:
         "Excepción de Gerencia/Administrador: motivo obligatorio (mínimo 10 caracteres)",

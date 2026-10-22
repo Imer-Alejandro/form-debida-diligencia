@@ -128,7 +128,10 @@ export async function POST(req: Request) {
         "Could not validate selected review departments:",
         activeDepartmentsError.message
       );
-      return NextResponse.json({ error: "db" }, { status: 500 });
+      return NextResponse.json(
+        { error: "db", stage: "validate_departments" },
+        { status: 500 }
+      );
     }
     const activeIds = new Set((activeDepartments ?? []).map((department) => department.id));
     const inactiveDepartment = requiredDepartments.find(
@@ -166,7 +169,10 @@ export async function POST(req: Request) {
         "Could not check supplier status before dispatching department reviews:",
         registrationError?.message
       );
-      return NextResponse.json({ error: "db" }, { status: 500 });
+      return NextResponse.json(
+        { error: "db", stage: "check_registration_before_dispatch" },
+        { status: 500 }
+      );
     }
     if (isRegistrationApproved(registration.status)) {
       return NextResponse.json(
@@ -212,8 +218,18 @@ export async function POST(req: Request) {
     if (rpcError.code === "42501") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    console.error("Could not save supplier evaluation:", rpcError.message);
-    return NextResponse.json({ error: "db" }, { status: 500 });
+    console.error("Could not save supplier evaluation:", {
+      code: rpcError.code,
+      message: rpcError.message,
+    });
+    return NextResponse.json(
+      {
+        error: "evaluation_save_failed",
+        diagnosticCode: rpcError.code ?? null,
+        stage: "save_evaluation",
+      },
+      { status: 500 }
+    );
   }
 
   const departmentRequests: {
@@ -221,7 +237,11 @@ export async function POST(req: Request) {
     status: "sent" | "failed" | "not_configured";
     accountStatus?: "ready" | "failed" | "role_conflict" | "not_configured";
   }[] = [];
-  if (body.dispatchDepartmentRequests) {
+  const shouldDispatchDepartmentRequests =
+    body.dispatchDepartmentRequests ||
+    (Boolean(status && isRegistrationApproved(status)) &&
+      departmentIdsToDispatch.length > 0);
+  if (shouldDispatchDepartmentRequests) {
     const { data: reviewRows, error: reviewError } = await supabase
       .from("department_reviews")
       .select("id, department, request_reason, status, sent_at")
@@ -229,12 +249,15 @@ export async function POST(req: Request) {
       .in("department", departmentIdsToDispatch);
     if (reviewError) {
       console.error("Could not load department reviews to send:", reviewError.message);
-      return NextResponse.json({ error: "db" }, { status: 500 });
+      return NextResponse.json(
+        { error: "db", stage: "load_department_reviews" },
+        { status: 500 }
+      );
     }
     const pendingReviewRows = (reviewRows ?? []).filter(
       (review) => review.status === "REQUESTED" && !review.sent_at
     );
-    if (pendingReviewRows.length === 0) {
+    if (body.dispatchDepartmentRequests && pendingReviewRows.length === 0) {
       return NextResponse.json(
         {
           error: reviewRows?.length
@@ -259,7 +282,10 @@ export async function POST(req: Request) {
         .in("id", departmentIds);
       if (departmentError) {
         console.error("Could not load department notification addresses:", departmentError.message);
-        return NextResponse.json({ error: "db" }, { status: 500 });
+        return NextResponse.json(
+          { error: "db", stage: "load_department_recipients" },
+          { status: 500 }
+        );
       }
       const departments = new Map((departmentRows ?? []).map((row) => [row.id, row]));
       const { data: supplier } = await supabase
@@ -350,7 +376,10 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (savedStatusError || !savedRegistration) {
     console.error("Could not verify the saved evaluation status:", savedStatusError?.message);
-    return NextResponse.json({ error: "db" }, { status: 500 });
+    return NextResponse.json(
+      { error: "db", stage: "verify_saved_evaluation" },
+      { status: 500 }
+    );
   }
 
   await supabase.from("activity_log").insert({
@@ -374,7 +403,10 @@ export async function POST(req: Request) {
       .neq("status", "COMPLETED");
     if (pendingError) {
       console.error("Could not verify outstanding department reviews:", pendingError.message);
-      return NextResponse.json({ error: "db" }, { status: 500 });
+      return NextResponse.json(
+        { error: "db", stage: "check_pending_reviews" },
+        { status: 500 }
+      );
     }
     const departments = [
       ...new Set((pendingReviews ?? []).map((review) => review.department)),

@@ -14,9 +14,11 @@ export function todayISO(): string {
 
 function parseDate(iso: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (m) return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
   return new Date(iso);
 }
+
+const APP_TIME_ZONE = "America/Santo_Domingo";
 
 export function formatDate(iso?: string | null, lang = "es"): string {
   if (!iso) return "—";
@@ -26,6 +28,7 @@ export function formatDate(iso?: string | null, lang = "es"): string {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: APP_TIME_ZONE,
   });
 }
 
@@ -37,7 +40,12 @@ export function formatDateTime(iso?: string | null, lang = "es"): string {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })} · ${d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })}`;
+    timeZone: APP_TIME_ZONE,
+  })} · ${d.toLocaleTimeString(lang, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
+  })}`;
 }
 
 export function formatBytes(bytes?: number | null): string {

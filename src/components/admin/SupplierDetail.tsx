@@ -182,6 +182,7 @@ export function SupplierDetail({
   const [draftDirty, setDraftDirty] = useState(false);
   const [admLoading, setAdmLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [flashKind, setFlashKind] = useState<"success" | "error">("success");
   const [reqLoading, setReqLoading] = useState(false);
   const [reqLink, setReqLink] = useState<string | null>(null);
   const [reqNote, setReqNote] = useState("");
@@ -256,14 +257,19 @@ export function SupplierDetail({
           : t("admin.detail.finalDecisionRequired");
 
   const flashRef = useRef<number | null>(null);
-  const notify = (msg: string, reset?: () => void) => {
+  const notify = (
+    msg: string,
+    kind: "success" | "error" = "success",
+    reset?: () => void
+  ) => {
     if (flashRef.current) window.clearTimeout(flashRef.current);
     setFlash(msg);
+    setFlashKind(kind);
     reset?.();
     flashRef.current = window.setTimeout(() => {
       setFlash(null);
       router.refresh();
-    }, 2200);
+    }, 8000);
   };
 
   const persistEvaluationDraft = useCallback((
@@ -392,6 +398,8 @@ export function SupplierDetail({
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        diagnosticCode?: string | null;
+        stage?: string;
         department?: string;
         adm?: { ok?: boolean; action?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
@@ -403,12 +411,44 @@ export function SupplierDetail({
         }[];
       };
       if (!res.ok) {
+        if (res.status >= 500) {
+          console.error("Evaluation request failed:", {
+            status: res.status,
+            error: data.error,
+            stage: data.stage,
+            diagnosticCode: data.diagnosticCode,
+          });
+        }
         const departmentName = departmentOptions.find(
           (department) => department.id === data.department
         )?.name ?? data.department ?? "";
         notify(
           data.error === "department_reviews_pending"
-            ? t("admin.detail.departmentReviewsPending")
+            ? t("admin.detail.departmentReviewRequestsDispatched")
+                .replace(
+                  "{sent}",
+                  String(
+                    data.departmentRequests?.filter(
+                      (request) => request.status === "sent"
+                    ).length ?? 0
+                  )
+                )
+                .replace(
+                  "{failed}",
+                  String(
+                    data.departmentRequests?.filter(
+                      (request) => request.status === "failed"
+                    ).length ?? 0
+                  )
+                )
+                .replace(
+                  "{notConfigured}",
+                  String(
+                    data.departmentRequests?.filter(
+                      (request) => request.status === "not_configured"
+                    ).length ?? 0
+                  )
+                )
             : data.error === "department_reviews_not_created"
               ? t("admin.detail.departmentReviewsNotCreated")
               : data.error === "department_reviews_already_dispatched"
@@ -429,7 +469,11 @@ export function SupplierDetail({
                     ? t("admin.detail.finalDecisionRequired")
                     : data.error === "approval_not_confirmed"
                       ? t("admin.detail.approvalNotConfirmed")
-                      : t("admin.detail.saveEvaluationFailed")
+                      : data.error === "evaluation_save_failed" ||
+                          data.error === "db"
+                        ? t("admin.detail.evaluationSaveFailed")
+                        : t("admin.detail.saveEvaluationFailed"),
+          "error"
         );
         return;
       }
@@ -483,9 +527,9 @@ export function SupplierDetail({
       const message = data.sharepoint?.ok === false
         ? t("admin.detail.sharepointFolderLinkFailed")
         : admFlash(data.adm) ?? t("admin.detail.savedEvaluation");
-      notify(message);
+      notify(message, "success");
     } catch {
-      notify(t("admin.detail.saveEvaluationFailed"));
+      notify(t("admin.detail.evaluationSaveFailed"), "error");
     } finally {
       setSaving(null);
     }
@@ -753,7 +797,16 @@ export function SupplierDetail({
       </div>
 
       {flash && (
-        <div className="mt-4 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-[13px] font-medium text-success">
+        <div
+          className={cn(
+            "fixed bottom-4 right-4 z-[100] max-w-[min(32rem,calc(100vw-2rem))] rounded-xl border px-4 py-3 text-[13px] font-semibold shadow-lg",
+            flashKind === "error"
+              ? "border-danger/30 bg-white text-danger"
+              : "border-success/30 bg-white text-success"
+          )}
+          role={flashKind === "error" ? "alert" : "status"}
+          aria-live={flashKind === "error" ? "assertive" : "polite"}
+        >
           {flash}
         </div>
       )}

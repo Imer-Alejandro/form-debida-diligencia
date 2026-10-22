@@ -22,6 +22,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang={lang} className={`${inter.variable} h-full`}>
       <body className="min-h-full flex flex-col">
+      
         <I18nProvider initialLang={lang}>{children}</I18nProvider>
       </body>
     </html>

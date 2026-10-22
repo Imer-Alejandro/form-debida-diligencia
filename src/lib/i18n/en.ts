@@ -914,6 +914,8 @@ recent: "Recent registrations",
         "Only Purchasing or Administrators can confirm this decision.",
       approvalNotConfirmed:
         "The approval was not confirmed. Review the approval workflow and try again.",
+      evaluationSaveFailed:
+        "The server could not confirm the evaluation. The decision was not confirmed or synced to ADM. Try again; if the problem persists, contact support.",
       departmentReviews: "Department reviews",
       departmentReviewHelp:
         "Finance, Legal, and Technology are requested by risk triggers. Purchasing may add other areas with a reason. Changes are saved automatically; sending links requires confirmation.",
@@ -927,6 +929,8 @@ recent: "Recent registrations",
       departmentReason: "Explain why this department must participate (at least 10 characters)",
       departmentReviewsPending:
         "Final approval is blocked while required department reviews are pending.",
+      departmentReviewRequestsDispatched:
+        "Approval is still pending because department reviews are open. This attempt: emails sent {sent} · failed {failed} · no recipient configured {notConfigured}.",
       pendingReviewList: "Pending reviews",
       approvalExceptionReason:
         "Management/Administrator exception: reason required (at least 10 characters)",
