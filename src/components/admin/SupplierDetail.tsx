@@ -422,7 +422,7 @@ export function SupplierDetail({
         const departmentName = departmentOptions.find(
           (department) => department.id === data.department
         )?.name ?? data.department ?? "";
-        notify(
+        const errorMessage =
           data.error === "department_reviews_pending"
             ? t("admin.detail.departmentReviewRequestsDispatched")
                 .replace(
@@ -453,26 +453,38 @@ export function SupplierDetail({
               ? t("admin.detail.departmentReviewsNotCreated")
               : data.error === "department_reviews_already_dispatched"
                 ? t("admin.detail.departmentReviewsAlreadyDispatched")
-            : data.error === "department_reason_required"
-              ? t("admin.detail.departmentReasonRequired").replace(
-                  "{department}",
-                  departmentName
-                )
-              : data.error === "invalid_department"
-                ? t("admin.detail.invalidDepartment").replace(
-                    "{department}",
-                    departmentName
-                  )
-                : data.error === "supplier_already_approved"
-                  ? t("admin.detail.supplierAlreadyApproved")
-                  : data.error === "final_decision_required"
-                    ? t("admin.detail.finalDecisionRequired")
-                    : data.error === "approval_not_confirmed"
-                      ? t("admin.detail.approvalNotConfirmed")
-                      : data.error === "evaluation_save_failed" ||
-                          data.error === "db"
-                        ? t("admin.detail.evaluationSaveFailed")
-                        : t("admin.detail.saveEvaluationFailed"),
+                : data.error === "department_reason_required"
+                  ? t("admin.detail.departmentReasonRequired").replace(
+                      "{department}",
+                      departmentName
+                    )
+                  : data.error === "invalid_department"
+                    ? t("admin.detail.invalidDepartment").replace(
+                        "{department}",
+                        departmentName
+                      )
+                    : data.error === "supplier_already_approved"
+                      ? t("admin.detail.supplierAlreadyApproved")
+                      : data.error === "final_decision_required"
+                        ? t("admin.detail.finalDecisionRequired")
+                        : data.error === "approval_not_confirmed"
+                          ? t("admin.detail.approvalNotConfirmed")
+                          : data.error === "evaluation_save_failed" ||
+                              data.error === "db"
+                            ? t("admin.detail.evaluationSaveFailed")
+                            : t("admin.detail.saveEvaluationFailed");
+        const diagnostic =
+          data.stage
+            ? ` ${t("admin.detail.evaluationSaveDiagnostic")
+                .replace("{stage}", data.stage)
+                .replace("{code}", data.diagnosticCode ?? "n/a")}`
+            : "";
+        notify(
+          `${
+            data.error === "evaluation_status_not_updated"
+              ? t("admin.detail.evaluationStatusNotUpdated")
+              : errorMessage
+          }${diagnostic}`,
           "error"
         );
         return;

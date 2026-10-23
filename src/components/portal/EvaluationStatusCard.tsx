@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
 import type { PortalStatusResult, SupplierStatus } from "./types";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useI18n, useDict } from "@/lib/i18n";
 
 interface EvaluationStatusCardProps {
@@ -378,7 +378,7 @@ export function EvaluationStatusCard({
             {pStats.lastActivity}
           </span>
           <span className="mt-0.5 font-display text-xs font-semibold text-slate-700 block truncate">
-            {formattedDate ? new Date(formattedDate).toLocaleDateString(lang === "es" ? "es-DO" : "en-US") : pStats.pending}
+            {formattedDate ? formatDate(formattedDate, lang) : pStats.pending}
           </span>
         </div>
 

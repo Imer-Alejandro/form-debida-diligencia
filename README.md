@@ -77,6 +77,13 @@ Para bases existentes, ejecute `npm run migrate:security-sla` con
 `DATABASE_URL` y `ADMIN_EMAIL` configurados en `.env.local`. El script preserva
 los usuarios y asigna ADMIN únicamente a la cuenta indicada.
 
+La función `save_supplier_evaluation` que aplica decisiones finales está definida
+en `supabase/security-sla.sql`. Después de actualizar la aplicación, asegúrese de
+aplicar esa migración a Supabase (SQL Editor o el procedimiento de migración de la
+base existente). No vuelva a ejecutar `supabase/schema.sql` después de esta
+migración: ese archivo solo crea el esquema base y no contiene las reglas actuales
+de aprobación y sincronización.
+
 ## Variables de entorno
 
 Completa `.env.example` en `.env.local` para desarrollo. No copies secretos reales

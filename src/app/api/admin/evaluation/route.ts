@@ -209,16 +209,34 @@ export async function POST(req: Request) {
   };
 
   // Preferred path: atomic function (history + risk_level sync).
-  const { error: rpcError } = await supabase.rpc("save_supplier_evaluation", {
-    p_registration_id: body.id,
-    p_payload: payload,
-  });
+  let rpcError: { code?: string; message: string } | null;
+  try {
+    const result = await supabase.rpc("save_supplier_evaluation", {
+      p_registration_id: body.id,
+      p_payload: payload,
+    });
+    rpcError = result.error;
+  } catch (error) {
+    console.error("Supplier evaluation RPC request failed:", {
+      registrationId: body.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(
+      {
+        error: "evaluation_save_failed",
+        diagnosticCode: "RPC_REQUEST_FAILED",
+        stage: "save_evaluation",
+      },
+      { status: 500 }
+    );
+  }
 
   if (rpcError) {
     if (rpcError.code === "42501") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     console.error("Could not save supplier evaluation:", {
+      registrationId: body.id,
       code: rpcError.code,
       message: rpcError.message,
     });
@@ -394,28 +412,42 @@ export async function POST(req: Request) {
     },
   });
 
-  if (status && isRegistrationApproved(status) && savedRegistration.status !== status) {
-    const { data: pendingReviews, error: pendingError } = await supabase
-      .from("department_reviews")
-      .select("department")
-      .eq("registration_id", body.id)
-      .eq("required", true)
-      .neq("status", "COMPLETED");
-    if (pendingError) {
-      console.error("Could not verify outstanding department reviews:", pendingError.message);
-      return NextResponse.json(
-        { error: "db", stage: "check_pending_reviews" },
-        { status: 500 }
+  if (status && isFinalRegistrationDecision(status) && savedRegistration.status !== status) {
+    const departments: string[] = [];
+    if (isRegistrationApproved(status)) {
+      const { data: pendingReviews, error: pendingError } = await supabase
+        .from("department_reviews")
+        .select("department")
+        .eq("registration_id", body.id)
+        .eq("required", true)
+        .neq("status", "COMPLETED");
+      if (pendingError) {
+        console.error("Could not verify outstanding department reviews:", pendingError.message);
+        return NextResponse.json(
+          { error: "db", stage: "check_pending_reviews" },
+          { status: 500 }
+        );
+      }
+      departments.push(
+        ...new Set((pendingReviews ?? []).map((review) => review.department))
       );
     }
-    const departments = [
-      ...new Set((pendingReviews ?? []).map((review) => review.department)),
-    ];
+    if (departments.length) {
+      return NextResponse.json(
+        { error: "department_reviews_pending", departments, departmentRequests },
+        { status: 409 }
+      );
+    }
+    console.error("Evaluation decision was not persisted; apply the security/SLA database migration:", {
+      registrationId: body.id,
+      requestedStatus: status,
+      savedStatus: savedRegistration.status,
+    });
     return NextResponse.json(
       {
-        error: departments.length ? "department_reviews_pending" : "approval_not_confirmed",
-        departments,
-        departmentRequests,
+        error: "evaluation_status_not_updated",
+        stage: "verify_saved_evaluation",
+        diagnosticCode: "SECURITY_SLA_MIGRATION_REQUIRED",
       },
       { status: 409 }
     );

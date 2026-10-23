@@ -914,8 +914,11 @@ recent: "Recent registrations",
         "Only Purchasing or Administrators can confirm this decision.",
       approvalNotConfirmed:
         "The approval was not confirmed. Review the approval workflow and try again.",
+      evaluationStatusNotUpdated:
+        "The database did not apply the final decision. Update the Supabase security/SLA migration before confirming again; this request was not synced to ADM.",
       evaluationSaveFailed:
         "The server could not confirm the evaluation. The decision was not confirmed or synced to ADM. Try again; if the problem persists, contact support.",
+      evaluationSaveDiagnostic: "Diagnostic: stage {stage} · code {code}.",
       departmentReviews: "Department reviews",
       departmentReviewHelp:
         "Finance, Legal, and Technology are requested by risk triggers. Purchasing may add other areas with a reason. Changes are saved automatically; sending links requires confirmation.",

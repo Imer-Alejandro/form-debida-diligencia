@@ -19,33 +19,82 @@ function parseDate(iso: string): Date {
 }
 
 const APP_TIME_ZONE = "America/Santo_Domingo";
+const SPANISH_MONTHS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+const ENGLISH_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export function formatDate(iso?: string | null, lang = "es"): string {
   if (!iso) return "—";
   const d = parseDate(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(lang, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: APP_TIME_ZONE,
-  });
+    calendar: "gregory",
+    numberingSystem: "latn",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(d);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  const year = values.year;
+  const month = Number(values.month);
+  const day = Number(values.day);
+  if (!year || !month || !day) return "—";
+
+  if (lang.toLowerCase().startsWith("en")) {
+    return `${ENGLISH_MONTHS[month - 1]} ${day}, ${year}`;
+  }
+  return `${day} ${SPANISH_MONTHS[month - 1]} ${year}`;
 }
 
 export function formatDateTime(iso?: string | null, lang = "es"): string {
   if (!iso) return "—";
   const d = parseDate(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return `${d.toLocaleDateString(lang, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: APP_TIME_ZONE,
-  })} · ${d.toLocaleTimeString(lang, {
+    calendar: "gregory",
+    numberingSystem: "latn",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: APP_TIME_ZONE,
-  })}`;
+    hourCycle: "h12",
+  }).formatToParts(d);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  const hour = values.hour;
+  const minute = values.minute;
+  const period = values.dayPeriod;
+  if (!hour || !minute || !period) return formatDate(iso, lang);
+
+  const time =
+    lang.toLowerCase().startsWith("en")
+      ? `${hour}:${minute} ${period}`
+      : `${hour}:${minute} ${period === "AM" ? "a. m." : "p. m."}`;
+  return `${formatDate(iso, lang)} · ${time}`;
 }
 
 export function formatBytes(bytes?: number | null): string {
