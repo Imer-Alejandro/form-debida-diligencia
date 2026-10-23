@@ -399,6 +399,7 @@ export function SupplierDetail({
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         diagnosticCode?: string | null;
+        diagnosticDetail?: string;
         stage?: string;
         department?: string;
         adm?: { ok?: boolean; action?: string };
@@ -477,7 +478,8 @@ export function SupplierDetail({
           data.stage
             ? ` ${t("admin.detail.evaluationSaveDiagnostic")
                 .replace("{stage}", data.stage)
-                .replace("{code}", data.diagnosticCode ?? "n/a")}`
+                .replace("{code}", data.diagnosticCode ?? "n/a")
+                .replace("{detail}", data.diagnosticDetail ?? "")}`
             : "";
         notify(
           `${

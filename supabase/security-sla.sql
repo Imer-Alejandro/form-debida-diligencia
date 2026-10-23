@@ -78,6 +78,38 @@ alter table public.department_reviews
   add column if not exists score_average numeric(3,2);
 alter table public.department_reviews
   add column if not exists score_band text;
+alter table public.department_reviews
+  add column if not exists requested_by uuid references auth.users(id) on delete set null;
+alter table public.department_reviews
+  add column if not exists requested_at timestamptz not null default now();
+alter table public.department_reviews
+  add column if not exists sent_at timestamptz;
+alter table public.department_reviews
+  add column if not exists assigned_to uuid references auth.users(id) on delete set null;
+alter table public.department_reviews
+  add column if not exists received_at timestamptz;
+alter table public.department_reviews
+  add column if not exists due_at timestamptz;
+alter table public.department_reviews
+  add column if not exists remaining_sla_seconds integer not null default 259200;
+alter table public.department_reviews
+  add column if not exists paused_at timestamptz;
+alter table public.department_reviews
+  add column if not exists response_status text;
+alter table public.department_reviews
+  add column if not exists response_notes text;
+alter table public.department_reviews
+  add column if not exists responded_by uuid references auth.users(id) on delete set null;
+alter table public.department_reviews
+  add column if not exists responded_at timestamptz;
+alter table public.department_reviews
+  add column if not exists last_escalated_at timestamptz;
+alter table public.department_reviews
+  add column if not exists escalation_count integer not null default 0;
+alter table public.department_reviews
+  add column if not exists created_at timestamptz not null default now();
+alter table public.department_reviews
+  add column if not exists updated_at timestamptz not null default now();
 
 create index if not exists department_reviews_status_due_idx
   on public.department_reviews (status, due_at);
@@ -92,6 +124,14 @@ create table if not exists public.department_review_events (
   notes text,
   created_at timestamptz not null default now()
 );
+alter table public.department_review_events
+  add column if not exists actor_id uuid references auth.users(id) on delete set null;
+alter table public.department_review_events
+  add column if not exists action text;
+alter table public.department_review_events
+  add column if not exists notes text;
+alter table public.department_review_events
+  add column if not exists created_at timestamptz not null default now();
 create index if not exists department_review_events_review_idx
   on public.department_review_events (review_id, created_at);
 

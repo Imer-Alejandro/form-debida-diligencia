@@ -244,6 +244,10 @@ export async function POST(req: Request) {
       {
         error: "evaluation_save_failed",
         diagnosticCode: rpcError.code ?? null,
+        diagnosticDetail:
+          rpcError.code === "42703"
+            ? rpcError.message.slice(0, 240)
+            : undefined,
         stage: "save_evaluation",
       },
       { status: 500 }

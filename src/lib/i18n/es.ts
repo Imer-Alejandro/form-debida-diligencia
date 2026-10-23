@@ -916,7 +916,8 @@ export const es = {
         "La base de datos no aplicó la decisión final. Actualice la migración de seguridad/SLA de Supabase antes de volver a confirmar; esta solicitud no se sincronizó con ADM.",
       evaluationSaveFailed:
         "No se pudo confirmar la evaluación en el servidor. No se confirmó la decisión ni se sincronizó con ADM. Intente otra vez; si persiste, contacte soporte.",
-      evaluationSaveDiagnostic: "Diagnóstico: etapa {stage} · código {code}.",
+      evaluationSaveDiagnostic:
+        "Diagnóstico: etapa {stage} · código {code} · {detail}.",
       departmentReviews: "Revisiones departamentales",
       departmentReviewHelp:
         "Finanzas, Legal y Tecnología se solicitan según los disparadores de riesgo. Compras puede sumar otras áreas, indicando el motivo. Los cambios se guardan automáticamente; el envío de enlaces requiere confirmación.",

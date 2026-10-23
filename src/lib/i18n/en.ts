@@ -918,7 +918,8 @@ recent: "Recent registrations",
         "The database did not apply the final decision. Update the Supabase security/SLA migration before confirming again; this request was not synced to ADM.",
       evaluationSaveFailed:
         "The server could not confirm the evaluation. The decision was not confirmed or synced to ADM. Try again; if the problem persists, contact support.",
-      evaluationSaveDiagnostic: "Diagnostic: stage {stage} · code {code}.",
+      evaluationSaveDiagnostic:
+        "Diagnostic: stage {stage} · code {code} · {detail}.",
       departmentReviews: "Department reviews",
       departmentReviewHelp:
         "Finance, Legal, and Technology are requested by risk triggers. Purchasing may add other areas with a reason. Changes are saved automatically; sending links requires confirmation.",
