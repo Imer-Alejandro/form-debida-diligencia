@@ -257,6 +257,7 @@ describe("buildVendorPayload", () => {
     data.section1.goodsServices = "Consultoría y soporte";
     data.section1.legalAddress = "Calle Principal 10";
     data.section1.provinceCountry = "Santo Domingo";
+    data.section1.nationality = "DO";
     data.section3.relatedToSbc = "no";
     data.section2.contacts[0].email = "compras@sbc.do";
     data.section2.contacts[0].name = "María Pérez";
@@ -285,6 +286,7 @@ describe("buildVendorPayload", () => {
     expect(payload.WebPage).toBe("https://sbc.do");
     expect(payload.BusinessActivity).toBe("Servicios");
     expect(payload.Profile).toBe("Consultoría y soporte");
+    expect(payload.CountryID).toBe("DO");
     expect(payload.IsRelated).toBe(false);
     expect(payload.CurrencyID).toBe("USD");
     expect(payload.BankAccountCurrencyID).toBe("USD");
@@ -297,11 +299,14 @@ describe("buildVendorPayload", () => {
         Position: "Representante",
         Phone1: "8095551234",
         EMail: "compras@sbc.do",
+        FiscalID: "001-1234567-8",
       }),
     ]);
     expect(payload.Addresses).toEqual([
-      { Address1: "Calle Principal 10", State: "Santo Domingo" },
+      { Address1: "Calle Principal 10", State: "Santo Domingo", CountryID: "DO" },
     ]);
+    expect(payload.Notes).not.toContain("Representante legal");
+    expect(payload.Notes).not.toContain("País de nacionalidad");
     expect(payload.Notes).toContain("Banco: Banco Demo");
     expect(payload.Notes).toContain(
       "Documentos de debida diligencia en SharePoint: https://contoso.sharepoint.com/sites/dd/Acme"
@@ -310,6 +315,22 @@ describe("buildVendorPayload", () => {
     expect(payload.Notes).toContain("Experiencia (años): 10");
     expect(payload.IsVendor).toBe(true);
     expect(payload.Inactive).toBe(false);
+  });
+
+  it("adds the legal representative as a contact when it is not already listed", () => {
+    const data = emptyData();
+    data.section3.legalRepName = "Ana María López";
+    data.section3.legalRepId = "001-2345678-9";
+
+    const payload = buildVendorPayload(data);
+
+    expect(payload.Contacts).toContainEqual({
+      FirstName: "Ana",
+      LastName: "María López",
+      ShortName: "Ana María López",
+      FiscalID: "001-2345678-9",
+    });
+    expect(payload.Notes ?? "").not.toContain("Identificación del representante legal");
   });
 });
 

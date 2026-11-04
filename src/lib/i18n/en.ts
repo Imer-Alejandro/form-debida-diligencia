@@ -133,7 +133,7 @@ export const en = {
       nextAction: {
         SIN_INICIAR: "Open the invitation form and complete your registration.",
         BORRADOR: "Continue the form and submit it when complete.",
-        PENDIENTE: "Your application was received. Wait for the review team to assign it.",
+        PENDIENTE: "We will contact you by email with updates on your registration and the next steps.",
         EN_REVISION: "The team is reviewing your file; no action is needed right now.",
         SOLICITUD_CAMBIOS: "Review the notes, update the information, and resubmit the form.",
         APROBADO: "Your supplier application was approved. Contact Procurement to coordinate next steps.",
@@ -154,8 +154,8 @@ export const en = {
       },
       PENDIENTE: {
         label: "Submitted · In Evaluation Queue",
-        headline: "Application received successfully",
-        desc: "Your file has entered the Compliance Department queue for officer assignment.",
+        headline: "Thank you for completing your registration!",
+        desc: "We have received your information. Our team will review it and contact you by email with updates.",
       },
       EN_REVISION: {
         label: "In Due Diligence Evaluation",

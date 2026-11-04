@@ -261,6 +261,27 @@ export function buildVendorPayload(
       return row;
     })
     .filter((contact) => Object.keys(contact).length > 0);
+  const legalRepName = trim(data.section3.legalRepName);
+  const legalRepId = trim(data.section3.legalRepId);
+  if (legalRepName || legalRepId) {
+    const existingContact = contacts.find(
+      (contact) =>
+        legalRepName &&
+        typeof contact.ShortName === "string" &&
+        contact.ShortName.toLocaleLowerCase() === legalRepName.toLocaleLowerCase()
+    );
+    if (existingContact) {
+      if (legalRepId) existingContact.FiscalID = legalRepId;
+    } else {
+      const [firstName, ...lastName] = legalRepName.split(/\s+/);
+      contacts.push({
+        ...(firstName ? { FirstName: firstName } : {}),
+        ...(lastName.length > 0 ? { LastName: lastName.join(" ") } : {}),
+        ...(legalRepName ? { ShortName: legalRepName } : {}),
+        ...(legalRepId ? { FiscalID: legalRepId } : {}),
+      });
+    }
+  }
   const emails = contacts
     .map((contact) => contact.EMail)
     .filter((email): email is string => typeof email === "string");
@@ -270,6 +291,7 @@ export function buildVendorPayload(
   const address: Record<string, unknown> = {};
   if (trim(s1.legalAddress)) address.Address1 = trim(s1.legalAddress);
   if (trim(s1.provinceCountry)) address.State = trim(s1.provinceCountry);
+  if (trim(s1.nationality)) address.CountryID = trim(s1.nationality);
   const payload: AdmVendor = {
     Name: trim(s1.legalName),
     IsVendor: true,
@@ -277,6 +299,7 @@ export function buildVendorPayload(
   };
   if (trim(s1.commercialName)) payload.ComercialName = trim(s1.commercialName);
   if (trim(s1.taxId)) payload.FiscalID = trim(s1.taxId);
+  if (trim(s1.nationality)) payload.CountryID = trim(s1.nationality);
   if (emails[0]) payload.EMail = emails[0];
   if (phones[0]) payload.Phone1 = phones[0];
   if (phones[1]) payload.Phone2 = phones[1];
@@ -301,13 +324,10 @@ export function buildVendorPayload(
     ["Tipo de proveedor", s1.providerType === "otro" ? s1.providerTypeOther : s1.providerType],
     ["Contratista", s1.isContractor],
     ["Fecha de constitución / inicio", s1.foundedDate],
-    ["País de nacionalidad", s1.nationality],
     ["Registro mercantil / código de exportador", s1.registryNo],
     ["Vencimiento del registro mercantil", s1.registryExpiry],
     ["Vencimiento del código de exportador", s1.exporterCodeExpiry],
     ["Teléfono / correo general", s1.phoneEmail],
-    ["Representante legal", data.section3.legalRepName],
-    ["Identificación del representante legal", data.section3.legalRepId],
     ["Accionistas / socios", data.section3.shareholders],
     ["Declaración PEP", data.section3.pep],
     ["Detalle PEP", data.section3.pepDetail],

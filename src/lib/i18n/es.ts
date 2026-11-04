@@ -132,7 +132,7 @@ export const es = {
       nextAction: {
         SIN_INICIAR: "Abra el formulario de invitación y complete su registro.",
         BORRADOR: "Continúe el formulario y envíelo cuando esté completo.",
-        PENDIENTE: "Su solicitud fue recibida. Espere la asignación del equipo revisor.",
+        PENDIENTE: "Le contactaremos por correo electrónico para informarle sobre el avance de su registro y los próximos pasos.",
         EN_REVISION: "El equipo está revisando su expediente; no necesita hacer nada por ahora.",
         SOLICITUD_CAMBIOS: "Revise las observaciones, actualice la información y vuelva a enviar el formulario.",
         APROBADO: "Su proveedor fue aprobado. Contacte a Compras si necesita coordinar los siguientes pasos.",
@@ -153,8 +153,8 @@ export const es = {
       },
       PENDIENTE: {
         label: "Enviado · En Cola de Evaluación",
-        headline: "Solicitud recibida exitosamente",
-        desc: "Su expediente ha ingresado a la cola del Departamento de Cumplimiento para asignación de oficial.",
+        headline: "¡Gracias por completar su registro!",
+        desc: "Hemos recibido su información. Nuestro equipo la revisará y se pondrá en contacto con usted por correo electrónico para darle seguimiento.",
       },
       EN_REVISION: {
         label: "En Proceso de Debida Diligencia",
