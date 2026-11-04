@@ -75,7 +75,9 @@ respuesta; solo ADMIN o Gerencia pueden registrar una excepción con motivo.
 
 Para bases existentes, ejecute `npm run migrate:security-sla` con
 `DATABASE_URL` y `ADMIN_EMAIL` configurados en `.env.local`. El script preserva
-los usuarios y asigna ADMIN únicamente a la cuenta indicada.
+los usuarios y asigna ADMIN únicamente a la cuenta indicada. También actualiza
+el esquema de `supplier_evaluations` para guardar las validaciones
+especializadas requeridas por la evaluación.
 
 La función `save_supplier_evaluation` que aplica decisiones finales está definida
 en `supabase/security-sla.sql`. Después de actualizar la aplicación, asegúrese de

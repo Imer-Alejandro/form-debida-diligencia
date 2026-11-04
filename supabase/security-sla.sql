@@ -559,6 +559,9 @@ $$;
 revoke all on function public.delete_registration_document(text, uuid) from public;
 grant execute on function public.delete_registration_document(text, uuid) to anon, authenticated, service_role;
 
+alter table public.supplier_evaluations
+  add column if not exists specialized jsonb not null default '{}'::jsonb;
+
 create or replace function public.save_supplier_evaluation(
   p_registration_id uuid,
   p_payload jsonb
