@@ -29,11 +29,11 @@ vi.mock("@/lib/department-reviewer-account", () => ({
 
 import { POST } from "./route";
 
-function request() {
+function request(action = "SEND") {
   return new Request("http://localhost/api/admin/department-reviews", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: "review-1", action: "SEND" }),
+    body: JSON.stringify({ id: "review-1", action }),
   });
 }
 
@@ -107,5 +107,13 @@ describe("POST /api/admin/department-reviews SEND", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ ok: true });
     expect(mocks.events).toEqual(["access", "email", "transition"]);
+  });
+
+  it("does not allow the sender to submit the department review", async () => {
+    const response = await POST(request("RECEIVE"));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

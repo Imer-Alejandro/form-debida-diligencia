@@ -200,7 +200,7 @@ export default async function DepartmentReviewCasePage({
       <DepartmentReviews
         reviews={[review]}
         canSend={role === "ADMIN" || role === "PURCHASING"}
-        canAct={role === "ADMIN" || role === "DEPARTMENT_REVIEWER"}
+        canAct={role === "DEPARTMENT_REVIEWER"}
         userDepartment={department}
         heading={caseLabels.caseTitle}
         queueHref={role === "DEPARTMENT_REVIEWER" ? "/admin/reviews" : undefined}

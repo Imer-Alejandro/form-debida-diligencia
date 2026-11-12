@@ -319,8 +319,7 @@ begin
     if v_role.role not in ('ADMIN', 'PURCHASING') then
       raise exception 'forbidden' using errcode = '42501';
     end if;
-  elsif v_role.role <> 'ADMIN'
-    and not (
+  elsif not (
       v_role.role = 'DEPARTMENT_REVIEWER'
       and v_role.department = v_review.department
       and (v_review.assigned_to is null or v_review.assigned_to = auth.uid())

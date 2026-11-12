@@ -152,7 +152,7 @@ export async function POST(req: Request) {
       );
       return NextResponse.json({ error: "email_send_failed" }, { status: 502 });
     }
-  } else if (role !== "ADMIN" && role !== "DEPARTMENT_REVIEWER") {
+  } else if (role !== "DEPARTMENT_REVIEWER") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

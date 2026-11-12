@@ -372,26 +372,28 @@ export function DepartmentReviews({
                   </div>
                 )}
               </div>
-            ) : canActOnReview ? (
+            ) : canActOnReview ||
+              (canSend && review.status === "REQUESTED" && !review.sent_at) ? (
               <div className="mt-4 space-y-3">
-                {(review.status === "INFO_REQUESTED" ||
-                  review.status === "IN_REVIEW") && (
-                  <Textarea
-                    rows={2}
-                    value={notes[review.id] ?? ""}
-                    onChange={(event) =>
-                      setNotes((current) => ({
-                        ...current,
-                        [review.id]: event.target.value,
-                      }))
-                    }
-                    placeholder={
-                      review.status === "INFO_REQUESTED"
-                        ? t.informationRequest
-                        : t.responseNotes
-                    }
-                  />
-                )}
+                {canActOnReview &&
+                  (review.status === "INFO_REQUESTED" ||
+                    review.status === "IN_REVIEW") && (
+                    <Textarea
+                      rows={2}
+                      value={notes[review.id] ?? ""}
+                      onChange={(event) =>
+                        setNotes((current) => ({
+                          ...current,
+                          [review.id]: event.target.value,
+                        }))
+                      }
+                      placeholder={
+                        review.status === "INFO_REQUESTED"
+                          ? t.informationRequest
+                          : t.responseNotes
+                      }
+                    />
+                  )}
                 <div className="flex flex-wrap gap-2">
                   {review.status === "REQUESTED" && canSend && !review.sent_at && (
                     <Button
@@ -402,16 +404,18 @@ export function DepartmentReviews({
                       {t.send}
                     </Button>
                   )}
-                  {review.status === "REQUESTED" && review.sent_at && (
-                    <Button
-                      size="sm"
-                      disabled={busyId === review.id}
-                      onClick={() => void act(review, "RECEIVE")}
-                    >
-                      {t.confirmCompleteReceipt}
-                    </Button>
-                  )}
-                  {review.status === "IN_REVIEW" && (
+                  {canActOnReview &&
+                    review.status === "REQUESTED" &&
+                    review.sent_at && (
+                      <Button
+                        size="sm"
+                        disabled={busyId === review.id}
+                        onClick={() => void act(review, "RECEIVE")}
+                      >
+                        {t.confirmCompleteReceipt}
+                      </Button>
+                    )}
+                  {canActOnReview && review.status === "IN_REVIEW" && (
                     <>
                       <CriteriaScoring
                         criteria={criteriaForDepartment(review.department)}
@@ -464,7 +468,7 @@ export function DepartmentReviews({
                       </Button>
                     </>
                   )}
-                  {review.status === "INFO_REQUESTED" && (
+                  {canActOnReview && review.status === "INFO_REQUESTED" && (
                     <Button
                       size="sm"
                       disabled={busyId === review.id}
