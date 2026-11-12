@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { useI18n } from "@/lib/i18n";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 
@@ -19,6 +20,10 @@ export function NewInvitation() {
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copyError, setCopyError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+  const [generatingQr, setGeneratingQr] = useState(false);
+  const [qrError, setQrError] = useState(false);
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,6 +34,9 @@ export function NewInvitation() {
     setCreatedUrl(null);
     setCopyError(false);
     setCopied(false);
+    setQrDataUrl(null);
+    setShowQr(false);
+    setQrError(false);
     try {
       const res = await fetch("/api/admin/invitations", {
         method: "POST",
@@ -83,6 +91,31 @@ export function NewInvitation() {
       setCopyError(false);
     } catch {
       setCopyError(true);
+    }
+  };
+
+  const toggleQr = async () => {
+    if (qrDataUrl) {
+      setShowQr((current) => !current);
+      return;
+    }
+    if (!createdUrl) return;
+
+    setGeneratingQr(true);
+    setQrError(false);
+    try {
+      const absoluteUrl = new URL(createdUrl, window.location.origin).toString();
+      const dataUrl = await QRCode.toDataURL(absoluteUrl, {
+        width: 384,
+        margin: 2,
+        color: { dark: "#0a1c31", light: "#ffffff" },
+      });
+      setQrDataUrl(dataUrl);
+      setShowQr(true);
+    } catch {
+      setQrError(true);
+    } finally {
+      setGeneratingQr(false);
     }
   };
 
@@ -148,8 +181,39 @@ export function NewInvitation() {
             <Button type="button" size="sm" variant="secondary" onClick={() => void copyCreatedUrl()}>
               {copied ? t("admin.invitations.copied") : t("admin.invitations.copyLink")}
             </Button>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(
+                t("admin.invitations.whatsAppMessage", { url: createdUrl })
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-600 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700"
+            >
+              {t("admin.invitations.sendWhatsApp")}
+            </a>
+            <Button type="button" size="sm" variant="secondary" onClick={() => void toggleQr()} disabled={generatingQr}>
+              {generatingQr
+                ? t("admin.invitations.generatingQr")
+                : showQr
+                  ? t("admin.invitations.hideQr")
+                  : t("admin.invitations.showQr")}
+            </Button>
           </div>
           {copyError && <p role="alert" className="mt-2 text-xs text-rose-700">{t("admin.invitations.copyFailed")}</p>}
+          {qrError && <p role="alert" className="mt-2 text-xs text-rose-700">{t("admin.invitations.qrFailed")}</p>}
+          {showQr && qrDataUrl && (
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt={t("admin.invitations.qrFor")} width={192} height={192} className="rounded-xl border border-slate-200 bg-white p-2" />
+              <a
+                href={qrDataUrl}
+                download="invitacion-qr.png"
+                className="text-xs font-medium text-navy-800 underline underline-offset-2"
+              >
+                {t("admin.invitations.downloadQr")}
+              </a>
+            </div>
+          )}
         </div>
       )}
       <div className="flex justify-end pt-2">
