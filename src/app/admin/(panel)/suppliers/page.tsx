@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireStaffAccess } from "@/lib/admin-guard";
 import type { RegistrationRow } from "@/lib/types";
+import { countryName } from "@/lib/countries";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui";
 import { statusTone, riskTone } from "@/components/admin/tones";
@@ -33,7 +34,7 @@ export default async function AdminSuppliersPage({
   let query = supabase
     .from("supplier_registrations")
     .select(
-      "id, reference_no, company_name, commercial_name, provider_type, status, risk_level, tax_id, country, tags, submitted_at, created_at, updated_at"
+      "id, reference_no, company_name, commercial_name, provider_type, status, risk_level, tax_id, country, country_code:data->section1->>nationality, tags, submitted_at, created_at, updated_at"
     )
     .order(queue === "stale" ? "updated_at" : "created_at", {
       ascending: queue === "stale",
@@ -56,7 +57,7 @@ export default async function AdminSuppliersPage({
 
   const { data: rows } = await query;
 
-  const regs = (rows ?? []) as Pick<
+  const regs = (rows ?? []) as (Pick<
     RegistrationRow,
     | "id"
     | "reference_no"
@@ -71,7 +72,7 @@ export default async function AdminSuppliersPage({
     | "submitted_at"
     | "created_at"
     | "updated_at"
-  >[];
+  > & { country_code: string | null })[];
 
   return (
     <div className="space-y-5">
@@ -126,7 +127,7 @@ export default async function AdminSuppliersPage({
                       </Link>
                     </td>
                     <td className="px-4 py-3.5 text-[12.5px] text-slate-600 font-medium">
-                      {r.country || "—"}
+                      {(r.country_code ? countryName(r.country_code, "es") : r.country) || "—"}
                     </td>
                     <td className="px-4 py-3.5 text-[12.5px] text-slate-500">
                       {formatDate(r.submitted_at ?? r.created_at)}

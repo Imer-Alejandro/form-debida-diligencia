@@ -172,6 +172,8 @@ export function DepartmentReviews({
         setMessage(
           result?.error === "department_email_not_configured"
             ? t.emailNotConfigured
+            : result?.error === "reviewer_access_not_ready"
+              ? t.reviewerAccessNotReady
             : t.actionFailed
         );
         return;

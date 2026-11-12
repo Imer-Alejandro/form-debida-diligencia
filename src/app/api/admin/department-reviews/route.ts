@@ -107,6 +107,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "department_email_not_configured" }, { status: 409 });
     }
     try {
+      const accountResults = await ensureDepartmentReviewerAccount({
+        supabase,
+        recipients: department.recipient_email,
+        department: review.department,
+        departmentName: department.name,
+        caseId: review.id,
+      });
+      const accessReady =
+        accountResults.length > 0 &&
+        accountResults.every((result) =>
+          ["created", "role_assigned", "unchanged"].includes(result.status)
+        );
+      if (!accessReady) {
+        console.error(
+          "Department review request blocked because reviewer access is not ready:",
+          {
+            reviewId: review.id,
+            department: review.department,
+            statuses: accountResults.map((result) => result.status),
+          }
+        );
+        return NextResponse.json(
+          { error: "reviewer_access_not_ready" },
+          { status: 409 }
+        );
+      }
+
       const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
       const email = departmentReviewEmail({
         company: registration?.company_name ?? "Proveedor",
@@ -118,13 +145,6 @@ export async function POST(req: Request) {
       await Promise.all(
         recipients.map((recipient) => sendMail({ ...email, to: recipient }))
       );
-      await ensureDepartmentReviewerAccount({
-        supabase,
-        recipients: department.recipient_email,
-        department: review.department,
-        departmentName: department.name,
-        caseId: review.id,
-      });
     } catch (error) {
       console.error(
         "Could not send department review request:",

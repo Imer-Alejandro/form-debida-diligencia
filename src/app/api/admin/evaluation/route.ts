@@ -324,6 +324,42 @@ export async function POST(req: Request) {
             return { department: review.department, status: "not_configured" as const };
           }
           try {
+            const accountResults = await ensureDepartmentReviewerAccount({
+              supabase,
+              recipients: department.recipient_email,
+              department: review.department,
+              departmentName: department.name,
+              caseId: review.id,
+            });
+            const accessReady =
+              accountResults.length > 0 &&
+              accountResults.every((result) =>
+                ["created", "role_assigned", "unchanged"].includes(result.status)
+              );
+            if (!accessReady) {
+              const accountStatus: "failed" | "role_conflict" | "not_configured" =
+                accountResults.some((result) => result.status === "role_conflict")
+                  ? "role_conflict"
+                  : accountResults.some((result) =>
+                        ["not_configured", "no_email"].includes(result.status)
+                      )
+                    ? "not_configured"
+                    : "failed";
+              console.error(
+                "Department review request blocked because reviewer access is not ready:",
+                {
+                  reviewId: review.id,
+                  department: review.department,
+                  statuses: accountResults.map((result) => result.status),
+                }
+              );
+              return {
+                department: review.department,
+                status: "failed" as const,
+                accountStatus,
+              };
+            }
+
             const message = departmentReviewEmail({
               company: supplier?.company_name ?? "Proveedor",
               reference: supplier?.reference_no ?? null,
@@ -344,31 +380,10 @@ export async function POST(req: Request) {
               console.error("Review request email sent but not logged:", sendLogError.message);
               return { department: review.department, status: "failed" as const };
             }
-            const accountResults = await ensureDepartmentReviewerAccount({
-              supabase,
-              recipients: department.recipient_email,
-              department: review.department,
-              departmentName: department.name,
-              caseId: review.id,
-            });
-            const accountStatus: "ready" | "failed" | "role_conflict" | "not_configured" =
-              accountResults.some(
-              (result) => result.status === "failed"
-            )
-              ? "failed"
-              : accountResults.some(
-                    (result) => result.status === "role_conflict"
-                  )
-                ? "role_conflict"
-                : accountResults.some(
-                      (result) => result.status === "not_configured"
-                    )
-                  ? "not_configured"
-                  : "ready";
             return {
               department: review.department,
               status: "sent" as const,
-              accountStatus,
+              accountStatus: "ready" as const,
             };
           } catch (error) {
             console.error(

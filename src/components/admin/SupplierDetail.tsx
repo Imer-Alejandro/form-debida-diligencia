@@ -513,13 +513,15 @@ export function SupplierDetail({
             .join(", ") || "—",
           accessIssues: requests.filter(
             (request) =>
-              request.status === "sent" &&
+              (request.status === "sent" || request.status === "failed") &&
+              request.accountStatus !== undefined &&
               request.accountStatus !== "ready"
           ).length,
           accessIssueDepartments: requests
             .filter(
               (request) =>
-                request.status === "sent" &&
+                (request.status === "sent" || request.status === "failed") &&
+                request.accountStatus !== undefined &&
                 request.accountStatus !== "ready"
             )
             .map((request) => request.department)

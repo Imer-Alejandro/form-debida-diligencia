@@ -1104,6 +1104,8 @@ recent: "Recent registrations",
       submitResponse: "Submit response",
       resume: "Confirm information received · resume SLA",
       emailNotConfigured: "Configure the department email before sending the request.",
+      reviewerAccessNotReady:
+        "The request was not sent because the reviewer does not have panel access for this department. Check their role and department in Users.",
       actionFailed: "Could not complete the action. Check the data and try again.",
       actionSaved: "Action recorded.",
       openSupplierDocuments: "Open supplier documents",

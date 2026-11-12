@@ -1103,6 +1103,8 @@ export const es = {
       submitResponse: "Emitir respuesta",
       resume: "Confirmar recepción de información · reanudar SLA",
       emailNotConfigured: "Configure el correo del departamento antes de enviar la solicitud.",
+      reviewerAccessNotReady:
+        "No se envió la solicitud porque el responsable no tiene acceso al panel para este departamento. Revise su rol y departamento en Usuarios.",
       actionFailed: "No se pudo completar la acción. Revise los datos e intente otra vez.",
       actionSaved: "Acción registrada.",
       openSupplierDocuments: "Abrir documentos del proveedor",
