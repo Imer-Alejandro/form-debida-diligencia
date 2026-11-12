@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { getDepartmentSlaCompliance } from "./department-sla";
+import {
+  getDepartmentSlaCompliance,
+  getSlaDurationParts,
+} from "./department-sla";
+
+describe("getSlaDurationParts", () => {
+  it("splits remaining time into days, hours, and minutes", () => {
+    expect(getSlaDurationParts(90061)).toEqual({
+      days: 1,
+      hours: 1,
+      minutes: 1,
+    });
+  });
+
+  it("returns no duration for missing values and clamps expired time to zero", () => {
+    expect(getSlaDurationParts(null)).toBeNull();
+    expect(getSlaDurationParts(-1)).toEqual({
+      days: 0,
+      hours: 0,
+      minutes: 0,
+    });
+  });
+});
 
 describe("getDepartmentSlaCompliance", () => {
   const dueAt = "2026-10-21T12:00:00.000Z";

@@ -27,10 +27,12 @@ import {
 import { emptyEvaluation } from "@/lib/types";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { countryName } from "@/lib/countries";
+import { criteriaForDepartment } from "@/lib/department-criteria";
 import {
-  criteriaForDepartment,
-  type ScoreBand,
-} from "@/lib/department-criteria";
+  DEPARTMENT_REVIEW_SLA_SECONDS,
+  getSlaDurationParts,
+  type DepartmentReviewProgress,
+} from "@/lib/department-sla";
 import { Badge, Button, Checkbox, Field, Input, Modal, Select, Textarea, type BadgeTone } from "@/components/ui";
 import { CHECK_RESULT_TONES, statusTone, riskTone } from "./tones";
 import { RiskMatrix } from "./RiskMatrix";
@@ -137,8 +139,8 @@ export function SupplierDetail({
   specializedHistory,
   specializedHistoryUnavailable,
   role,
-  pendingReviewDepartments,
-  completedReviews,
+  departmentReviews,
+  departmentReviewLoadError,
   departmentOptions,
   approvalExceptions,
 }: {
@@ -147,18 +149,8 @@ export function SupplierDetail({
   specializedHistory: SpecializedHistoryEntry[];
   specializedHistoryUnavailable: boolean;
   role: AppRole;
-  pendingReviewDepartments: string[];
-  completedReviews: {
-    id: string;
-    department: string;
-    departmentName: string;
-    responseStatus: string | null;
-    responseNotes: string | null;
-    scores: Record<string, number> | null;
-    scoreAverage: number | null;
-    scoreBand: ScoreBand | null;
-    respondedAt: string | null;
-  }[];
+  departmentReviews: DepartmentReviewProgress[];
+  departmentReviewLoadError: boolean;
   departmentOptions: { id: string; name: string }[];
   approvalExceptions: {
     id: number;
@@ -222,6 +214,9 @@ export function SupplierDetail({
     SUPPLIER_MANAGEMENT_ROLES
   );
   const canDeleteSupplier = hasAnyRole(role, ["ADMIN", "MANAGEMENT"]);
+  const pendingDepartmentReviews = departmentReviews.filter(
+    (review) => review.status !== "COMPLETED"
+  );
   const approvalDecision = isRegistrationApproved(
     evaluation.section13.decision
   );
@@ -229,7 +224,8 @@ export function SupplierDetail({
     evaluation.section13.decision
   );
   const hasPendingApprovalReviews =
-    approvalDecision && pendingReviewDepartments.length > 0;
+    approvalDecision &&
+    (departmentReviewLoadError || pendingDepartmentReviews.length > 0);
   const approvalExceptionReady =
     canApproveException(role) && approvalExceptionReason.trim().length >= 10;
   const approvalPermissionMissing =
@@ -241,10 +237,13 @@ export function SupplierDetail({
     hasAnyRole(role, SUPPLIER_MANAGEMENT_ROLES);
   const decisionBlocked =
     !finalDecisionSelected ||
+    departmentReviewLoadError ||
     (hasPendingApprovalReviews && !approvalExceptionReady) ||
     approvalPermissionMissing ||
     !canConfirmRejection;
-  const decisionBlockHint = !finalDecisionSelected
+  const decisionBlockHint = departmentReviewLoadError
+    ? t("admin.detail.departmentReviewStatusUnavailable")
+    : !finalDecisionSelected
     ? t("admin.detail.finalDecisionRequired")
     : approvalPermissionMissing || !canConfirmRejection
       ? t("admin.detail.approvalPermissionRequired")
@@ -320,6 +319,19 @@ export function SupplierDetail({
       if (draftTimerRef.current === timer) draftTimerRef.current = null;
     };
   }, [evaluation, draftDirty, persistEvaluationDraft]);
+
+  useEffect(() => {
+    if (
+      !departmentReviews.some(
+        (review) =>
+          review.status !== "COMPLETED" && review.status !== "CANCELLED"
+      )
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => router.refresh(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [departmentReviews, router]);
 
   const flushEvaluationDraft = async () => {
     if (draftTimerRef.current) {
@@ -492,6 +504,7 @@ export function SupplierDetail({
         return;
       }
       if (dispatchDepartmentRequests) {
+        router.refresh();
         const requests = data.departmentRequests ?? [];
         if (requests.length === 0) {
           notify(t("admin.detail.noDepartmentRequestsToSend"));
@@ -1227,88 +1240,250 @@ export function SupplierDetail({
                           </Button>
                         </div>
                       )}
-                    {completedReviews.length > 0 && (
-                      <div className="space-y-2">
-                        {completedReviews.map((review) => (
-                          <div
-                            key={review.id}
-                            className="rounded-xl border border-slate-200 p-3"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-semibold text-ink">
-                                {review.departmentName}
-                              </span>
-                              {review.responseStatus && (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                                  {t(
-                                    `admin.departmentReviews.responses.${review.responseStatus}` as never
-                                  )}
-                                </span>
-                              )}
-                              {review.scoreBand && (
-                                <span
-                                  className={cn(
-                                    "rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold",
-                                    review.scoreBand === "POSITIVE"
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : review.scoreBand === "NEUTRAL"
-                                        ? "bg-amber-100 text-amber-800"
-                                        : "bg-rose-100 text-rose-700"
-                                  )}
-                                >
-                                  {t(
-                                    `admin.departmentReviews.bands.${review.scoreBand}` as never
-                                  )}
-                                  {review.scoreAverage !== null
-                                    ? ` · ${review.scoreAverage}/5`
-                                    : ""}
-                                </span>
-                              )}
-                              {review.respondedAt && (
-                                <span className="text-[11px] text-ink-muted">
-                                  {formatDate(review.respondedAt)}
-                                </span>
-                              )}
-                            </div>
-                            {review.responseNotes && (
-                              <p className="mt-2 text-xs text-ink-muted">
-                                {review.responseNotes}
-                              </p>
-                            )}
-                            {review.scoreBand && (
-                              <ul className="mt-2 grid gap-1 text-xs text-ink-muted sm:grid-cols-2">
-                                {criteriaForDepartment(review.department).map(
-                                  (criterion) => {
-                                    const value = review.scores?.[criterion.id];
-                                    if (typeof value !== "number") return null;
-                                    return (
-                                      <li
-                                        key={criterion.id}
-                                        className="flex justify-between gap-2"
-                                      >
-                                        <span>
-                                          {lang === "en"
-                                            ? criterion.en
-                                            : criterion.es}
-                                        </span>
-                                        <span className="font-semibold tabular-nums">
-                                          {value}/5
-                                        </span>
-                                      </li>
+                    {(departmentReviewLoadError ||
+                      departmentReviews.length > 0 ||
+                      selectedDepartmentCount > 0) && (
+                      <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div>
+                          <h4 className="text-sm font-semibold text-navy-900">
+                            {t("admin.detail.departmentReviewProgressTitle")}
+                          </h4>
+                          <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                            {t("admin.detail.departmentReviewProgressHelp")}
+                          </p>
+                        </div>
+                        {departmentReviewLoadError ? (
+                          <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                            {t("admin.detail.departmentReviewStatusUnavailable")}
+                          </p>
+                        ) : departmentReviews.length === 0 ? (
+                          <p className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-ink-muted">
+                            {t("admin.detail.departmentReviewNoItems")}
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {departmentReviews.map((review) => {
+                              const statusLabel =
+                                review.status === "REQUESTED"
+                                  ? review.sentAt
+                                    ? t("admin.detail.departmentReviewWaitingResponse")
+                                    : t("admin.detail.departmentReviewNotSent")
+                                  : review.status === "IN_REVIEW"
+                                    ? t("admin.detail.departmentReviewWaitingResponse")
+                                    : review.status === "INFO_REQUESTED"
+                                      ? t("admin.departmentReviews.statuses.INFO_REQUESTED")
+                                      : review.status === "COMPLETED"
+                                        ? t("admin.detail.departmentReviewResponseReceived")
+                                        : t("admin.departmentReviews.statuses.CANCELLED");
+                              const statusTone =
+                                review.status === "COMPLETED"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : review.status === "INFO_REQUESTED"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : review.status === "IN_REVIEW"
+                                      ? "bg-sky-100 text-sky-800"
+                                      : "bg-slate-100 text-slate-700";
+                              const remaining = getSlaDurationParts(
+                                review.remainingSlaSeconds
+                              );
+                              const remainingLabel = remaining
+                                ? t("admin.detail.departmentReviewRemaining")
+                                    .replace("{days}", String(remaining.days))
+                                    .replace("{hours}", String(remaining.hours))
+                                    .replace("{minutes}", String(remaining.minutes))
+                                : t("admin.departmentReviews.slaUnknown");
+                              const progressPercent =
+                                review.remainingSlaSeconds === null
+                                  ? null
+                                  : Math.min(
+                                      100,
+                                      Math.max(
+                                        0,
+                                        Math.round(
+                                          (1 -
+                                            Math.max(
+                                              0,
+                                              review.remainingSlaSeconds
+                                            ) /
+                                              DEPARTMENT_REVIEW_SLA_SECONDS) *
+                                            100
+                                        )
+                                      )
                                     );
-                                  }
-                                )}
-                              </ul>
-                            )}
+                              return (
+                                <article
+                                  key={review.id}
+                                  className="rounded-xl border border-slate-200 bg-white p-4"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                      <h5 className="text-sm font-semibold text-slate-900">
+                                        {review.departmentName}
+                                      </h5>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        {review.status === "COMPLETED"
+                                          ? t("admin.detail.departmentReviewRespondedAt")
+                                          : review.sentAt
+                                            ? t("admin.detail.departmentReviewSentAt")
+                                            : t("admin.detail.departmentReviewCreatedAt")}
+                                        :{" "}
+                                        {formatDate(
+                                          review.respondedAt ??
+                                            review.sentAt ??
+                                            review.requestedAt
+                                        )}
+                                      </p>
+                                    </div>
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone}`}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                  </div>
+                                  <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                      <dt className="font-semibold text-slate-500">
+                                        {t("admin.detail.departmentReviewReceivedAt")}
+                                      </dt>
+                                      <dd className="mt-1 text-slate-800">
+                                        {review.receivedAt
+                                          ? formatDate(review.receivedAt)
+                                          : "—"}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt className="font-semibold text-slate-500">
+                                        {t("admin.departmentReviews.due")}
+                                      </dt>
+                                      <dd className="mt-1 text-slate-800">
+                                        {review.dueAt ? formatDate(review.dueAt) : "—"}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt className="font-semibold text-slate-500">
+                                        {t("admin.departmentReviews.remaining")}
+                                      </dt>
+                                      <dd className="mt-1 text-slate-800">
+                                        {review.status === "INFO_REQUESTED"
+                                          ? t("admin.detail.departmentReviewPaused")
+                                              .replace("{time}", remainingLabel)
+                                          : review.status === "IN_REVIEW"
+                                            ? remainingLabel
+                                            : "—"}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt className="font-semibold text-slate-500">
+                                        {t("admin.detail.departmentReviewRecommendation")}
+                                      </dt>
+                                      <dd className="mt-1 text-slate-800">
+                                        {review.responseStatus
+                                          ? t(
+                                              `admin.departmentReviews.responses.${review.responseStatus}` as never
+                                            )
+                                          : "—"}
+                                      </dd>
+                                    </div>
+                                  </dl>
+                                  {(review.status === "IN_REVIEW" ||
+                                    review.status === "INFO_REQUESTED") && (
+                                    <div
+                                      className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200"
+                                      role="progressbar"
+                                      aria-label={t(
+                                        "admin.departmentReviews.slaProgressTitle"
+                                      )}
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-valuenow={progressPercent ?? 0}
+                                    >
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          review.status === "INFO_REQUESTED"
+                                            ? "bg-amber-500"
+                                            : progressPercent === 100
+                                              ? "bg-rose-500"
+                                              : "bg-emerald-500"
+                                        }`}
+                                        style={{
+                                          width: `${progressPercent ?? 0}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                  {review.responseNotes && (
+                                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                                      <span className="font-semibold">
+                                        {t("admin.departmentReviews.response")}:
+                                      </span>{" "}
+                                      {review.responseNotes}
+                                    </p>
+                                  )}
+                                  {review.status === "COMPLETED" && (
+                                    <>
+                                      {review.scoreBand && (
+                                        <div className="mt-3">
+                                          <span
+                                            className={cn(
+                                              "rounded-full px-2.5 py-1 text-xs font-semibold",
+                                              review.scoreBand === "POSITIVE"
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : review.scoreBand === "NEUTRAL"
+                                                  ? "bg-amber-100 text-amber-800"
+                                                  : "bg-rose-100 text-rose-700"
+                                            )}
+                                          >
+                                            {t(
+                                              `admin.departmentReviews.bands.${review.scoreBand}` as never
+                                            )}
+                                            {review.scoreAverage !== null
+                                              ? ` · ${review.scoreAverage}/5`
+                                              : ""}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {review.scores && (
+                                        <ul className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                                          {criteriaForDepartment(review.department).map(
+                                            (criterion) => {
+                                              const value =
+                                                review.scores?.[criterion.id];
+                                              if (typeof value !== "number") {
+                                                return null;
+                                              }
+                                              return (
+                                                <li
+                                                  key={criterion.id}
+                                                  className="flex justify-between gap-2 rounded-md bg-slate-50 px-3 py-2"
+                                                >
+                                                  <span>
+                                                    {lang === "en"
+                                                      ? criterion.en
+                                                      : criterion.es}
+                                                  </span>
+                                                  <span className="font-semibold tabular-nums">
+                                                    {value}/5
+                                                  </span>
+                                                </li>
+                                              );
+                                            }
+                                          )}
+                                        </ul>
+                                      )}
+                                    </>
+                                  )}
+                                  <Link
+                                    href={`/admin/reviews/${review.id}`}
+                                    className="mt-3 inline-flex text-xs font-semibold text-navy-800 underline underline-offset-2"
+                                  >
+                                    {t("admin.detail.openDepartmentReview")}
+                                  </Link>
+                                </article>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    {pendingReviewDepartments.length > 0 && (
-                      <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-                        {t("admin.detail.pendingReviewList")}:{" "}
-                        {pendingReviewDepartments.join(", ")}
-                      </p>
+                        )}
+                      </section>
                     )}
                     {approvalExceptions.length > 0 && (
                       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -1510,10 +1685,48 @@ export function SupplierDetail({
                     <p className="font-semibold">
                       {t("admin.detail.departmentReviewsPending")}
                     </p>
-                    <p className="mt-1 text-xs">
-                      {pendingReviewDepartments.join(", ")}
-                    </p>
-                    {canApproveException(role) && (
+                    {departmentReviewLoadError ? (
+                      <p className="mt-2 text-xs">
+                        {t("admin.detail.departmentReviewStatusUnavailable")}
+                      </p>
+                    ) : (
+                      <ul className="mt-2 space-y-1 text-xs">
+                        {pendingDepartmentReviews.map((review) => (
+                          <li
+                            key={review.id}
+                            className="flex flex-wrap items-center justify-between gap-2"
+                          >
+                            <span>
+                              {review.departmentName} ·{" "}
+                              {review.status === "REQUESTED"
+                                ? review.sentAt
+                                  ? t(
+                                      "admin.detail.departmentReviewWaitingResponse"
+                                    )
+                                  : t("admin.detail.departmentReviewNotSent")
+                                : review.status === "INFO_REQUESTED"
+                                  ? t(
+                                      "admin.departmentReviews.statuses.INFO_REQUESTED"
+                                    )
+                                  : review.status === "CANCELLED"
+                                    ? t(
+                                        "admin.departmentReviews.statuses.CANCELLED"
+                                      )
+                                    : t(
+                                        "admin.detail.departmentReviewWaitingResponse"
+                                      )}
+                            </span>
+                            <Link
+                              className="font-semibold underline underline-offset-2"
+                              href={`/admin/reviews/${review.id}`}
+                            >
+                              {t("admin.detail.openDepartmentReview")}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {canApproveException(role) && !departmentReviewLoadError && (
                       <Field
                         className="mt-3"
                         label={t("admin.detail.approvalExceptionReason")}

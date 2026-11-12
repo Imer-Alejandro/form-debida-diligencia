@@ -30,8 +30,6 @@ import { SignaturePad } from "./SignaturePad";
 import { DocumentsStep } from "./DocumentsStep";
 import { ReviewStep } from "./ReviewStep";
 import { uploadDocument } from "@/lib/upload-client";
-import { EvaluationStatusCard } from "@/components/portal/EvaluationStatusCard";
-import type { PortalStatusResult, SupplierStatus } from "@/components/portal/types";
 
 const TITLE_STEPS = [
   "wizard.steps.0",
@@ -150,13 +148,11 @@ export function SupplierWizard({
   >("idle");
   const [attached, setAttached] = useState<DocumentRow[]>([]);
   const [onedriveOn, setOnedriveOn] = useState(true);
-  const [submission, setSubmission] = useState<
-    { reference: string; status: string } | null
-  >(
-    registration &&
-      !["BORRADOR", "SOLICITUD_CAMBIOS"].includes(registration.status)
-      ? { reference: registration.reference_no ?? "", status: registration.status }
-      : null
+  const [submission, setSubmission] = useState(
+    Boolean(
+      registration &&
+        !["BORRADOR", "SOLICITUD_CAMBIOS"].includes(registration.status)
+    )
   );
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -470,16 +466,10 @@ export function SupplierWizard({
       });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.registration) {
-        setSubmission({
-          reference: json.registration.reference_no ?? "",
-          status: json.registration.status,
-        });
+        setSubmission(true);
         window.scrollTo({ top: 0 });
       } else if (json?.error === "already_submitted") {
-        setSubmission({
-          reference: registration?.reference_no ?? "",
-          status: "PENDIENTE",
-        });
+        setSubmission(true);
       } else {
         throw new Error(json?.message || json?.error || `submit_failed_${res.status}`);
       }
@@ -498,26 +488,20 @@ export function SupplierWizard({
   const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
 
   if (submission) {
-    const statusData: PortalStatusResult = {
-      found: true,
-      reference_no: submission.reference || registration?.reference_no,
-      company_name: registration?.company_name || data.section1.legalName || "Proveedor Registrado",
-      tax_id: registration?.tax_id || data.section1.taxId,
-      provider_type: registration?.provider_type || data.section1.providerType,
-      country: registration?.country || data.section1.nationality,
-      status: (submission.status || registration?.status || "PENDIENTE") as SupplierStatus,
-      note: requestNote,
-      submitted_at: registration?.submitted_at,
-      updated_at: registration?.updated_at,
-      created_at: registration?.created_at,
-      can_edit: false,
-      invitation_token: token,
-      documents_count: attached.length,
-    };
-
     return (
-      <div className="mx-auto max-w-3xl">
-        <EvaluationStatusCard data={statusData} />
+      <div className="mx-auto max-w-xl rounded-3xl border border-navy-800/10 bg-white p-8 text-center shadow-sm">
+        <div
+          aria-hidden="true"
+          className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-success/10 text-xl font-bold text-success"
+        >
+          ✓
+        </div>
+        <h1 className="mt-4 text-2xl font-semibold text-navy-900">
+          {t("submit.submitSuccessTitle")}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {t("submit.submitSuccessSub")}
+        </p>
       </div>
     );
   }

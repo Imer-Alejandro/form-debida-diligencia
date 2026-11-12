@@ -4,6 +4,7 @@ import { getServerDict } from "@/lib/i18n/server";
 import { getAdminApi } from "@/lib/supabase/admin";
 import { DepartmentReviewSettings } from "@/components/admin/DepartmentReviewSettings";
 import { isDepartmentReviewer } from "@/lib/access";
+import { withLiveDepartmentSla } from "@/lib/department-review-data";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +29,19 @@ export default async function AdminReviewsPage() {
       </p>
     );
   }
-  const reviews: DepartmentReviewView[] = (data ?? []).map((row) => ({
-    ...row,
-    supplier_registrations: Array.isArray(row.supplier_registrations)
-      ? row.supplier_registrations[0]
-      : row.supplier_registrations,
-    review_departments: Array.isArray(row.review_departments)
-      ? row.review_departments[0]
-      : row.review_departments,
-  })) as DepartmentReviewView[];
+  const rowsWithLiveSla = await withLiveDepartmentSla(
+    supabase,
+    (data ?? []).map((row) => ({
+      ...row,
+      supplier_registrations: Array.isArray(row.supplier_registrations)
+        ? row.supplier_registrations[0]
+        : row.supplier_registrations,
+      review_departments: Array.isArray(row.review_departments)
+        ? row.review_departments[0]
+        : row.review_departments,
+    }))
+  );
+  const reviews: DepartmentReviewView[] = rowsWithLiveSla as DepartmentReviewView[];
 
   if (reviewer) {
     const order = (review: DepartmentReviewView) => {

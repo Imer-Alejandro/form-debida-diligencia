@@ -14,9 +14,17 @@ describe("criteriaForDepartment", () => {
     expect(criteriaForDepartment("TECHNICAL")).toHaveLength(5);
   });
 
-  it("returns an empty list for unknown or missing departments", () => {
+  it("uses general criteria for custom departments and none without a department", () => {
     expect(criteriaForDepartment(null)).toEqual([]);
-    expect(criteriaForDepartment("UNKNOWN")).toEqual([]);
+    const criteria = criteriaForDepartment("CUSTOM_DEPARTMENT");
+    expect(criteria).toHaveLength(5);
+    expect(criteria[0].id).toBe("service_quality");
+    expect(
+      summarizeScores("CUSTOM_DEPARTMENT", {
+        service_quality: 4,
+        requirements: 4,
+      })
+    ).toEqual({ average: 4, band: "POSITIVE" });
   });
 });
 

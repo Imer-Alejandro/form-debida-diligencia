@@ -132,11 +132,39 @@ export const DEPARTMENT_CRITERIA: Record<string, DepartmentCriterion[]> = {
   ],
 };
 
+const DEFAULT_DEPARTMENT_CRITERIA: DepartmentCriterion[] = [
+  {
+    id: "service_quality",
+    es: "Calidad del producto o servicio",
+    en: "Product or service quality",
+  },
+  {
+    id: "requirements",
+    es: "Cumplimiento de requisitos del área",
+    en: "Compliance with department requirements",
+  },
+  {
+    id: "delivery_capacity",
+    es: "Capacidad de respuesta y entrega",
+    en: "Response and delivery capacity",
+  },
+  {
+    id: "risk_controls",
+    es: "Controles y riesgos relevantes",
+    en: "Relevant controls and risks",
+  },
+  {
+    id: "recommendation",
+    es: "Recomendación general",
+    en: "Overall recommendation",
+  },
+];
+
 export function criteriaForDepartment(
   department: string | null | undefined
 ): DepartmentCriterion[] {
   if (!department) return [];
-  return DEPARTMENT_CRITERIA[department.toUpperCase()] ?? [];
+  return DEPARTMENT_CRITERIA[department.toUpperCase()] ?? DEFAULT_DEPARTMENT_CRITERIA;
 }
 
 export function isValidScore(value: unknown): value is number {
@@ -167,7 +195,11 @@ export function summarizeScores(
   let weighted = 0;
   let totalWeight = 0;
 
-  const ids = criteria.length > 0 ? criteria.map((c) => c.id) : Object.keys(source);
+  const departmentCriteria =
+    department && DEPARTMENT_CRITERIA[department.toUpperCase()];
+  const ids = departmentCriteria
+    ? departmentCriteria.map((criterion) => criterion.id)
+    : Object.keys(source);
   for (const id of ids) {
     const value = source[id];
     if (!isValidScore(value)) continue;

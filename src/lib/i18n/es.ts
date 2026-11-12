@@ -441,6 +441,16 @@ export const es = {
   s5: {
     title: "Información bancaria para pagos",
     bank: "Banco",
+    recommendedBanks: [
+      "Banreservas",
+      "Banco Popular Dominicano",
+      "Banco BHD",
+      "Scotiabank República Dominicana",
+      "Banco Santa Cruz",
+      "Banco Promerica",
+      "Asociación Popular de Ahorros y Préstamos (APAP)",
+      "Asociación Cibao de Ahorros y Préstamos",
+    ],
     accountHolder: "Titular de la cuenta",
     accountHolderId: "RNC / Cédula del titular",
     accountType: "Tipo de cuenta",
@@ -645,7 +655,7 @@ export const es = {
     draftSaved: "Borrador guardado. Puede continuar más tarde.",
     submitSuccessTitle: "Registro enviado",
     submitSuccessSub:
-      "Gracias por completar su registro. El equipo de Sánchez Business & Corp revisará la información.",
+      "Gracias por completar el formulario. Si se requiere algún cambio o información adicional, le notificaremos a través de los datos de contacto proporcionados.",
     reference: "Su número de seguimiento",
     whatNow:
       "Recuerde: la recepción de este formulario no implica aprobación automática ni compromiso de compra. La empresa puede solicitar aclaraciones o documentación adicional.",
@@ -927,6 +937,24 @@ export const es = {
       confirmSendDepartmentRequests: "¿Guardar las calificaciones y enviar ahora los enlaces de evaluación a los responsables de los departamentos seleccionados?",
       noDepartmentRequestsToSend: "No hay solicitudes departamentales pendientes de envío.",
       departmentRequestsResult: "Enlaces enviados: {sent} · sin correo configurado: {notConfigured} ({notConfiguredDepartments}) · fallidos: {failed} ({failedDepartments}) · acceso del responsable pendiente: {accessIssues} ({accessIssueDepartments}).",
+      departmentReviewProgressTitle: "Revisiones de área vinculadas a la aprobación",
+      departmentReviewProgressHelp:
+        "Cada respuesta de área forma parte del expediente del proveedor. La aprobación final permanece pendiente hasta completar las revisiones requeridas.",
+      departmentReviewStatusUnavailable:
+        "No se pudo consultar el estado de las revisiones. La aprobación queda bloqueada hasta verificarlo.",
+      departmentReviewNoItems:
+        "Aún no hay solicitudes departamentales creadas para este expediente.",
+      departmentReviewNotSent: "Pendiente de envío",
+      departmentReviewWaitingResponse: "En espera de respuesta del área",
+      departmentReviewResponseReceived: "Respuesta recibida",
+      departmentReviewRemaining: "{days} d · {hours} h · {minutes} min",
+      departmentReviewPaused: "Plazo pausado · queda {time}",
+      departmentReviewCreatedAt: "Solicitud creada",
+      departmentReviewSentAt: "Solicitud enviada",
+      departmentReviewReceivedAt: "Recepción confirmada",
+      departmentReviewRespondedAt: "Respuesta recibida",
+      departmentReviewRecommendation: "Recomendación del área",
+      openDepartmentReview: "Ver seguimiento",
       supplierAlreadyApproved: "El proveedor ya está aprobado; no se pueden abrir nuevas revisiones departamentales desde esta acción.",
       departmentReason: "Explique por qué debe participar esta área (mínimo 10 caracteres)",
       departmentReviewsPending:
@@ -1069,6 +1097,9 @@ export const es = {
       received: "Expediente completo recibido",
       due: "Vencimiento SLA",
       remaining: "Tiempo restante",
+      remainingTime: "{days} d · {hours} h · {minutes} min",
+      slaProgressTitle: "Avance del plazo de revisión",
+      awaitingReviewer: "En espera de confirmación del encargado",
       slaCompliance: "Cumplimiento SLA",
       completedOnTime: "Completada a tiempo",
       completedLate: "Completada fuera de plazo",
@@ -1076,7 +1107,7 @@ export const es = {
       completedAt: "Completada",
       escalations: "Escalamientos",
       businessDays: "días hábiles",
-      paused: "En pausa · quedan {days} días hábiles",
+      paused: "En pausa · queda {time}",
       overdue: "VENCIDO · seguimiento y escalamiento requeridos",
       response: "Respuesta",
       scoreTitle: "Calificación por criterios",
@@ -1090,7 +1121,21 @@ export const es = {
         NEGATIVE: "Baja",
       },
       send: "Enviar solicitud",
+      dispatchReadyTitle: "Revisión lista para enviar",
+      dispatchReadyHelp:
+        "La persona encargada recibirá el expediente y confirmará su recepción antes de iniciar el plazo de evaluación.",
       confirmCompleteReceipt: "Confirmar recepción completa · iniciar SLA",
+      receiptConfirmationTitle: "Confirme la recepción del expediente",
+      receiptConfirmationHelp:
+        "Al confirmar, inicia el plazo de tres días hábiles y se habilita el formulario para calificar y responder.",
+      evaluationFormTitle: "Evaluación del área",
+      evaluationFormHelp:
+        "Califique los criterios, seleccione una recomendación y agregue sus observaciones para completar la revisión del proveedor.",
+      evaluationFormLocked:
+        "El formulario se habilitará al confirmar que el expediente está completo. Esa confirmación inicia el plazo de revisión.",
+      informationRequestedTitle: "Información solicitada al proveedor",
+      informationRequestedHelp:
+        "La revisión está pausada hasta que se reciba la información solicitada.",
       requestInformation: "Solicitar información · pausar SLA",
       informationRequest: "Detalle de información faltante (mínimo 10 caracteres)",
       responseNotes: "Respuesta y recomendación (mínimo 10 caracteres)",

@@ -6,6 +6,7 @@ import type {
   SpecializedHistoryEntry,
 } from "@/lib/types";
 import { SupplierDetail } from "@/components/admin/SupplierDetail";
+import { withLiveDepartmentSla } from "@/lib/department-review-data";
 
 export const dynamic = "force-dynamic";
 
@@ -36,20 +37,27 @@ export default async function AdminSupplierDetailPage({
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const { data: pendingReviews } = await supabase
-    .from("department_reviews")
-    .select("department")
-    .eq("registration_id", id)
-    .eq("required", true)
-    .neq("status", "COMPLETED");
-  const { data: completedReviews } = await supabase
+  const {
+    data: reviewRows,
+    error: departmentReviewError,
+  } = await supabase
     .from("department_reviews")
     .select(
-      "id, department, response_status, response_notes, scores, score_average, score_band, responded_at, review_departments!inner(name)"
+      "id, department, status, requested_at, sent_at, received_at, due_at, remaining_sla_seconds, paused_at, response_status, response_notes, scores, score_average, score_band, responded_at, review_departments!inner(name)"
     )
     .eq("registration_id", id)
-    .eq("status", "COMPLETED")
-    .order("responded_at", { ascending: false });
+    .eq("required", true)
+    .order("requested_at", { ascending: true });
+  if (departmentReviewError) {
+    console.error(
+      "Could not load supplier department review progress:",
+      departmentReviewError.message
+    );
+  }
+  const reviewsWithLiveSla = await withLiveDepartmentSla(
+    supabase,
+    reviewRows ?? []
+  );
   const { data: departments } = await supabase
     .from("review_departments")
     .select("id, name")
@@ -84,10 +92,8 @@ export default async function AdminSupplierDetailPage({
       specializedHistory={(history ?? []) as SpecializedHistoryEntry[]}
       specializedHistoryUnavailable={Boolean(historyError)}
       role={role ?? "READ_ONLY"}
-      pendingReviewDepartments={[
-        ...new Set((pendingReviews ?? []).map((review) => review.department)),
-      ]}
-      completedReviews={(completedReviews ?? []).map((review) => {
+      departmentReviewLoadError={Boolean(departmentReviewError)}
+      departmentReviews={reviewsWithLiveSla.map((review) => {
         const department = Array.isArray(review.review_departments)
           ? review.review_departments[0]
           : review.review_departments;
@@ -95,6 +101,13 @@ export default async function AdminSupplierDetailPage({
           id: review.id,
           department: review.department,
           departmentName: department?.name ?? review.department,
+          status: review.status,
+          requestedAt: review.requested_at,
+          sentAt: review.sent_at,
+          receivedAt: review.received_at,
+          dueAt: review.due_at,
+          remainingSlaSeconds: review.remaining_sla_seconds,
+          pausedAt: review.paused_at,
           responseStatus: review.response_status,
           responseNotes: review.response_notes,
           scores: (review.scores as Record<string, number> | null) ?? null,

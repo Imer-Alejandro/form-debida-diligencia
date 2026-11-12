@@ -12,6 +12,7 @@ import { canReadSupplierRecords } from "@/lib/access";
 import { getServerDict } from "@/lib/i18n/server";
 import type { Evaluation, SupplierData } from "@/lib/types";
 import { getAdminSession } from "@/lib/supabase/auth";
+import { withLiveDepartmentSla } from "@/lib/department-review-data";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export default async function DepartmentReviewCasePage({
   }
   if (!rawReview) notFound();
 
-  const review: DepartmentReviewView = {
+  const normalizedReview = {
     ...rawReview,
     supplier_registrations: Array.isArray(rawReview.supplier_registrations)
       ? rawReview.supplier_registrations[0]
@@ -65,7 +66,11 @@ export default async function DepartmentReviewCasePage({
     review_departments: Array.isArray(rawReview.review_departments)
       ? rawReview.review_departments[0]
       : rawReview.review_departments,
-  } as DepartmentReviewView;
+  };
+  const [reviewWithLiveSla] = await withLiveDepartmentSla(supabase, [
+    normalizedReview,
+  ]);
+  const review = reviewWithLiveSla as DepartmentReviewView;
 
   const [{ data: registration, error: registrationError }, { data: docs, error: docsError }] =
     await Promise.all([
@@ -160,8 +165,20 @@ export default async function DepartmentReviewCasePage({
     Boolean(supplierData?.[key as keyof SupplierData])
   ).length;
   const indicators = [
-    { label: caseLabels.metricStatus, value: registration.status ?? "—" },
-    { label: caseLabels.metricRisk, value: registration.risk_level ?? "—" },
+    {
+      label: caseLabels.metricStatus,
+      value:
+        (dict.statuses as Record<string, string>)[registration.status ?? ""] ??
+        registration.status ??
+        "—",
+    },
+    {
+      label: caseLabels.metricRisk,
+      value:
+        (dict.risk as Record<string, string>)[registration.risk_level ?? ""] ??
+        registration.risk_level ??
+        "—",
+    },
     {
       label: caseLabels.metricType,
       value: registration.provider_type ?? "—",
@@ -208,8 +225,15 @@ export default async function DepartmentReviewCasePage({
       <DepartmentCaseView
         company={company}
         reference={registration.reference_no}
-        status={registration.status}
-        risk={registration.risk_level}
+        status={
+          (dict.statuses as Record<string, string>)[registration.status ?? ""] ??
+          registration.status ??
+          ""
+        }
+        risk={
+          (dict.risk as Record<string, string>)[registration.risk_level ?? ""] ??
+          registration.risk_level
+        }
         sections={sections}
         documents={(docs ?? []) as DepartmentCaseDocument[]}
         documentsTitle={dict.admin.departmentReviews.departmentCase.documents}

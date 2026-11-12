@@ -11,19 +11,24 @@ import {
   summarizeScores,
   type ScoreBand,
 } from "@/lib/department-criteria";
-import { getDepartmentSlaCompliance } from "@/lib/department-sla";
+import {
+  DEPARTMENT_REVIEW_SLA_SECONDS,
+  getDepartmentSlaCompliance,
+  getSlaDurationParts,
+  type DepartmentReviewStatus,
+} from "@/lib/department-sla";
 
 export interface DepartmentReviewView {
   id: string;
   registration_id: string;
   department: string;
   request_reason: string | null;
-  status: "REQUESTED" | "IN_REVIEW" | "INFO_REQUESTED" | "COMPLETED" | "CANCELLED";
+  status: DepartmentReviewStatus;
   requested_at: string;
   sent_at: string | null;
   received_at: string | null;
   due_at: string | null;
-  remaining_sla_seconds: number;
+  remaining_sla_seconds: number | null;
   paused_at: string | null;
   response_status: "APPROVED" | "OBSERVATIONS" | "REJECTED" | null;
   response_notes: string | null;
@@ -57,12 +62,14 @@ function CriteriaScoring({
   labels,
   values,
   onChange,
+  disabled = false,
 }: {
   criteria: { id: string; es: string; en: string }[];
   lang: "es" | "en";
   labels: CriteriaLabels;
   values: Record<string, number>;
   onChange: (criterionId: string, value: number) => void;
+  disabled?: boolean;
 }) {
   if (criteria.length === 0) return null;
   const summary = summarizeScores(null, values);
@@ -84,13 +91,14 @@ function CriteriaScoring({
                 <button
                   key={value}
                   type="button"
+                  disabled={disabled}
                   onClick={() => onChange(criterion.id, value)}
                   aria-pressed={values[criterion.id] === value}
                   className={`h-7 w-7 rounded-md border text-[11.5px] font-semibold transition-colors ${
                     values[criterion.id] === value
                       ? "border-navy-800 bg-navy-800 text-white"
                       : "border-slate-200 bg-white text-slate-600 hover:border-navy-300"
-                  }`}
+                  } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                 >
                   {value}
                 </button>
@@ -146,9 +154,19 @@ export function DepartmentReviews({
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setNow(Date.now()), 0);
-    return () => window.clearTimeout(timer);
+    const initialTimer = window.setTimeout(() => setNow(Date.now()), 0);
+    const interval = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!reviews.some((review) => review.status === "IN_REVIEW")) return;
+    const timer = window.setInterval(() => router.refresh(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [reviews, router]);
 
   const act = async (review: DepartmentReviewView, action: string) => {
     setBusyId(review.id);
@@ -187,6 +205,98 @@ export function DepartmentReviews({
       setBusyId(null);
     }
   };
+
+  const renderEvaluationForm = (
+    review: DepartmentReviewView,
+    disabled: boolean
+  ) => (
+    <section className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900">
+          {t.evaluationFormTitle}
+        </h3>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+          {t.evaluationFormHelp}
+        </p>
+        {disabled && (
+          <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+            {t.evaluationFormLocked}
+          </p>
+        )}
+      </div>
+      <CriteriaScoring
+        criteria={criteriaForDepartment(review.department)}
+        lang={lang}
+        labels={t}
+        values={scores[review.id] ?? {}}
+        disabled={disabled}
+        onChange={(criterionId, value) =>
+          setScores((current) => ({
+            ...current,
+            [review.id]: {
+              ...(current[review.id] ?? {}),
+              [criterionId]: value,
+            },
+          }))
+        }
+      />
+      <Textarea
+        rows={4}
+        disabled={disabled}
+        value={notes[review.id] ?? ""}
+        onChange={(event) =>
+          setNotes((current) => ({
+            ...current,
+            [review.id]: event.target.value,
+          }))
+        }
+        placeholder={t.responseNotes}
+      />
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-start">
+        <Select
+          disabled={disabled}
+          value={responseStatuses[review.id] ?? ""}
+          onChange={(event) =>
+            setResponseStatuses((current) => ({
+              ...current,
+              [review.id]: event.target.value,
+            }))
+          }
+        >
+          <option value="">{t.selectResponse}</option>
+          <option value="APPROVED">{t.responses.APPROVED}</option>
+          <option value="OBSERVATIONS">{t.responses.OBSERVATIONS}</option>
+          <option value="REJECTED">{t.responses.REJECTED}</option>
+        </Select>
+        <Button
+          className="w-full md:w-auto"
+          variant="secondary"
+          size="sm"
+          disabled={
+            disabled ||
+            busyId === review.id ||
+            (notes[review.id] ?? "").trim().length < 10
+          }
+          onClick={() => void act(review, "REQUEST_INFO")}
+        >
+          {t.requestInformation}
+        </Button>
+        <Button
+          className="w-full md:w-auto"
+          size="sm"
+          disabled={
+            disabled ||
+            busyId === review.id ||
+            !(responseStatuses[review.id] ?? "") ||
+            (notes[review.id] ?? "").trim().length < 10
+          }
+          onClick={() => void act(review, "RESPOND")}
+        >
+          {t.submitResponse}
+        </Button>
+      </div>
+    </section>
+  );
 
   if (reviews.length === 0) {
     return (
@@ -229,7 +339,28 @@ export function DepartmentReviews({
           Boolean(review.due_at) &&
           now !== null &&
           Date.parse(review.due_at ?? "") < now;
-        const remainingDays = Math.ceil(review.remaining_sla_seconds / 86400);
+        const remaining = getSlaDurationParts(review.remaining_sla_seconds);
+        const remainingLabel = remaining
+          ? t.remainingTime
+              .replace("{days}", String(remaining.days))
+              .replace("{hours}", String(remaining.hours))
+              .replace("{minutes}", String(remaining.minutes))
+          : t.slaUnknown;
+        const progressPercent =
+          review.remaining_sla_seconds === null
+            ? null
+            : Math.min(
+                100,
+                Math.max(
+                  0,
+                  Math.round(
+                    (1 -
+                      Math.max(0, review.remaining_sla_seconds) /
+                        DEPARTMENT_REVIEW_SLA_SECONDS) *
+                      100
+                  )
+                )
+              );
         const slaCompliance =
           review.status === "COMPLETED"
             ? getDepartmentSlaCompliance(review.due_at, review.responded_at)
@@ -237,6 +368,10 @@ export function DepartmentReviews({
         const slaMissed = isOverdue || slaCompliance === "LATE";
         const company =
           review.supplier_registrations?.company_name ?? review.registration_id;
+        const statusLabel =
+          review.status === "REQUESTED" && review.sent_at
+            ? t.awaitingReviewer
+            : t.statuses[review.status];
         return (
           <article
             key={review.id}
@@ -282,10 +417,10 @@ export function DepartmentReviews({
                       : "bg-amber-100 text-amber-800"
                 }`}
               >
-                {isOverdue ? t.overdue : t.statuses[review.status]}
+                {isOverdue ? t.overdue : statusLabel}
               </span>
             </div>
-            <dl className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-6">
+            <dl className="mt-4 grid grid-cols-1 gap-3 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-6">
               <div>
                 <dt className="font-semibold">{t.sent}</dt>
                 <dd>{review.sent_at ? formatDate(review.sent_at) : "—"}</dd>
@@ -314,9 +449,9 @@ export function DepartmentReviews({
                   ) : slaCompliance === "UNKNOWN" ? (
                     <span>{t.slaUnknown}</span>
                   ) : review.status === "INFO_REQUESTED" ? (
-                    t.paused.replace("{days}", String(remainingDays))
+                    t.paused.replace("{time}", remainingLabel)
                   ) : review.status === "IN_REVIEW" ? (
-                    `${remainingDays} ${t.businessDays}`
+                    remainingLabel
                   ) : (
                     "—"
                   )}
@@ -337,6 +472,42 @@ export function DepartmentReviews({
                 </dd>
               </div>
             </dl>
+            {(review.status === "IN_REVIEW" ||
+              review.status === "INFO_REQUESTED") && (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-slate-700">
+                    {t.slaProgressTitle}
+                  </span>
+                  <span className="tabular-nums text-slate-600">
+                    {review.status === "INFO_REQUESTED"
+                      ? t.paused.replace("{time}", remainingLabel)
+                      : isOverdue
+                        ? t.overdue
+                        : remainingLabel}
+                  </span>
+                </div>
+                <div
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"
+                  role="progressbar"
+                  aria-label={t.slaProgressTitle}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPercent ?? 0}
+                >
+                  <div
+                    className={`h-full rounded-full transition-[width] ${
+                      isOverdue
+                        ? "bg-rose-500"
+                        : review.status === "INFO_REQUESTED"
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                    }`}
+                    style={{ width: `${progressPercent ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
             {review.status === "COMPLETED" ? (
               <div className="mt-4 space-y-3">
                 <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
@@ -372,113 +543,65 @@ export function DepartmentReviews({
                   </div>
                 )}
               </div>
-            ) : canActOnReview ||
-              (canSend && review.status === "REQUESTED" && !review.sent_at) ? (
-              <div className="mt-4 space-y-3">
-                {canActOnReview &&
-                  (review.status === "INFO_REQUESTED" ||
-                    review.status === "IN_REVIEW") && (
-                    <Textarea
-                      rows={2}
-                      value={notes[review.id] ?? ""}
-                      onChange={(event) =>
-                        setNotes((current) => ({
-                          ...current,
-                          [review.id]: event.target.value,
-                        }))
-                      }
-                      placeholder={
-                        review.status === "INFO_REQUESTED"
-                          ? t.informationRequest
-                          : t.responseNotes
-                      }
-                    />
-                  )}
-                <div className="flex flex-wrap gap-2">
-                  {review.status === "REQUESTED" && canSend && !review.sent_at && (
-                    <Button
-                      size="sm"
-                      disabled={busyId === review.id}
-                      onClick={() => void act(review, "SEND")}
-                    >
-                      {t.send}
-                    </Button>
-                  )}
-                  {canActOnReview &&
-                    review.status === "REQUESTED" &&
-                    review.sent_at && (
-                      <Button
-                        size="sm"
-                        disabled={busyId === review.id}
-                        onClick={() => void act(review, "RECEIVE")}
-                      >
-                        {t.confirmCompleteReceipt}
-                      </Button>
-                    )}
-                  {canActOnReview && review.status === "IN_REVIEW" && (
-                    <>
-                      <CriteriaScoring
-                        criteria={criteriaForDepartment(review.department)}
-                        lang={lang}
-                        labels={t}
-                        values={scores[review.id] ?? {}}
-                        onChange={(criterionId, value) =>
-                          setScores((current) => ({
-                            ...current,
-                            [review.id]: {
-                              ...(current[review.id] ?? {}),
-                              [criterionId]: value,
-                            },
-                          }))
-                        }
-                      />
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={busyId === review.id || (notes[review.id] ?? "").trim().length < 10}
-                        onClick={() => void act(review, "REQUEST_INFO")}
-                      >
-                        {t.requestInformation}
-                      </Button>
-                      <Select
-                        className="max-w-52"
-                        value={responseStatuses[review.id] ?? ""}
-                        onChange={(event) =>
-                          setResponseStatuses((current) => ({
-                            ...current,
-                            [review.id]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">{t.selectResponse}</option>
-                        <option value="APPROVED">{t.responses.APPROVED}</option>
-                        <option value="OBSERVATIONS">{t.responses.OBSERVATIONS}</option>
-                        <option value="REJECTED">{t.responses.REJECTED}</option>
-                      </Select>
-                      <Button
-                        size="sm"
-                        disabled={
-                          busyId === review.id ||
-                          !(responseStatuses[review.id] ?? "") ||
-                          (notes[review.id] ?? "").trim().length < 10
-                        }
-                        onClick={() => void act(review, "RESPOND")}
-                      >
-                        {t.submitResponse}
-                      </Button>
-                    </>
-                  )}
-                  {canActOnReview && review.status === "INFO_REQUESTED" && (
-                    <Button
-                      size="sm"
-                      disabled={busyId === review.id}
-                      onClick={() => void act(review, "RESUME")}
-                    >
-                      {t.resume}
-                    </Button>
-                  )}
+            ) : canSend &&
+              review.status === "REQUESTED" &&
+              !review.sent_at ? (
+              <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                <p className="text-sm font-semibold text-sky-950">
+                  {t.dispatchReadyTitle}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-sky-900">
+                  {t.dispatchReadyHelp}
+                </p>
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  disabled={busyId === review.id}
+                  onClick={() => void act(review, "SEND")}
+                >
+                  {t.send}
+                </Button>
+              </div>
+            ) : canActOnReview &&
+              review.status === "REQUESTED" &&
+              review.sent_at ? (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-950">
+                  {t.receiptConfirmationTitle}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-blue-900">
+                  {t.receiptConfirmationHelp}
+                </p>
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  disabled={busyId === review.id}
+                  onClick={() => void act(review, "RECEIVE")}
+                >
+                  {t.confirmCompleteReceipt}
+                </Button>
+                <div className="mt-4">
+                  {renderEvaluationForm(review, true)}
                 </div>
               </div>
+            ) : canActOnReview && review.status === "IN_REVIEW" ? (
+              <div className="mt-4">{renderEvaluationForm(review, false)}</div>
+            ) : canActOnReview && review.status === "INFO_REQUESTED" ? (
+              <section className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-950">
+                  {t.informationRequestedTitle}
+                </p>
+                <p className="rounded-lg bg-white/80 p-3 text-sm leading-relaxed text-amber-950">
+                  {review.response_notes || t.informationRequestedHelp}
+                </p>
+                <Button
+                  size="sm"
+                  disabled={busyId === review.id}
+                  onClick={() => void act(review, "RESUME")}
+                >
+                  {t.resume}
+                </Button>
+              </section>
             ) : null}
           </article>
         );

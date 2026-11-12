@@ -542,7 +542,7 @@ export function Section4({ data, set }: SectionProps) {
   };
 
   const put = (k: string, v: string) =>
-    set((fn) => ({ ...fn, section4: { [k]: v, ...fn.section4 } }));
+    set((fn) => ({ ...fn, section4: { ...fn.section4, [k]: v } }));
 
   return (
     <div className="space-y-5">
@@ -619,7 +619,16 @@ export function Section5({ data, set }: SectionProps) {
     <div className="space-y-5">
       <Row>
         <Field label={s5.bank}>
-          <Input value={data.section5.bank} onChange={(e) => put("bank", e.target.value)} />
+          <Input
+            list="recommended-banks"
+            value={data.section5.bank}
+            onChange={(e) => put("bank", e.target.value)}
+          />
+          <datalist id="recommended-banks">
+            {s5.recommendedBanks.map((bank) => (
+              <option key={bank} value={bank} />
+            ))}
+          </datalist>
         </Field>
         <Field label={s5.accountHolder}>
           <Input value={data.section5.accountHolder} onChange={(e) => put("accountHolder", e.target.value)} />
