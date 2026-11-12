@@ -326,29 +326,31 @@ export function EvaluationStatusCard({
             )}
           </div>
 
-          <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50/70 px-4 py-3">
-            <p className="text-[10.5px] font-bold uppercase tracking-wider text-teal-800">
-              {pSteps.nextActionLabel}
-            </p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-teal-950">{nextAction}</p>
-          </div>
-          <div className="flex-1">
-            <h3 className="font-display text-sm font-bold tracking-tight">
-              {config.headline}
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed opacity-90">
-              {config.desc}
-            </p>
+          <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 rounded-xl border border-teal-200 bg-teal-50/70 px-4 py-3">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-teal-800">
+                {pSteps.nextActionLabel}
+              </p>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-teal-950">{nextAction}</p>
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-display text-sm font-bold tracking-tight">
+                {config.headline}
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed opacity-90">
+                {config.desc}
+              </p>
 
-            {/* Evaluator notes if changes requested */}
-            {data.status === "SOLICITUD_CAMBIOS" && data.note && (
-              <div className="mt-3.5 rounded-xl border border-rose-200 bg-white/95 p-3.5 text-xs text-rose-950 shadow-2xs">
-                <span className="font-semibold block mb-1 text-[11px] uppercase tracking-wider text-rose-700">
-                  {pStats.officerInstructions}
-                </span>
-                <p className="whitespace-pre-line">{data.note}</p>
-              </div>
-            )}
+              {/* Evaluator notes if changes requested */}
+              {data.status === "SOLICITUD_CAMBIOS" && data.note && (
+                <div className="mt-3.5 rounded-xl border border-rose-200 bg-white/95 p-3.5 text-xs text-rose-950 shadow-2xs">
+                  <span className="font-semibold block mb-1 text-[11px] uppercase tracking-wider text-rose-700">
+                    {pStats.officerInstructions}
+                  </span>
+                  <p className="whitespace-pre-line">{data.note}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
