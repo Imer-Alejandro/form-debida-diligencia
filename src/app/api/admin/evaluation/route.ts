@@ -472,7 +472,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let adm: { ok: boolean; action?: string; error?: string } | null = null;
+  let adm: { ok: boolean; action?: string; error?: string; message?: string } | null = null;
   let sharepoint: { ok: boolean; error?: string } | null = null;
   if (
     status &&
@@ -526,13 +526,14 @@ export async function POST(req: Request) {
 
       await supabase.from("activity_log").insert({
         actor: user.email ?? "",
-        action: `ADM_VENDOR_SYNC_${(sync.action ?? "unknown").toUpperCase()}`,
+        action: `ADM_VENDOR_SYNC_${(sync.action ?? (sync.error ? "error" : "unknown")).toUpperCase()}`,
         subject_type: "registration",
         subject_id: body.id,
         detail: {
           decision: status,
           action: sync.action ?? null,
           error: sync.error ?? null,
+          message: sync.message ?? null,
           sharepointFolderLinked: sharepoint?.ok ?? false,
         },
       });

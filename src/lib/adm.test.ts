@@ -424,7 +424,36 @@ describe("upsertVendorByTaxId", () => {
 
     await expect(
       upsertVendorByTaxId(baseConfig, data, fetchMock as unknown as typeof fetch)
-    ).rejects.toThrow("adm_vendor_create_unverified");
+    ).rejects.toThrow("adm_vendor_unverified");
+  });
+
+  it("preserves ADM's application-level rejection message even with HTTP 200", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return jsonResponse({
+          success: false,
+          message: "FiscalID inválido",
+          data: {},
+        });
+      }
+      return jsonResponse({ data: [] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Acme SRL";
+    data.section1.taxId = "131123456";
+
+    const result = await syncVendorAfterDecision(
+      baseConfig,
+      data,
+      "APROBADO",
+      fetchMock as unknown as typeof fetch
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "adm_vendor_rejected",
+      message: "FiscalID inválido",
+    });
   });
 
   it("updates an existing vendor when found", async () => {

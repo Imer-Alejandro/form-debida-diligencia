@@ -414,7 +414,7 @@ export function SupplierDetail({
         diagnosticDetail?: string;
         stage?: string;
         department?: string;
-        adm?: { ok?: boolean; action?: string; error?: string };
+        adm?: { ok?: boolean; action?: string; error?: string; message?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
         departments?: string[];
         departmentRequests?: {
@@ -553,9 +553,11 @@ export function SupplierDetail({
         return;
       }
       setApprovalExceptionReason("");
-      const message = data.sharepoint?.ok === false
-        ? t("admin.detail.sharepointFolderLinkFailed")
-        : admFlash(data.adm) ?? t("admin.detail.savedEvaluation");
+      const message = admFlash(data.adm) ?? (
+        data.sharepoint?.ok === false
+          ? t("admin.detail.sharepointFolderLinkFailed")
+          : t("admin.detail.savedEvaluation")
+      );
       notify(message, data.adm?.ok === false ? "error" : "success");
     } catch {
       notify(t("admin.detail.evaluationSaveFailed"), "error");
@@ -564,11 +566,16 @@ export function SupplierDetail({
     }
   };
 
-  const admFlash = (adm?: { ok?: boolean; action?: string; error?: string }): string | null => {
+  const admFlash = (
+    adm?: { ok?: boolean; action?: string; error?: string; message?: string }
+  ): string | null => {
     if (!adm) return null;
     if (adm.ok === false) {
-      return adm.error === "adm_vendor_unverified"
-        ? t("admin.detail.admSyncUnverified")
+      if (adm.error === "adm_vendor_unverified") {
+        return t("admin.detail.admSyncUnverified");
+      }
+      return adm.message
+        ? `${t("admin.detail.admSyncFailed")} ${adm.message}`
         : t("admin.detail.admSyncFailed");
     }
     switch (adm.action) {

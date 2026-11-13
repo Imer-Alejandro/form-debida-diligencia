@@ -179,6 +179,7 @@ export async function fetchAdmVendorById(
     {
       method: "GET",
       headers: admAuthHeaders(config),
+      cache: "no-store",
     }
   );
   if (!res.ok) throw new Error(`adm_vendor_${res.status}`);
@@ -233,6 +234,16 @@ export interface AdmSyncResult {
   ok: boolean;
   action?: AdmSyncAction;
   error?: string;
+  message?: string;
+}
+
+class AdmVendorCreateError extends Error {
+  constructor(
+    readonly code: "adm_vendor_rejected" | "adm_vendor_unverified",
+    readonly detail?: string
+  ) {
+    super(code);
+  }
 }
 
 export function buildVendorPayload(
@@ -503,19 +514,34 @@ export async function upsertVendorByTaxId(
     headers,
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`adm_vendor_create_${res.status}`);
-  let createdVendorId = "";
+  let responsePayload: unknown;
   try {
-    const responsePayload: unknown = await res.json();
-    const [wrappedVendor] = extractAdmVendors(responsePayload);
-    const directVendor =
-      responsePayload && typeof responsePayload === "object" && !Array.isArray(responsePayload)
-        ? (responsePayload as AdmVendor)
-        : undefined;
-    createdVendorId = getVendorId(wrappedVendor ?? directVendor ?? {});
+    responsePayload = await res.json();
   } catch {
-    // ADM may return an empty body; the list lookup below remains the fallback.
+    responsePayload = null;
   }
+  const apiResponse =
+    responsePayload && typeof responsePayload === "object" && !Array.isArray(responsePayload)
+      ? (responsePayload as Record<string, unknown>)
+      : null;
+  const apiMessage =
+    typeof apiResponse?.message === "string" ? apiResponse.message.trim().slice(0, 400) : "";
+  if (!res.ok) {
+    throw new AdmVendorCreateError(
+      "adm_vendor_rejected",
+      apiMessage || `HTTP ${res.status}`
+    );
+  }
+  if (apiResponse?.success === false) {
+    throw new AdmVendorCreateError(
+      "adm_vendor_rejected",
+      apiMessage || "ADM rechazó el alta sin indicar el motivo."
+    );
+  }
+  let createdVendorId = "";
+  const [wrappedVendor] = extractAdmVendors(responsePayload);
+  const directVendor = apiResponse as AdmVendor | null;
+  createdVendorId = getVendorId(wrappedVendor ?? directVendor ?? {});
 
   const taxId = trim(data.section1?.taxId);
   if (createdVendorId) {
@@ -523,15 +549,15 @@ export async function upsertVendorByTaxId(
     try {
       savedVendor = await fetchAdmVendorById(config, createdVendorId, fetchImpl);
     } catch {
-      throw new Error("adm_vendor_create_unverified");
+      throw new AdmVendorCreateError("adm_vendor_unverified");
     }
     if (normalizeTaxId(getVendorTaxId(savedVendor)) !== normalizeTaxId(taxId)) {
-      throw new Error("adm_vendor_create_unverified");
+      throw new AdmVendorCreateError("adm_vendor_unverified");
     }
   } else {
     const savedVendors = await fetchAdmVendors(config, fetchImpl);
     if (!findAdmVendorByTaxId(savedVendors, taxId)) {
-      throw new Error("adm_vendor_create_unverified");
+      throw new AdmVendorCreateError("adm_vendor_unverified");
     }
   }
   return { action: "created" };
@@ -568,8 +594,8 @@ export async function syncVendorAfterDecision(
   try {
     ({ action } = await upsertVendorByTaxId(config, data, fetchImpl, sharePointFolderUrl));
   } catch (error) {
-    if (error instanceof Error && error.message === "adm_vendor_create_unverified") {
-      return { ok: false, error: "adm_vendor_unverified" };
+    if (error instanceof AdmVendorCreateError) {
+      return { ok: false, error: error.code, message: error.detail };
     }
     throw error;
   }
