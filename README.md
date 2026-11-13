@@ -136,7 +136,9 @@ contactos y direcciones existentes que el portal no administra. El formulario en
 los campos con correspondencia directa; datos bancarios, fiscales y de debida
 diligencia que no tienen campo equivalente se agregan a `Notes`. No se inventan IDs
 para catálogos de ADM (por ejemplo, banco, moneda, país o condiciones de pago); los
-lookups específicos deben validarse con ADM antes de asignar esos campos.
+lookups específicos deben validarse con ADM antes de asignar esos campos. El país
+del formulario se guarda en `Notes` como nombre ISO; no se envía en `CountryID`
+porque ADM requiere el identificador interno de su catálogo de países.
 
 ## Comandos
 

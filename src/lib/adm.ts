@@ -3,6 +3,7 @@ import {
   isRegistrationApproved,
   type SupplierData,
 } from "./types";
+import { countryName } from "./countries";
 
 export const ADM_DEFAULT_BASE_URL = "https://api.admcloud.net/api";
 
@@ -303,7 +304,6 @@ export function buildVendorPayload(
   const address: Record<string, unknown> = {};
   if (trim(s1.legalAddress)) address.Address1 = trim(s1.legalAddress);
   if (trim(s1.provinceCountry)) address.State = trim(s1.provinceCountry);
-  if (trim(s1.nationality)) address.CountryID = trim(s1.nationality);
   const payload: AdmVendor = {
     Name: trim(s1.legalName),
     IsVendor: true,
@@ -311,7 +311,6 @@ export function buildVendorPayload(
   };
   if (trim(s1.commercialName)) payload.ComercialName = trim(s1.commercialName);
   if (trim(s1.taxId)) payload.FiscalID = trim(s1.taxId);
-  if (trim(s1.nationality)) payload.CountryID = trim(s1.nationality);
   if (emails[0]) payload.EMail = emails[0];
   if (phones[0]) payload.Phone1 = phones[0];
   if (phones[1]) payload.Phone2 = phones[1];
@@ -333,6 +332,7 @@ export function buildVendorPayload(
 
   const notes = [
     ["Documentos de debida diligencia en SharePoint", sharePointFolderUrl],
+    ["País / nacionalidad", s1.nationality ? countryName(s1.nationality, "es") : ""],
     ["Tipo de proveedor", s1.providerType === "otro" ? s1.providerTypeOther : s1.providerType],
     ["Contratista", s1.isContractor],
     ["Fecha de constitución / inicio", s1.foundedDate],

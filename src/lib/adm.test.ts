@@ -286,7 +286,7 @@ describe("buildVendorPayload", () => {
     expect(payload.WebPage).toBe("https://sbc.do");
     expect(payload.BusinessActivity).toBe("Servicios");
     expect(payload.Profile).toBe("Consultoría y soporte");
-    expect(payload.CountryID).toBe("DO");
+    expect(payload.CountryID).toBeUndefined();
     expect(payload.IsRelated).toBe(false);
     expect(payload.CurrencyID).toBe("USD");
     expect(payload.BankAccountCurrencyID).toBe("USD");
@@ -303,8 +303,9 @@ describe("buildVendorPayload", () => {
       }),
     ]);
     expect(payload.Addresses).toEqual([
-      { Address1: "Calle Principal 10", State: "Santo Domingo", CountryID: "DO" },
+      { Address1: "Calle Principal 10", State: "Santo Domingo" },
     ]);
+    expect(payload.Notes).toContain("País / nacionalidad: República Dominicana");
     expect(payload.Notes).not.toContain("Representante legal");
     expect(payload.Notes).not.toContain("País de nacionalidad");
     expect(payload.Notes).toContain("Banco: Banco Demo");
