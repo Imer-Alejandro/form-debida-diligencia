@@ -1024,6 +1024,8 @@ recent: "Recent registrations",
       admSyncUpdated: "Evaluation saved · vendor updated in ADM.",
       admSyncDeactivated: "Evaluation saved · vendor deactivated in ADM.",
       admSyncFailed: "Evaluation saved · could not sync with ADM.",
+      admSyncUnverified:
+        "Evaluation saved · ADM accepted the request, but we could not confirm the vendor was registered. Verify ADM before treating it as created.",
       admSyncRejectedNotFound:
         "Evaluation saved · vendor not found in ADM; no ERP changes were made.",
       admSyncNotConfigured:

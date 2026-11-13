@@ -162,6 +162,7 @@ export async function fetchAdmVendors(
   const res = await fetchImpl(`${config.baseUrl}/Vendors?${query}`, {
     method: "GET",
     headers: admAuthHeaders(config),
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`adm_vendors_${res.status}`);
   return extractAdmVendors(await res.json());
@@ -503,6 +504,36 @@ export async function upsertVendorByTaxId(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`adm_vendor_create_${res.status}`);
+  let createdVendorId = "";
+  try {
+    const responsePayload: unknown = await res.json();
+    const [wrappedVendor] = extractAdmVendors(responsePayload);
+    const directVendor =
+      responsePayload && typeof responsePayload === "object" && !Array.isArray(responsePayload)
+        ? (responsePayload as AdmVendor)
+        : undefined;
+    createdVendorId = getVendorId(wrappedVendor ?? directVendor ?? {});
+  } catch {
+    // ADM may return an empty body; the list lookup below remains the fallback.
+  }
+
+  const taxId = trim(data.section1?.taxId);
+  if (createdVendorId) {
+    let savedVendor: AdmVendor;
+    try {
+      savedVendor = await fetchAdmVendorById(config, createdVendorId, fetchImpl);
+    } catch {
+      throw new Error("adm_vendor_create_unverified");
+    }
+    if (normalizeTaxId(getVendorTaxId(savedVendor)) !== normalizeTaxId(taxId)) {
+      throw new Error("adm_vendor_create_unverified");
+    }
+  } else {
+    const savedVendors = await fetchAdmVendors(config, fetchImpl);
+    if (!findAdmVendorByTaxId(savedVendors, taxId)) {
+      throw new Error("adm_vendor_create_unverified");
+    }
+  }
   return { action: "created" };
 }
 
@@ -533,6 +564,14 @@ export async function syncVendorAfterDecision(
 
   if (!trim(data.section1?.legalName)) return { ok: true, action: "skipped_no_name" };
 
-  const { action } = await upsertVendorByTaxId(config, data, fetchImpl, sharePointFolderUrl);
+  let action: "created" | "updated";
+  try {
+    ({ action } = await upsertVendorByTaxId(config, data, fetchImpl, sharePointFolderUrl));
+  } catch (error) {
+    if (error instanceof Error && error.message === "adm_vendor_create_unverified") {
+      return { ok: false, error: "adm_vendor_unverified" };
+    }
+    throw error;
+  }
   return { ok: true, action };
 }

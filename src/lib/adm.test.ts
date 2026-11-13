@@ -387,8 +387,13 @@ describe("mergeVendorPayload", () => {
 
 describe("upsertVendorByTaxId", () => {
   it("creates a vendor when none is found", async () => {
+    let listRequests = 0;
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "POST") return jsonResponse({ ID: "new" }, { status: 201 });
+      if (String(_url).includes("/Vendors/new?")) {
+        return jsonResponse({ data: { ID: "new", FiscalID: "131123456" } });
+      }
+      listRequests += 1;
       return jsonResponse({ data: [] });
     });
     const data = emptyData();
@@ -405,6 +410,21 @@ describe("upsertVendorByTaxId", () => {
     expect(body.Name).toBe("Acme SRL");
     expect(body.Inactive).toBe(false);
     expect(body.IsVendor).toBe(true);
+    expect(listRequests).toBe(1);
+  });
+
+  it("does not report creation when ADM accepts the request but the vendor is absent on read-back", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return jsonResponse({ ID: "new" }, { status: 201 });
+      return jsonResponse({ data: [] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Acme SRL";
+    data.section1.taxId = "131123456";
+
+    await expect(
+      upsertVendorByTaxId(baseConfig, data, fetchMock as unknown as typeof fetch)
+    ).rejects.toThrow("adm_vendor_create_unverified");
   });
 
   it("updates an existing vendor when found", async () => {
@@ -464,8 +484,13 @@ describe("syncVendorAfterDecision", () => {
   });
 
   it("creates vendor on APROBADO", async () => {
+    let listRequests = 0;
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "POST") return jsonResponse({ ID: "n1" }, { status: 201 });
+      if (String(_url).includes("/Vendors/n1?")) {
+        return jsonResponse({ data: { ID: "n1", FiscalID: "131123456" } });
+      }
+      listRequests += 1;
       return jsonResponse({ data: [] });
     });
     const data = emptyData();
@@ -482,11 +507,31 @@ describe("syncVendorAfterDecision", () => {
     );
     expect(res.ok).toBe(true);
     expect(res.action).toBe("created");
+    expect(listRequests).toBe(1);
     const postCall = fetchMock.mock.calls.find(
       (call) => (call[1] as RequestInit | undefined)?.method === "POST"
     );
     const body = JSON.parse(String((postCall?.[1] as RequestInit | undefined)?.body));
     expect(body.Notes).toContain(sharePointFolderUrl);
+  });
+
+  it("reports unverified instead of success when the newly created vendor is not returned by ADM", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") return jsonResponse({ ID: "n1" }, { status: 201 });
+      return jsonResponse({ data: [] });
+    });
+    const data = emptyData();
+    data.section1.legalName = "Ok";
+    data.section1.taxId = "131123456";
+
+    const result = await syncVendorAfterDecision(
+      baseConfig,
+      data,
+      "APROBADO",
+      fetchMock as unknown as typeof fetch
+    );
+
+    expect(result).toEqual({ ok: false, error: "adm_vendor_unverified" });
   });
 
   it("skips when not configured or no decision", async () => {

@@ -414,7 +414,7 @@ export function SupplierDetail({
         diagnosticDetail?: string;
         stage?: string;
         department?: string;
-        adm?: { ok?: boolean; action?: string };
+        adm?: { ok?: boolean; action?: string; error?: string };
         sharepoint?: { ok?: boolean; error?: string } | null;
         departments?: string[];
         departmentRequests?: {
@@ -556,7 +556,7 @@ export function SupplierDetail({
       const message = data.sharepoint?.ok === false
         ? t("admin.detail.sharepointFolderLinkFailed")
         : admFlash(data.adm) ?? t("admin.detail.savedEvaluation");
-      notify(message, "success");
+      notify(message, data.adm?.ok === false ? "error" : "success");
     } catch {
       notify(t("admin.detail.evaluationSaveFailed"), "error");
     } finally {
@@ -564,9 +564,13 @@ export function SupplierDetail({
     }
   };
 
-  const admFlash = (adm?: { ok?: boolean; action?: string }): string | null => {
+  const admFlash = (adm?: { ok?: boolean; action?: string; error?: string }): string | null => {
     if (!adm) return null;
-    if (adm.ok === false) return t("admin.detail.admSyncFailed");
+    if (adm.ok === false) {
+      return adm.error === "adm_vendor_unverified"
+        ? t("admin.detail.admSyncUnverified")
+        : t("admin.detail.admSyncFailed");
+    }
     switch (adm.action) {
       case "created":
         return t("admin.detail.admSyncCreated");

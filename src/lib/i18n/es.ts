@@ -1023,6 +1023,8 @@ export const es = {
       admSyncUpdated: "Evaluación guardada · proveedor actualizado en ADM.",
       admSyncDeactivated: "Evaluación guardada · proveedor desactivado en ADM.",
       admSyncFailed: "Evaluación guardada · no se pudo sincronizar con ADM.",
+      admSyncUnverified:
+        "Evaluación guardada · ADM aceptó el alta, pero no se pudo confirmar que el proveedor quedara registrado. Verifica ADM antes de darlo por creado.",
       admSyncRejectedNotFound:
         "Evaluación guardada · no se encontró el proveedor en ADM; no se cambió el ERP.",
       admSyncNotConfigured:
